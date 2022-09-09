@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
@@ -16,9 +17,10 @@ const (
 
 type (
 	Upgrader struct {
-		*ServerOptions
-		middlewares []HandlerFunc
-		CheckOrigin func(r *Request) bool
+		*ServerOptions                       // config
+		Header         http.Header           // set response header
+		middlewares    []HandlerFunc         // middlewares
+		CheckOrigin    func(r *Request) bool // filter user request
 	}
 
 	Request struct {
@@ -32,7 +34,7 @@ func (c *Upgrader) Use(handlers ...HandlerFunc) {
 	c.middlewares = append(c.middlewares, handlers...)
 }
 
-func (c *Upgrader) handshake(conn net.Conn, websocketKey string, headers http.Header) error {
+func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -40,10 +42,10 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string, headers http.He
 	buf = append(buf, "Sec-WebSocket-Accept: "...)
 	buf = append(buf, internal.ComputeAcceptKey(websocketKey)...)
 	buf = append(buf, "\r\n"...)
-	for k, _ := range headers {
+	for k, _ := range c.Header {
 		buf = append(buf, k...)
 		buf = append(buf, ": "...)
-		buf = append(buf, headers.Get(k)...)
+		buf = append(buf, c.Header.Get(k)...)
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
@@ -52,7 +54,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string, headers http.He
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.Header, handler EventHandler) error {
+func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) error {
 	if c.ServerOptions == nil {
 		var options = defaultConfig
 		c.ServerOptions = &options
@@ -60,8 +62,8 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 	c.ServerOptions.init()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}
-	if header == nil {
-		header = http.Header{}
+	if c.Header == nil {
+		c.Header = http.Header{}
 	}
 
 	var compressEnabled = false
@@ -79,7 +81,7 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 		return ERR_WebSocketHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
-		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
+		c.Header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
 
@@ -100,7 +102,7 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 		return err
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := c.handshake(netConn, websocketKey, header); err != nil {
+	if err := c.handshake(netConn, websocketKey); err != nil {
 		return err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
@@ -113,6 +115,6 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 		return err
 	}
 
-	serveWebSocket(c, request, netConn, compressEnabled, handler)
+	serveWebSocket(ctx, c, request, netConn, compressEnabled, handler)
 	return nil
 }

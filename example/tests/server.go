@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	websocket "github.com/lxzan/gws"
 	"net/http"
@@ -25,8 +26,10 @@ func main() {
 		},
 	}
 
+	var ctx = context.Background()
+
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
-		upgrader.Upgrade(writer, request, nil, NewWebSocketHandler())
+		upgrader.Upgrade(ctx, writer, request, NewWebSocketHandler())
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {

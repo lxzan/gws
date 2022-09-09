@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"bytes"
+	"context"
 	"github.com/lxzan/gws/internal"
 	"log"
 	"net"
@@ -9,6 +10,9 @@ import (
 )
 
 type Conn struct {
+	ctx    context.Context
+	cancel func()
+
 	// store session information
 	Storage *internal.Map
 	// websocket protocol upgrader
@@ -45,8 +49,13 @@ type Conn struct {
 	compressors *compressors
 }
 
-func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
+func serveWebSocket(parentCtx context.Context, conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
 	c := &Conn{
+		ctx:             ctx,
+		cancel:          cancel,
 		fh:              frameHeader{},
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
@@ -82,6 +91,15 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	}
 }
 
+func (c *Conn) isCanceled() bool {
+	select {
+	case <-c.ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
 // print debug log
 func (c *Conn) debugLog(err error) {
 	if c.conf.LogEnabled && err != nil {
@@ -101,8 +119,11 @@ func (c *Conn) emitError(err error) {
 	}
 
 	// try to send close message
-	c.Close(code, nil)
-	c.handler.OnError(c, err)
+	c.onceClose.Do(func() {
+		c.writeClose(code, nil)
+		_ = c.netConn.Close()
+		c.handler.OnError(c, err)
+	})
 }
 
 func (c *Conn) Raw() net.Conn {
@@ -112,14 +133,18 @@ func (c *Conn) Raw() net.Conn {
 // close the connection
 func (c *Conn) Close(code Code, reason []byte) (err error) {
 	c.onceClose.Do(func() {
-		var content = code.Bytes()
-		if len(content) > 0 {
-			content = append(content, reason...)
-		} else {
-			content = append(content, code.Error()...)
-		}
-		_ = c.writeFrame(OpcodeCloseConnection, content, false)
+		c.writeClose(code, reason)
 		err = c.netConn.Close()
 	})
 	return
+}
+
+func (c *Conn) writeClose(code Code, reason []byte) {
+	var content = code.Bytes()
+	if len(content) > 0 {
+		content = append(content, reason...)
+	} else {
+		content = append(content, code.Error()...)
+	}
+	_ = c.writeFrame(OpcodeCloseConnection, content, false)
 }

@@ -186,6 +186,12 @@ func (c *Conn) messageLoop() {
 			c.handler.OnRecover(c, exception)
 		}()
 
+		// server is stopping
+		if c.isCanceled() {
+			c.emitError(CloseServiceRestart)
+			return
+		}
+
 		c.emitMessage(msg)
 		c.mq.Done()
 		c.messageLoop()
