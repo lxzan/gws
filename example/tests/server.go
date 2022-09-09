@@ -25,21 +25,6 @@ func main() {
 		},
 	}
 
-	//1, 3, 5, 4, 2
-	//upgrader.Use(
-	//	func(socket *websocket.Conn, msg *websocket.Message) {
-	//		println("step 1")
-	//		msg.Next(socket)
-	//		println("step 2")
-	//	}, func(socket *websocket.Conn, msg *websocket.Message) {
-	//		println("step 3")
-	//		//msg.Next(socket)
-	//		msg.Abort(socket)
-	//		return
-	//		println("step 4")
-	//	},
-	//)
-
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
 		upgrader.Upgrade(writer, request, nil, NewWebSocketHandler())
 	})

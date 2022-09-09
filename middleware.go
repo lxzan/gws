@@ -26,11 +26,9 @@ func (c *Message) Close() error {
 
 // call next handler function
 func (c *Message) Next(socket *Conn) {
-	var n = len(socket.middlewares)
-	var idx = c.index + 1
-	if idx < n {
-		c.index++
-		socket.middlewares[idx](socket, c)
+	c.index++
+	if c.index < len(socket.middlewares) {
+		socket.middlewares[c.index](socket, c)
 	} else {
 		socket.handler.OnMessage(socket, c)
 	}

@@ -10,7 +10,7 @@ import (
 
 type Conn struct {
 	// store session information
-	Storage *sync.Map
+	Storage *internal.Map
 	// websocket protocol upgrader
 	conf *ServerOptions
 	// distinguish server/client side

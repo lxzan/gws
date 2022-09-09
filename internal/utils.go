@@ -6,6 +6,14 @@ import (
 	"math/rand"
 )
 
+func MaskByByte(content []byte, key []byte) {
+	var n = len(content)
+	for i := 0; i < n; i++ {
+		var idx = i & 3
+		content[i] ^= key[idx]
+	}
+}
+
 func ComputeAcceptKey(challengeKey string) string {
 	h := sha1.New()
 	buf := []byte(challengeKey)

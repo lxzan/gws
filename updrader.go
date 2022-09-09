@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -23,8 +22,8 @@ type (
 	}
 
 	Request struct {
-		*http.Request
-		Storage *sync.Map
+		*http.Request               // http request
+		Storage       *internal.Map // store user session
 	}
 )
 
@@ -60,7 +59,7 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 	}
 	c.ServerOptions.init()
 
-	var request = &Request{Request: r, Storage: &sync.Map{}}
+	var request = &Request{Request: r, Storage: internal.NewMap()}
 	if header == nil {
 		header = http.Header{}
 	}
