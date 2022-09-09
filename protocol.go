@@ -25,7 +25,7 @@ type EventHandler interface {
 
 var closeErrorMap = map[Code]string{
 	CloseNormalClosure:     "normal",
-	CloseGoingAway:         "client/server going away",
+	CloseGoingAway:         "client going away",
 	CloseProtocolError:     "protocol error",
 	CloseUnsupported:       "unsupported data",
 	CloseNoStatusReceived:  "no status",
@@ -43,7 +43,6 @@ var closeErrorMap = map[Code]string{
 var (
 	ERR_CheckOrigin        = errors.New("check origin error")
 	ERR_WebSocketHandshake = errors.New("websocket handshake error")
-	ERR_DISCONNECT         = errors.New("ERR_DISCONNECT")
 )
 
 type Code uint16

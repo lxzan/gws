@@ -3,12 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
+    <style>
+        #app {
+            width: 300px;
+            margin: 100px auto;
+        }
+
+        .line .btn {
+            width: 85px;
+            display: inline-block;
+            margin: 5px 5px;
+        }
+    </style>
 </head>
 <body>
 
-<button onclick="onTest()">Test</button>
-<button onclick="onVerify()">Verify</button>
-<button onclick="onBench()">Bench</button>
+<div id="app">
+    <div class="line">
+        <button onclick="onTest()" class="btn">Test</button>
+        <button onclick="onVerify()" class="btn">Verify</button>
+        <button onclick="onBench()" class="btn">Bench</button>
+    </div>
+
+    <div class="line">
+        <button onclick="onPing()" class="btn">Ping</button>
+        <button onclick="onPong()" class="btn">Pong</button>
+        <button onclick="onClose()" class="btn">Close</button>
+    </div>
+</div>
+
 
 <script>
     let ws = new WebSocket("ws://127.0.0.1:3000/ws");
@@ -18,13 +41,23 @@
     let t1 = 0;
 
     function onTest() {
-        // for (let i = 0; i < 100000; i++) {
-            ws.send("test");
-        // }
+        ws.send("test");
     }
 
     function onVerify() {
         ws.send("verify");
+    }
+
+    function onPing() {
+        ws.send("ping");
+    }
+
+    function onPong() {
+        ws.send("pong");
+    }
+
+    function onClose() {
+        ws.send("close");
     }
 
     function onBench() {
@@ -52,13 +85,6 @@
     ws.onclose = function (e) {
         console.log(e, Date.now());
     }
-    // document.ws = ws;
-    // setTimeout(() => {
-    // ws.send("Hi!")
-    // ws.send('因为 WebSocket 支持将长消息切分为若干个 frame 发送, 切分以后, 除了最后一个 frame, 前面的 frame 的 FIN 字段都为 0, 最后一个 frame 的 FIN 字段为 1, 当然, 若消息没有分段, 那么一个 frame 便包含了完成的消息, 此时其 FIN 字段值为 1')
-    // }, 1000)
-
-    // rand
 </script>
 </body>
 </html>

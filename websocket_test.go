@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"io"
+	"sync"
 	"testing"
 	"unsafe"
 )
@@ -73,6 +74,46 @@ func BenchmarkMask(b *testing.B) {
 	binary.LittleEndian.PutUint32(key[:4], internal.R.Uint32())
 	for i := 0; i < b.N; i++ {
 		maskXOR(s2, key[:4])
+	}
+}
+
+func BenchmarkMap_Put(b *testing.B) {
+	var m = internal.NewMap()
+	for i := 0; i < b.N; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(16))
+		m.Put(key, 1)
+	}
+}
+
+func BenchmarkSyncMap_Store(b *testing.B) {
+	var m = sync.Map{}
+	for i := 0; i < b.N; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(16))
+		m.Store(key, 1)
+	}
+}
+
+func BenchmarkMap_Get(b *testing.B) {
+	var m = internal.NewMap()
+	for i := 0; i < 10000; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(4))
+		m.Put(key, 1)
+	}
+	for i := 0; i < b.N; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(4))
+		m.Get(key)
+	}
+}
+
+func BenchmarkSyncMap_Load(b *testing.B) {
+	var m = sync.Map{}
+	for i := 0; i < 10000; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(4))
+		m.Store(key, 1)
+	}
+	for i := 0; i < b.N; i++ {
+		var key = string(internal.AlphabetNumeric.Generate(4))
+		m.Load(key)
 	}
 }
 

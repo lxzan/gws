@@ -4,26 +4,13 @@ import (
 	websocket "github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
-	"sync"
 )
 
-var count int64 = 0
-
-var t0, t1 int64
-
 func NewWebSocketHandler() *WebSocketHandler {
-	return &WebSocketHandler{
-		Mutex:    sync.Mutex{},
-		sendKeys: make(map[string]uint8),
-		recvKeys: make(map[string]uint8),
-	}
+	return &WebSocketHandler{}
 }
 
-type WebSocketHandler struct {
-	sync.Mutex
-	sendKeys map[string]uint8
-	recvKeys map[string]uint8
-}
+type WebSocketHandler struct{}
 
 func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface{}) {
 }
@@ -31,8 +18,6 @@ func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface
 func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
 
 }
-
-var once = sync.Once{}
 
 func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Message) {
 	body := m.Bytes()
@@ -46,29 +31,22 @@ func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Messag
 	case "test":
 		c.OnTest(socket)
 	case "bench":
-		const count = 100000
-		for i := 0; i < count; i++ {
-			var size = rand.Intn(1024)
-			var k = internal.AlphabetNumeric.Generate(size)
-			socket.Write(websocket.Opcode_Text, k)
-		}
+		c.OnBench(socket)
 	case "verify":
 		c.OnVerify(socket)
 	case "ok":
-	case "reset":
-		c.sendKeys = make(map[string]uint8)
-		c.recvKeys = make(map[string]uint8)
+	case "ping":
+		socket.WritePing(nil)
+	case "pong":
+		socket.WritePong(nil)
 	case "close":
-		socket.Close(1001, nil)
+		socket.Close(1001, []byte("goodbye"))
 	default:
-		c.Lock()
 		socket.Storage.Delete(key)
-		c.Unlock()
 	}
 }
 
 func (c *WebSocketHandler) OnClose(socket *websocket.Conn, code websocket.Code, reason []byte) {
-	println("onclose: ", code)
 }
 
 func (c *WebSocketHandler) OnError(socket *websocket.Conn, err error) {
@@ -98,4 +76,13 @@ func (c *WebSocketHandler) OnVerify(socket *websocket.Conn) {
 	}
 
 	socket.Write(websocket.Opcode_Text, []byte("ok"))
+}
+
+func (c *WebSocketHandler) OnBench(socket *websocket.Conn) {
+	const count = 100000
+	for i := 0; i < count; i++ {
+		var size = rand.Intn(1024)
+		var k = internal.AlphabetNumeric.Generate(size)
+		socket.Write(websocket.Opcode_Text, k)
+	}
 }
