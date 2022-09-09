@@ -1,41 +1,45 @@
 package websocket
 
 import (
+	"compress/flate"
 	"time"
 )
 
-var _config = defaultConfig
-
-type Config struct {
-	// whether to show error log
+// dv means default value
+type ServerOptions struct {
+	// whether to show error log, dv=true
 	LogEnabled bool
 
-	// whether to compress data
-	Compress bool
+	// whether to compress data, dv = false
+	CompressEnabled bool
 
-	// websocket  handshake timeout
+	// compress level eg: flate.BestSpeed
+	CompressLevel int
+
+	// websocket  handshake timeout, dv=3s
 	HandshakeTimeout time.Duration
 
-	WriteBufferSize int
-	ReadBufferSize  int
+	// read buffer size, dv=4KB
+	ReadBufferSize int
 
-	// max message length
+	// write buffer size, dv=dv=4*1024 (4KB)
+	WriteBufferSize int
+
+	// max message length, dv=1024*1024 (1MiB)
 	MaxContentLength int
 }
 
-var defaultConfig = &Config{
+var defaultConfig = ServerOptions{
+	LogEnabled:       true,
 	HandshakeTimeout: 3 * time.Second,
-	Compress:         false,
+	CompressEnabled:  false,
+	CompressLevel:    flate.BestSpeed,
 	WriteBufferSize:  4 * 1024,
 	ReadBufferSize:   4 * 1024,
-	MaxContentLength: 10 * 1024 * 1024, // 10MB
+	MaxContentLength: 1 * 1024 * 1024, // 1MB
 }
 
-func SetConfig(c *Config) {
-	_config = c.init()
-}
-
-func (c *Config) init() *Config {
+func (c *ServerOptions) init() {
 	var d = defaultConfig
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = d.HandshakeTimeout
@@ -49,5 +53,4 @@ func (c *Config) init() *Config {
 	if c.MaxContentLength <= 0 {
 		c.MaxContentLength = d.MaxContentLength
 	}
-	return c
 }

@@ -25,11 +25,11 @@ func (c *Message) Close() error {
 }
 
 func (c *Message) Next(socket *Conn) {
-	var n = len(socket.conf.middlewares)
+	var n = len(socket.middlewares)
 	var idx = c.index + 1
 	if idx < n {
 		c.index++
-		socket.conf.middlewares[idx](socket, c)
+		socket.middlewares[idx](socket, c)
 	} else {
 		socket.handler.OnMessage(socket, c)
 	}

@@ -17,6 +17,7 @@ const (
 
 type (
 	Upgrader struct {
+		*ServerOptions
 		middlewares []HandlerFunc
 		CheckOrigin func(r *Request) bool
 	}
@@ -51,12 +52,18 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string, headers http.He
 }
 
 func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.Header, handler EventHandler) error {
+	if c.ServerOptions == nil {
+		var options = defaultConfig
+		c.ServerOptions = &options
+	}
+	c.ServerOptions.init()
+
 	var request = &Request{Request: r, Storage: &sync.Map{}}
 	if header == nil {
 		header = http.Header{}
 	}
 
-	var compress = false
+	var compressEnabled = false
 	if r.Method != http.MethodGet {
 		return errors.New("http method must be get")
 	}
@@ -70,9 +77,9 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
 		return ERR_WebSocketHandshake
 	}
-	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && _config.Compress {
+	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
 		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
-		compress = true
+		compressEnabled = true
 	}
 
 	hj, ok := w.(http.Hijacker)
@@ -88,7 +95,7 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 	}
 
 	// handshake with timeout control
-	if err := netConn.SetDeadline(time.Now().Add(_config.HandshakeTimeout)); err != nil {
+	if err := netConn.SetDeadline(time.Now().Add(c.HandshakeTimeout)); err != nil {
 		return err
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
@@ -105,6 +112,6 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.H
 		return err
 	}
 
-	serveWebSocket(c, request, netConn, compress, serverSide, handler)
+	serveWebSocket(c, request, netConn, compressEnabled, handler)
 	return nil
 }

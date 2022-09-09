@@ -14,17 +14,19 @@ type Conn struct {
 	// store session information
 	Storage *sync.Map
 	// websocket protocol upgrader
-	conf *Upgrader
+	conf *ServerOptions
 	// distinguish server/client side
 	side uint8
 	// make sure to exit only once
 	onceClose sync.Once
 	// whether you use compression
-	compress bool
+	compressEnabled bool
 	// websocket event handler
 	handler EventHandler
 	// tcp connection
 	netConn net.Conn
+	// websocket middlewares
+	middlewares []HandlerFunc
 
 	// opcode for fragment
 	opcode Opcode
@@ -45,25 +47,26 @@ type Conn struct {
 	compressors *compressors
 }
 
-func serveWebSocket(u *Upgrader, r *Request, netConn net.Conn, compress bool, side uint8, handler EventHandler) {
+func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
 	c := &Conn{
-		fh:             frameHeader{},
-		Storage:        r.Storage,
-		conf:           u,
-		side:           side,
-		mu:             sync.Mutex{},
-		onceClose:      sync.Once{},
-		compress:       compress && _config.Compress,
-		netConn:        netConn,
-		handler:        handler,
-		fragmentBuffer: bytes.NewBuffer(nil),
-		mq:             internal.NewQueue(compressorNum),
+		fh:              frameHeader{},
+		Storage:         r.Storage,
+		conf:            conf.ServerOptions,
+		side:            serverSide,
+		mu:              sync.Mutex{},
+		onceClose:       sync.Once{},
+		compressEnabled: compressEnabled,
+		netConn:         netConn,
+		handler:         handler,
+		fragmentBuffer:  bytes.NewBuffer(nil),
+		mq:              internal.NewQueue(compressorNum),
+		middlewares:     conf.middlewares,
 	}
 
-	// 节省资源
-	if c.compress {
-		c.compressors = newCompressors(compressorNum, _config.WriteBufferSize)
-		c.decompressors = newDecompressors(compressorNum, _config.ReadBufferSize)
+	// 节省资源, 动态初始化压缩器
+	if c.compressEnabled {
+		c.compressors = newCompressors(compressorNum, conf.WriteBufferSize)
+		c.decompressors = newDecompressors(compressorNum, conf.ReadBufferSize)
 	}
 
 	handler.OnOpen(c)
@@ -81,7 +84,7 @@ func serveWebSocket(u *Upgrader, r *Request, netConn net.Conn, compress bool, si
 }
 
 func (c *Conn) debugLog(err error) {
-	if _config.LogEnabled && err != nil {
+	if c.conf.LogEnabled && err != nil {
 		log.Printf("websocket error: " + err.Error())
 	}
 }

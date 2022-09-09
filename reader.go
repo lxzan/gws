@@ -70,6 +70,7 @@ func (c *Conn) emitClose(code Code, reason []byte) {
 	}
 	var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
 	c.debugLog(errors.New(msg))
+	c.Close(code, reason)
 	c.handler.OnClose(c, code, reason)
 }
 
@@ -113,7 +114,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 		buf = _pool.Get(int(lengthCode))
 	}
 
-	if contentLength > _config.MaxContentLength {
+	if contentLength > c.conf.MaxContentLength {
 		return false, CloseMessageTooLarge
 	}
 
@@ -140,7 +141,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 		if err := writeN(c.fragmentBuffer, buf.Bytes(), contentLength); err != nil {
 			return false, err
 		}
-		if c.fragmentBuffer.Len() > _config.MaxContentLength {
+		if c.fragmentBuffer.Len() > c.conf.MaxContentLength {
 			return false, CloseMessageTooLarge
 		}
 	}
@@ -151,15 +152,15 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 			if err := writeN(buf, c.fragmentBuffer.Bytes(), contentLength); err != nil {
 				return false, err
 			}
-			c.mq.Push(&Message{compressed: c.compress, opcode: c.opcode, data: buf, index: -1})
+			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: c.opcode, data: buf, index: -1})
 			c.messageLoop()
 
 			c.fragmentBuffer.Reset()
-			if c.fragmentBuffer.Cap() > _config.ReadBufferSize {
+			if c.fragmentBuffer.Cap() > c.conf.ReadBufferSize {
 				c.fragmentBuffer = bytes.NewBuffer(nil)
 			}
 		case Opcode_Text, Opcode_Binary:
-			c.mq.Push(&Message{compressed: c.compress, opcode: opcode, data: buf, index: -1})
+			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: opcode, data: buf, index: -1})
 			c.messageLoop()
 		default:
 		}

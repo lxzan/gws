@@ -23,7 +23,7 @@ func (c *Conn) Write(opcode Opcode, content []byte) {
 }
 
 func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
-	var enableCompress = c.compress && isDataFrame(opcode)
+	var enableCompress = c.compressEnabled && isDataFrame(opcode)
 	if !enableCompress {
 		return c.writeFrame(opcode, content, enableCompress)
 	}

@@ -108,7 +108,6 @@ func (c *WebSocketHandler) OnClose(socket *websocket.Conn, code websocket.Code, 
 }
 
 func (c *WebSocketHandler) OnError(socket *websocket.Conn, err error) {
-	println("onerror: " + err.Error())
 }
 
 func (c *WebSocketHandler) OnPing(socket *websocket.Conn, m []byte) {
