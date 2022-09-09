@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"errors"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"strings"

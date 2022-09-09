@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/binary"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 	"io"
 	"math"
 	"sync"

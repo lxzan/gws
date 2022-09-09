@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/lxzan/websocket"
-	"github.com/lxzan/websocket/internal"
+	websocket "github.com/lxzan/gws"
+	"github.com/lxzan/gws/internal"
 	"math/rand"
 	"sync"
 )

@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"bytes"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 	"io"
 	"net"
 	"sync"

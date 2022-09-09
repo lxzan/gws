@@ -3,7 +3,7 @@ package websocket
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 	"io"
 )
 

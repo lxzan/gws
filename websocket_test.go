@@ -3,7 +3,7 @@ package websocket
 import (
 	"bytes"
 	"compress/flate"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 	"io"
 	"math/rand"
 	"testing"

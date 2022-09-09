@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"encoding/binary"
-	"github.com/lxzan/websocket/internal"
+	"github.com/lxzan/gws/internal"
 )
 
 func isDataFrame(code Opcode) bool {
