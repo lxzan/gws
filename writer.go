@@ -4,25 +4,25 @@ import "bytes"
 
 // send ping frame
 func (c *Conn) WritePing(payload []byte) {
-	c.emitError(c.writeFrame(Opcode_Ping, payload, false))
+	c.emitError(c.writeFrame(OpcodePing, payload, false))
 }
 
 // send pong frame
 func (c *Conn) WritePong(payload []byte) {
-	c.emitError(c.writeFrame(Opcode_Pong, payload, false))
+	c.emitError(c.writeFrame(OpcodePong, payload, false))
 }
 
 // send close frame
 func (c *Conn) WriteClose(code Code, reason []byte) {
 	var content = code.Bytes()
 	content = append(content, reason...)
-	c.emitError(c.writeFrame(Opcode_CloseConnection, content, false))
+	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false))
 }
 
 // 发送消息; 此方法会回收内存, 不要用来写控制帧
 // send a message; this method reclaims memory and should not be used to write control frames
-func (c *Conn) Write(opcode Opcode, content []byte) {
-	c.emitError(c.writeMessage(opcode, content))
+func (c *Conn) Write(messageType Opcode, content []byte) {
+	c.emitError(c.writeMessage(messageType, content))
 	_pool.Put(bytes.NewBuffer(content))
 }
 

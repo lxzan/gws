@@ -11,7 +11,7 @@ type Message struct {
 	data       *bytes.Buffer
 }
 
-func (c *Message) Opcode() Opcode {
+func (c *Message) MessageType() Opcode {
 	return c.opcode
 }
 

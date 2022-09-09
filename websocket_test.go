@@ -42,7 +42,7 @@ func BenchmarkCompress(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		fw.Reset(buf)
-		fw.Write(*(*[]byte)(unsafe.Pointer(&s)))
+		fw.Write(s)
 		fw.Flush()
 		fw.Close()
 	}
@@ -52,7 +52,7 @@ func BenchmarkDeCompress(b *testing.B) {
 	var s = internal.AlphabetNumeric.Generate(1024)
 	var buf = bytes.NewBuffer(nil)
 	fw, _ := flate.NewWriter(buf, -2)
-	fw.Write(*(*[]byte)(unsafe.Pointer(&s)))
+	fw.Write(s)
 	fw.Flush()
 	fw.Close()
 	fr := flate.NewReader(nil)

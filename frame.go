@@ -6,7 +6,7 @@ import (
 )
 
 func isDataFrame(code Opcode) bool {
-	return code <= Opcode_Binary
+	return code <= OpcodeBinary
 }
 
 type frameHeader [internal.FrameHeaderSize]byte

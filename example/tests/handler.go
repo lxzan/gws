@@ -66,7 +66,7 @@ func (c *WebSocketHandler) OnTest(socket *websocket.Conn) {
 		var size = rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)
 		socket.Storage.Put(string(k), 1)
-		socket.Write(websocket.Opcode_Text, k)
+		socket.Write(websocket.OpcodeText, k)
 	}
 }
 
@@ -75,7 +75,7 @@ func (c *WebSocketHandler) OnVerify(socket *websocket.Conn) {
 		panic("failed")
 	}
 
-	socket.Write(websocket.Opcode_Text, []byte("ok"))
+	socket.Write(websocket.OpcodeText, []byte("ok"))
 }
 
 func (c *WebSocketHandler) OnBench(socket *websocket.Conn) {
@@ -83,6 +83,6 @@ func (c *WebSocketHandler) OnBench(socket *websocket.Conn) {
 	for i := 0; i < count; i++ {
 		var size = rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)
-		socket.Write(websocket.Opcode_Text, k)
+		socket.Write(websocket.OpcodeText, k)
 	}
 }

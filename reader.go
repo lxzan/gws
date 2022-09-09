@@ -43,13 +43,13 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 	}
 
 	switch c.fh.GetOpcode() {
-	case Opcode_Ping:
+	case OpcodePing:
 		c.handler.OnPing(c, payload)
 		return true, nil
-	case Opcode_Pong:
+	case OpcodePong:
 		c.handler.OnPong(c, payload)
 		return true, nil
-	case Opcode_CloseConnection:
+	case OpcodeCloseConnection:
 		switch n {
 		case 0:
 			c.emitClose(CloseNormalClosure, nil)
@@ -87,7 +87,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	}
 
 	// just for continuation opcode
-	if opcode == Opcode_Text || opcode == Opcode_Binary {
+	if opcode == OpcodeText || opcode == OpcodeBinary {
 		c.opcode = opcode
 	}
 
@@ -139,7 +139,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 		}
 	}
 
-	if !fin || (fin && opcode == Opcode_Continuation) {
+	if !fin || (fin && opcode == OpcodeContinuation) {
 		if err := writeN(c.fragmentBuffer, buf.Bytes(), contentLength); err != nil {
 			return false, err
 		}
@@ -150,7 +150,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 
 	if fin {
 		switch opcode {
-		case Opcode_Continuation:
+		case OpcodeContinuation:
 			if err := writeN(buf, c.fragmentBuffer.Bytes(), contentLength); err != nil {
 				return false, err
 			}
@@ -161,7 +161,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 			if c.fragmentBuffer.Cap() > c.conf.ReadBufferSize {
 				c.fragmentBuffer = bytes.NewBuffer(nil)
 			}
-		case Opcode_Text, Opcode_Binary:
+		case OpcodeText, OpcodeBinary:
 			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: opcode, data: buf, index: -1})
 			c.messageLoop()
 		default:

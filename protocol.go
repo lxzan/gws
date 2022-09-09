@@ -5,12 +5,12 @@ import "errors"
 type Opcode uint8
 
 const (
-	Opcode_Continuation    Opcode = 0x0
-	Opcode_Text            Opcode = 0x1
-	Opcode_Binary          Opcode = 0x2
-	Opcode_CloseConnection Opcode = 0x8
-	Opcode_Ping            Opcode = 0x9
-	Opcode_Pong            Opcode = 0xA
+	OpcodeContinuation    Opcode = 0x0
+	OpcodeText            Opcode = 0x1
+	OpcodeBinary          Opcode = 0x2
+	OpcodeCloseConnection Opcode = 0x8
+	OpcodePing            Opcode = 0x9
+	OpcodePong            Opcode = 0xA
 )
 
 type EventHandler interface {

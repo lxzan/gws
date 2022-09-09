@@ -96,6 +96,7 @@ func (c *Conn) emitError(err error) {
 
 	code, ok := err.(Code)
 	if !ok {
+		c.debugLog(err)
 		code = CloseGoingAway
 	}
 
@@ -117,7 +118,7 @@ func (c *Conn) Close(code Code, reason []byte) (err error) {
 		} else {
 			content = append(content, code.Error()...)
 		}
-		_ = c.writeFrame(Opcode_CloseConnection, content, false)
+		_ = c.writeFrame(OpcodeCloseConnection, content, false)
 		err = c.netConn.Close()
 	})
 	return
