@@ -9,6 +9,7 @@ import (
 	"io"
 )
 
+// read control frame
 func (c *Conn) readControl() (continued bool, retErr error) {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
 	if c.side == serverSide && !c.fh.GetMask() {
@@ -85,6 +86,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 		return c.readControl()
 	}
 
+	// just for continuation opcode
 	if opcode == Opcode_Text || opcode == Opcode_Binary {
 		c.opcode = opcode
 	}
@@ -178,7 +180,7 @@ func (c *Conn) messageLoop() {
 	go func(msg *Message) {
 		defer func() {
 			exception := recover()
-			if s, ok := exception.(string); ok && s == SIGNAL_ABORT {
+			if s, ok := exception.(string); ok && s == PANIC_SIGNAL_ABORT {
 				return
 			}
 			c.handler.OnRecover(c, exception)

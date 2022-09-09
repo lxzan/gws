@@ -28,6 +28,7 @@ type (
 	}
 )
 
+// use middleware
 func (c *Upgrader) Use(handlers ...HandlerFunc) {
 	c.middlewares = append(c.middlewares, handlers...)
 }
@@ -51,6 +52,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string, headers http.He
 	return err
 }
 
+// http protocol upgrade to websocket
 func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, header http.Header, handler EventHandler) error {
 	if c.ServerOptions == nil {
 		var options = defaultConfig

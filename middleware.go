@@ -2,7 +2,7 @@ package websocket
 
 import "bytes"
 
-const SIGNAL_ABORT = "SIGNAL_ABORT"
+const PANIC_SIGNAL_ABORT = "PANIC_SIGNAL_ABORT"
 
 type Message struct {
 	index      int
@@ -24,6 +24,7 @@ func (c *Message) Close() error {
 	return nil
 }
 
+// call next handler function
 func (c *Message) Next(socket *Conn) {
 	var n = len(socket.middlewares)
 	var idx = c.index + 1
@@ -35,8 +36,9 @@ func (c *Message) Next(socket *Conn) {
 	}
 }
 
+// abort the message
 func (c *Message) Abort(socket *Conn) {
-	panic(SIGNAL_ABORT)
+	panic(PANIC_SIGNAL_ABORT)
 }
 
 type HandlerFunc func(socket *Conn, msg *Message)

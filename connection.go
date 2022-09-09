@@ -8,8 +8,6 @@ import (
 	"sync"
 )
 
-const compressorNum = 8
-
 type Conn struct {
 	// store session information
 	Storage *sync.Map
@@ -59,14 +57,15 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		netConn:         netConn,
 		handler:         handler,
 		fragmentBuffer:  bytes.NewBuffer(nil),
-		mq:              internal.NewQueue(compressorNum),
+		mq:              internal.NewQueue(int64(conf.Concurrency)),
 		middlewares:     conf.middlewares,
 	}
 
-	// 节省资源, 动态初始化压缩器
+	// 为节省资源, 动态初始化压缩器
+	// To save resources, dynamically initialize the compressor
 	if c.compressEnabled {
-		c.compressors = newCompressors(compressorNum, conf.WriteBufferSize)
-		c.decompressors = newDecompressors(compressorNum, conf.ReadBufferSize)
+		c.compressors = newCompressors(int(conf.Concurrency), conf.WriteBufferSize)
+		c.decompressors = newDecompressors(int(conf.Concurrency), conf.ReadBufferSize)
 	}
 
 	handler.OnOpen(c)
@@ -83,6 +82,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	}
 }
 
+// print debug log
 func (c *Conn) debugLog(err error) {
 	if c.conf.LogEnabled && err != nil {
 		log.Printf("websocket error: " + err.Error())
@@ -108,7 +108,7 @@ func (c *Conn) Raw() net.Conn {
 	return c.netConn
 }
 
-// 不要压缩控制帧
+// close the connection
 func (c *Conn) Close(code Code, reason []byte) (err error) {
 	c.onceClose.Do(func() {
 		var content = code.Bytes()
