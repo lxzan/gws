@@ -33,17 +33,18 @@ func (c *compressors) Select() *compressor {
 }
 
 func newCompressor(writeBufferSize int) *compressor {
-	var c compressor
 	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
-	c.fw = fw
-	c.writeBuffer = bytes.NewBuffer(nil)
-	c.wSize = writeBufferSize
-	return &c
+	return &compressor{
+		mu:          sync.Mutex{},
+		wSize:       writeBufferSize,
+		writeBuffer: bytes.NewBuffer(nil),
+		fw:          fw,
+	}
 }
 
 // 压缩器
 type compressor struct {
-	sync.Mutex
+	mu          sync.Mutex
 	wSize       int
 	writeBuffer *bytes.Buffer
 	fw          *flate.Writer
@@ -51,7 +52,7 @@ type compressor struct {
 
 // 压缩并构建WriteFrame
 func (c *compressor) Compress(content []byte) ([]byte, error) {
-	c.Lock()
+	c.mu.Lock()
 	if c.writeBuffer.Cap() > c.wSize {
 		c.writeBuffer = bytes.NewBuffer(nil)
 	}
@@ -77,6 +78,10 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 	return compressedContent, nil
 }
 
+func (c *compressor) Close() {
+	c.mu.Unlock()
+}
+
 type decompressors struct {
 	serial uint64
 	n      uint64
@@ -99,15 +104,16 @@ func (c *decompressors) Select() *decompressor {
 }
 
 func newDecompressor(readBufferSize int) *decompressor {
-	var c decompressor
-	c.fr = flate.NewReader(nil)
-	c.readBuffer = bytes.NewBuffer(nil)
-	c.rSize = readBufferSize
-	return &c
+	return &decompressor{
+		mu:         sync.Mutex{},
+		rSize:      readBufferSize,
+		readBuffer: bytes.NewBuffer(nil),
+		fr:         flate.NewReader(nil),
+	}
 }
 
 type decompressor struct {
-	sync.Mutex
+	mu         sync.Mutex
 	rSize      int
 	readBuffer *bytes.Buffer
 	fr         io.ReadCloser
@@ -115,8 +121,8 @@ type decompressor struct {
 
 // 解压
 func (c *decompressor) Decompress(content *bytes.Buffer) (*bytes.Buffer, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if c.readBuffer.Cap() > c.rSize {
 		c.readBuffer = bytes.NewBuffer(nil)

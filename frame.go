@@ -40,7 +40,6 @@ func (c *frameHeader) SetRSV1() {
 }
 
 func (c *frameHeader) SetOpcode(opcode Opcode) {
-	(*c)[0] &= uint8(240)
 	(*c)[0] += uint8(opcode)
 }
 
@@ -48,61 +47,35 @@ func (c *frameHeader) SetMaskOn() {
 	(*c)[1] |= internal.Bv7
 }
 
-func (c *frameHeader) SetLength7(length uint8) {
-	(*c)[1] &= internal.Bv7
-	(*c)[1] += length
-}
-
-func (c *frameHeader) SetLength16(length uint16) {
-	binary.BigEndian.PutUint16((*c)[2:4], length)
-}
-
-func (c *frameHeader) SetLength64(length uint64) {
-	binary.BigEndian.PutUint64((*c)[2:10], length)
-}
-
-func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
-	start := 2 + offset
-	copy((*c)[start:start+4], key[:4])
-}
-
-func genHeader(side uint8, opcode Opcode, firstFrame bool, lastFrame bool, enableCompress bool, contentLength uint64) (frameHeader, int) {
-	var headerLength = 2
-	var h = frameHeader{}
-	if !firstFrame {
-		opcode = Opcode_Continuation
-	}
-	if lastFrame {
-		h.SetFIN()
-	}
-	if enableCompress {
-		h.SetRSV1()
-	}
-
-	enableMask := side == clientSide && isDataFrame(opcode)
-	if enableMask {
-		h.SetMaskOn()
-		headerLength += 4
-	}
-	h.SetOpcode(opcode)
-
-	var offset = 0
-	if contentLength <= internal.PayloadSizeLv1 {
-		h.SetLength7(uint8(contentLength))
-	} else if contentLength <= internal.PayloadSizeLv2 {
-		h.SetLength7(126)
-		h.SetLength16(uint16(contentLength))
-		offset += 2
+func (c *frameHeader) SetLength(n uint64) (offset int) {
+	if n <= internal.PayloadSizeLv1 {
+		(*c)[1] += uint8(n)
+		return 0
+	} else if n <= internal.PayloadSizeLv2 {
+		(*c)[1] += 126
+		binary.BigEndian.PutUint16((*c)[2:4], uint16(n))
+		return 2
 	} else {
-		h.SetLength7(127)
-		h.SetLength64(contentLength)
-		offset += 8
+		(*c)[1] += 127
+		binary.BigEndian.PutUint64((*c)[2:10], n)
+		return 8
 	}
+}
 
-	headerLength += offset
-	if enableMask {
-		h.SetMaskKey(offset, internal.NewMaskKey())
+func (c *frameHeader) SetMaskKey(offset int, key uint32) {
+	binary.BigEndian.PutUint32((*c)[offset+2:offset+6], key)
+}
+
+// generate server side frame header for writing
+// do not use mask
+func (c *frameHeader) GenerateServerHeader(opcode Opcode, enableCompress bool, length int) int {
+	var headerLength = 2
+	c.SetFIN()
+	if enableCompress {
+		c.SetRSV1()
 	}
-
-	return h, headerLength
+	c.SetOpcode(opcode)
+	c.SetLength(uint64(length))
+	headerLength += c.SetLength(uint64(length))
+	return headerLength
 }

@@ -2,34 +2,14 @@ package websocket
 
 import (
 	"bytes"
-	"github.com/lxzan/gws/internal"
-	"io"
 )
 
-func (c *Conn) WritePing() error {
-	c.mu.Lock()
-	num, err := c.netConn.Write(internal.PingFrame)
-	c.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	if num != 3 {
-		return CloseNormalClosure
-	}
-	return nil
+func (c *Conn) WritePing(payload []byte) error {
+	return c.writeFrame(Opcode_Ping, payload, false)
 }
 
-func (c *Conn) WritePong() error {
-	c.mu.Lock()
-	num, err := c.netConn.Write(internal.PongFrame)
-	c.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	if num != 3 {
-		return CloseNormalClosure
-	}
-	return nil
+func (c *Conn) WritePong(payload []byte) error {
+	return c.writeFrame(Opcode_Pong, payload, false)
 }
 
 func (c *Conn) Write(opcode Opcode, content []byte) error {
@@ -45,36 +25,32 @@ func (c *Conn) Write(opcode Opcode, content []byte) error {
 func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
 	var enableCompress = c.compress && isDataFrame(opcode)
 	if !enableCompress {
-		n := len(content)
-		header, headerLength := genHeader(c.side, opcode, true, true, enableCompress, uint64(n))
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
-			return err
-		}
-		if _, err := io.CopyN(c.netConn, bytes.NewBuffer(content), int64(n)); err != nil {
-			return err
-		}
-	} else {
-		var compressor = c.compressors.Select()
-		c.mu.Lock()
-		result, err := compressor.Compress(content)
-		defer func() {
-			compressor.Unlock()
-			c.mu.Unlock()
-		}()
+		return c.writeFrame(opcode, content, enableCompress)
+	}
 
-		if err != nil {
-			return err
-		}
-		header, headerLength := genHeader(c.side, opcode, true, true, enableCompress, uint64(len(result)))
-		if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
-			return err
-		}
-		if _, err := io.CopyN(c.netConn, bytes.NewBuffer(result), int64(len(result))); err != nil {
+	var compressor = c.compressors.Select()
+	compressedContent, err := compressor.Compress(content)
+	defer compressor.Close()
+	if err != nil {
+		return err
+	}
+	return c.writeFrame(opcode, compressedContent, enableCompress)
+}
+
+// write a websocket frame, content is prepared
+func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) error {
+	var header = frameHeader{}
+	var n = len(payload)
+	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
+		return err
+	}
+	if n > 0 {
+		if err := writeN(c.netConn, payload, n); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
