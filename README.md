@@ -1,7 +1,7 @@
 # gws
 > event driven websocket framework
 
-###Quick Start
+### Quick Start
 ```go
 // main.go
 var upgrader = websocket.Upgrader{
@@ -42,7 +42,7 @@ func (c *WebSocketHandler) OnPong(socket *websocket.Conn, m []byte) {}
 
 ```
 
-### Interface
+### Core
 ```go
 type EventHandler interface {
 	OnRecover(socket *Conn, exception interface{})
