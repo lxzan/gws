@@ -12,6 +12,13 @@ func (c *Conn) WritePong(payload []byte) error {
 	return c.writeFrame(Opcode_Pong, payload, false)
 }
 
+func (c *Conn) WriteClose(code Code, reason []byte) error {
+	var content = code.Bytes()
+	content = append(content, reason...)
+	return c.writeFrame(Opcode_CloseConnection, content, false)
+}
+
+// 有回收内存, 不要用此方法写控制帧
 func (c *Conn) Write(opcode Opcode, content []byte) error {
 	err := c.writeMessage(opcode, content)
 	_pool.Put(bytes.NewBuffer(content))
@@ -21,7 +28,6 @@ func (c *Conn) Write(opcode Opcode, content []byte) error {
 	return err
 }
 
-// 加锁是为了防止frame header和payload并发写入后乱序
 func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
 	var enableCompress = c.compress && isDataFrame(opcode)
 	if !enableCompress {
@@ -37,6 +43,7 @@ func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
 	return c.writeFrame(opcode, compressedContent, enableCompress)
 }
 
+// 加锁是为了防止frame header和payload并发写入后乱序
 // write a websocket frame, content is prepared
 func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) error {
 	var header = frameHeader{}

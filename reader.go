@@ -108,7 +108,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	if contentLength > _config.MaxContentLength {
-		return CloseMessageTooBig
+		return CloseMessageTooLarge
 	}
 
 	if maskOn {
@@ -130,7 +130,7 @@ func (c *Conn) readMessage() error {
 			return err
 		}
 		if c.fragmentBuffer.Len() > _config.MaxContentLength {
-			return CloseMessageTooBig
+			return CloseMessageTooLarge
 		}
 	}
 

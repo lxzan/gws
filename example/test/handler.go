@@ -28,7 +28,7 @@ type WebSocketHandler struct {
 func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface{}) {
 }
 
-func (c *WebSocketHandler) OnConnect(socket *websocket.Conn) {
+func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
 
 }
 

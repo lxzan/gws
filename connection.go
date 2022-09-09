@@ -60,7 +60,7 @@ func serveWebSocket(u *Upgrader, r *Request, netConn net.Conn, compress bool, si
 		decompressors:  newDecompressors(compressorNum, _config.ReadBufferSize),
 	}
 
-	handler.OnConnect(c)
+	handler.OnOpen(c)
 
 	for {
 		if err := c.readMessage(); err != nil {
