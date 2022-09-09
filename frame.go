@@ -75,7 +75,6 @@ func (c *frameHeader) GenerateServerHeader(opcode Opcode, enableCompress bool, l
 		c.SetRSV1()
 	}
 	c.SetOpcode(opcode)
-	c.SetLength(uint64(length))
 	headerLength += c.SetLength(uint64(length))
 	return headerLength
 }

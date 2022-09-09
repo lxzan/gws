@@ -5,6 +5,8 @@ import (
 	websocket "github.com/lxzan/gws"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"path/filepath"
 )
 
 var directory string
@@ -40,5 +42,13 @@ func main() {
 		upgrader.Upgrade(writer, request, nil, NewWebSocketHandler())
 	})
 
-	http.ListenAndServe(":3000", http.FileServer(http.Dir(directory)))
+	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writer.WriteHeader(http.StatusOK)
+		d, _ := filepath.Abs(directory)
+		content, _ := os.ReadFile(d + "/index.html")
+		writer.Write(content)
+	})
+
+	http.ListenAndServe(":3000", nil)
 }

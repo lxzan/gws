@@ -26,16 +26,18 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 		return false, CloseProtocolError
 	}
 
-	var payload = c.controlBuffer[:n]
-	if err := c.readN(payload, int(n)); err != nil {
-		return false, err
-	}
-
 	var maskOn = c.fh.GetMask()
+	var payload = c.controlBuffer[0:n]
 	if maskOn {
 		if err := c.readN(c.fh[10:14], 4); err != nil {
 			return false, err
 		}
+	}
+	if err := c.readN(payload, int(n)); err != nil {
+		return false, err
+	}
+
+	if maskOn {
 		maskXOR(payload, c.fh[10:14])
 	}
 
@@ -62,7 +64,11 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 }
 
 func (c *Conn) emitClose(code Code, reason []byte) {
-	var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), string(reason))
+	var str = ""
+	if len(reason) == 0 {
+		str = code.Error()
+	}
+	var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
 	c.debugLog(errors.New(msg))
 	c.handler.OnClose(c, code, reason)
 }
@@ -192,7 +198,8 @@ func (c *Conn) emitMessage(msg *Message) {
 	decompressor := c.decompressors.Select()
 	plainText, err := decompressor.Decompress(msg.data)
 	if err != nil {
-		c.emitError(err)
+		c.debugLog(err)
+		c.emitError(CloseInternalServerErr)
 		return
 	}
 	msg.data = plainText

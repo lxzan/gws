@@ -40,8 +40,8 @@ func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Messag
 	//var content = websocket.CloseGoingAway.Bytes()
 	//content = append(content, "Hey!"...)
 	//socket.Write(websocket.Opcode_CloseConnection, content)
-	socket.Close(websocket.CloseGoingAway, []byte("Hey!"))
-	return
+	//socket.Close(websocket.CloseGoingAway, []byte("Hey!"))
+	//return
 
 	//num := atomic.AddInt64(&count, 1)
 	//if num == 1 {
@@ -65,9 +65,6 @@ func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Messag
 	}
 	switch key {
 	case "test":
-		//socket.WritePing()
-		//return
-
 		const count = 1000
 		for i := 0; i < count; i++ {
 			var size = rand.Intn(1024)
@@ -111,7 +108,7 @@ func (c *WebSocketHandler) OnClose(socket *websocket.Conn, code websocket.Code, 
 }
 
 func (c *WebSocketHandler) OnError(socket *websocket.Conn, err error) {
-	//println("onerror: " + err.Error())
+	println("onerror: " + err.Error())
 }
 
 func (c *WebSocketHandler) OnPing(socket *websocket.Conn, m []byte) {

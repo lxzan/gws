@@ -35,7 +35,7 @@ type Conn struct {
 	// continuation frame for read
 	fragmentBuffer *bytes.Buffer
 	// frame payload for read control frame
-	controlBuffer [internal.PayloadSizeLv1]byte
+	controlBuffer [internal.PayloadSizeLv1 + 4]byte
 	// frame header for read
 	fh frameHeader
 
@@ -81,18 +81,13 @@ func serveWebSocket(u *Upgrader, r *Request, netConn net.Conn, compress bool, si
 }
 
 func (c *Conn) debugLog(err error) {
-	if err != nil {
+	if _config.LogEnabled && err != nil {
 		log.Printf("websocket error: " + err.Error())
 	}
 }
 
 func (c *Conn) emitError(err error) {
-	if err != nil {
-		return
-	}
-
-	// has been handled
-	if err == ERR_DISCONNECT {
+	if err == nil {
 		return
 	}
 
