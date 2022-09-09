@@ -7,10 +7,19 @@ import (
 var _config = defaultConfig
 
 type Config struct {
-	Compress         bool
+	// whether to show error log
+	LogEnabled bool
+
+	// whether to compress data
+	Compress bool
+
+	// websocket  handshake timeout
 	HandshakeTimeout time.Duration
-	WriteBufferSize  int
-	ReadBufferSize   int
+
+	WriteBufferSize int
+	ReadBufferSize  int
+
+	// max message length
 	MaxContentLength int
 }
 

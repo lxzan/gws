@@ -1,31 +1,25 @@
 package websocket
 
-import (
-	"bytes"
-)
+import "bytes"
 
-func (c *Conn) WritePing(payload []byte) error {
-	return c.writeFrame(Opcode_Ping, payload, false)
+func (c *Conn) WritePing(payload []byte) {
+	c.emitError(c.writeFrame(Opcode_Ping, payload, false))
 }
 
-func (c *Conn) WritePong(payload []byte) error {
-	return c.writeFrame(Opcode_Pong, payload, false)
+func (c *Conn) WritePong(payload []byte) {
+	c.emitError(c.writeFrame(Opcode_Pong, payload, false))
 }
 
-func (c *Conn) WriteClose(code Code, reason []byte) error {
+func (c *Conn) WriteClose(code Code, reason []byte) {
 	var content = code.Bytes()
 	content = append(content, reason...)
-	return c.writeFrame(Opcode_CloseConnection, content, false)
+	c.emitError(c.writeFrame(Opcode_CloseConnection, content, false))
 }
 
 // 有回收内存, 不要用此方法写控制帧
-func (c *Conn) Write(opcode Opcode, content []byte) error {
-	err := c.writeMessage(opcode, content)
+func (c *Conn) Write(opcode Opcode, content []byte) {
+	c.emitError(c.writeMessage(opcode, content))
 	_pool.Put(bytes.NewBuffer(content))
-	if err != nil {
-		c.emitError(err)
-	}
-	return err
 }
 
 func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
@@ -38,7 +32,8 @@ func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
 	compressedContent, err := compressor.Compress(content)
 	defer compressor.Close()
 	if err != nil {
-		return err
+		c.debugLog(err)
+		return CloseInternalServerErr
 	}
 	return c.writeFrame(opcode, compressedContent, enableCompress)
 }

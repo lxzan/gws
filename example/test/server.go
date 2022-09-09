@@ -13,7 +13,7 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	websocket.SetConfig(&websocket.Config{Compress: true})
+	websocket.SetConfig(&websocket.Config{Compress: true, LogEnabled: true})
 
 	var upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *websocket.Request) bool {

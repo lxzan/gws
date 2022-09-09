@@ -92,6 +92,10 @@ const (
 	CloseTLSHandshake Code = 1015
 )
 
+func (c Code) Uint16() uint16 {
+	return uint16(c)
+}
+
 func (c Code) Bytes() []byte {
 	return []byte{uint8(c >> 8), uint8(c << 8 >> 8)}
 }
