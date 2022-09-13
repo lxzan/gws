@@ -1,7 +1,7 @@
 package main
 
 import (
-	websocket "github.com/lxzan/gws"
+	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
 	"time"
@@ -13,10 +13,11 @@ func NewWebSocketHandler() *WebSocketHandler {
 
 type WebSocketHandler struct{}
 
-func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface{}) {
+func (c *WebSocketHandler) OnRecover(socket *gws.Conn, exception interface{}) {
+
 }
 
-func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
+func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -32,7 +33,7 @@ func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
 	}()
 }
 
-func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Message) {
+func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	body := m.Bytes()
 	defer m.Close()
 
@@ -59,43 +60,43 @@ func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Messag
 	}
 }
 
-func (c *WebSocketHandler) OnClose(socket *websocket.Conn, code websocket.Code, reason []byte) {
+func (c *WebSocketHandler) OnClose(socket *gws.Conn, code gws.Code, reason []byte) {
 }
 
-func (c *WebSocketHandler) OnError(socket *websocket.Conn, err error) {
+func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
 }
 
-func (c *WebSocketHandler) OnPing(socket *websocket.Conn, m []byte) {
+func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
 	println("onping")
 }
 
-func (c *WebSocketHandler) OnPong(socket *websocket.Conn, m []byte) {
+func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {
 	println("onpong")
 }
 
-func (c *WebSocketHandler) OnTest(socket *websocket.Conn) {
-	const count = 1
+func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
+	const count = 1000
 	for i := 0; i < count; i++ {
 		var size = rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)
 		socket.Storage.Put(string(k), 1)
-		socket.Write(websocket.OpcodeText, k)
+		socket.Write(gws.OpcodeText, k)
 	}
 }
 
-func (c *WebSocketHandler) OnVerify(socket *websocket.Conn) {
+func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 	if socket.Storage.Len() != 0 {
 		panic("failed")
 	}
 
-	socket.Write(websocket.OpcodeText, []byte("ok"))
+	socket.Write(gws.OpcodeText, []byte("ok"))
 }
 
-func (c *WebSocketHandler) OnBench(socket *websocket.Conn) {
-	const count = 1000000
+func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
+	const count = 100000
 	for i := 0; i < count; i++ {
-		var size = rand.Intn(1024)
+		var size = 10 + rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)
-		socket.Write(websocket.OpcodeText, k)
+		socket.Write(gws.OpcodeText, k)
 	}
 }

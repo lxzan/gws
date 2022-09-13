@@ -72,7 +72,7 @@
             ws.send(msg.data);
             count++;
         }
-        if (count == 1000000) {
+        if (count == 100000) {
             t1 = Date.now();
             alert((t1 - t0) + "ms");
         }

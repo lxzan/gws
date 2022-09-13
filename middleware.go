@@ -1,4 +1,4 @@
-package websocket
+package gws
 
 import (
 	"bytes"
@@ -10,6 +10,15 @@ type Message struct {
 	compressed bool
 	opcode     Opcode
 	data       *bytes.Buffer
+}
+
+func newMessage(messageType Opcode, data []byte) *Message {
+	return &Message{
+		index:      -1,
+		compressed: false,
+		opcode:     messageType,
+		data:       bytes.NewBuffer(data),
+	}
 }
 
 func (c *Message) MessageType() Opcode {

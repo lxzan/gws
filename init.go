@@ -1,4 +1,4 @@
-package websocket
+package gws
 
 import (
 	"compress/flate"
