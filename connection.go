@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 )
 
 type Conn struct {
@@ -134,6 +135,7 @@ func (c *Conn) emitError(err error) {
 		c.writeClose(code, nil)
 		_ = c.netConn.Close()
 		c.handler.OnError(c, err)
+		c.cancel()
 	})
 }
 
@@ -149,6 +151,7 @@ func (c *Conn) Close(code Code, reason []byte) (err error) {
 		c.writeClose(code, reason)
 		err = c.netConn.Close()
 		c.handler.OnClose(c, code, reason)
+		c.cancel()
 	})
 	return
 }
@@ -163,6 +166,7 @@ func (c *Conn) writeClose(code Code, reason []byte) {
 	_ = c.writeFrame(OpcodeCloseConnection, content, false)
 }
 
-func (c *Conn) Raw() net.Conn {
-	return c.netConn
+// set connection deadline
+func (c *Conn) SetDeadline(d time.Duration) error {
+	return c.netConn.SetDeadline(time.Now().Add(d))
 }

@@ -4,6 +4,7 @@ import (
 	websocket "github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
+	"time"
 )
 
 func NewWebSocketHandler() *WebSocketHandler {
@@ -16,19 +17,19 @@ func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface
 }
 
 func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
-	//go func() {
-	//	ticker := time.NewTicker(30 * time.Second)
-	//	defer ticker.Stop()
-	//	for {
-	//		select {
-	//		case <-socket.Context.Done():
-	//			println("restarting", socket)
-	//			return
-	//		case <-ticker.C:
-	//			socket.WritePing(nil)
-	//		}
-	//	}
-	//}()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-socket.Context().Done():
+				println("connection closed")
+				return
+			case <-ticker.C:
+				socket.WritePing(nil)
+			}
+		}
+	}()
 }
 
 func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Message) {

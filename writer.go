@@ -1,6 +1,9 @@
 package websocket
 
-import "bytes"
+import (
+	"bytes"
+	"time"
+)
 
 // send ping frame
 func (c *Conn) WritePing(payload []byte) {
@@ -49,7 +52,14 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	var n = len(payload)
 	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	defer func() {
+		_ = c.netConn.SetWriteDeadline(time.Time{})
+		c.mu.Unlock()
+	}()
+
+	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.conf.WriteTimeout)); err != nil {
+		return err
+	}
 	if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
 		return err
 	}

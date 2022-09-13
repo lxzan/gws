@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"io"
+	"time"
 )
 
 // read control frame
@@ -66,6 +67,13 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return false, err
 	}
+
+	if err := c.netConn.SetReadDeadline(time.Now().Add(c.conf.ReadTimeout)); err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = c.netConn.SetReadDeadline(time.Time{})
+	}()
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()
