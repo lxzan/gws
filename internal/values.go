@@ -1,5 +1,7 @@
 package internal
 
+const PANIC_ABORT = "PANIC_ABORT"
+
 // websocket header keys
 const (
 	SecWebSocketVersion    = "Sec-WebSocket-Version"

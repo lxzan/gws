@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"context"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
@@ -54,7 +53,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) error {
+func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler EventHandler) error {
 	if c.ServerOptions == nil {
 		var options = defaultConfig
 		c.ServerOptions = &options
@@ -115,6 +114,6 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	serveWebSocket(ctx, c, request, netConn, compressEnabled, handler)
+	serveWebSocket(c, request, netConn, compressEnabled, handler)
 	return nil
 }

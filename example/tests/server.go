@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"flag"
 	websocket "github.com/lxzan/gws"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 )
 
 var directory string
@@ -26,10 +27,8 @@ func main() {
 		},
 	}
 
-	var ctx = context.Background()
-
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
-		upgrader.Upgrade(ctx, writer, request, NewWebSocketHandler())
+		upgrader.Upgrade(writer, request, NewWebSocketHandler())
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
@@ -40,5 +39,9 @@ func main() {
 		writer.Write(content)
 	})
 
-	http.ListenAndServe(":3000", nil)
+	go http.ListenAndServe(":3000", nil)
+
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 }

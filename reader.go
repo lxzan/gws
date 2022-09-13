@@ -3,8 +3,6 @@ package websocket
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"github.com/lxzan/gws/internal"
 	"io"
 )
@@ -52,27 +50,16 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 	case OpcodeCloseConnection:
 		switch n {
 		case 0:
-			c.emitClose(CloseNormalClosure, nil)
+			c.Close(CloseNormalClosure, nil)
 		case 1:
-			c.emitClose(CloseProtocolError, nil)
+			c.Close(CloseProtocolError, nil)
 		default:
-			c.emitClose(Code(binary.BigEndian.Uint16(payload[:2])), payload[2:])
+			c.Close(Code(binary.BigEndian.Uint16(payload[:2])), payload[2:])
 		}
 		return false, nil
 	default:
 		return false, CloseUnsupportedData
 	}
-}
-
-func (c *Conn) emitClose(code Code, reason []byte) {
-	var str = ""
-	if len(reason) == 0 {
-		str = code.Error()
-	}
-	var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
-	c.debugLog(errors.New(msg))
-	c.Close(code, reason)
-	c.handler.OnClose(c, code, reason)
 }
 
 func (c *Conn) readMessage() (continued bool, retErr error) {
@@ -180,7 +167,7 @@ func (c *Conn) messageLoop() {
 	go func(msg *Message) {
 		defer func() {
 			exception := recover()
-			if s, ok := exception.(string); ok && s == PANIC_SIGNAL_ABORT {
+			if s, ok := exception.(string); ok && s == internal.PANIC_ABORT {
 				return
 			}
 			c.handler.OnRecover(c, exception)

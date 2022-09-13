@@ -16,7 +16,19 @@ func (c *WebSocketHandler) OnRecover(socket *websocket.Conn, exception interface
 }
 
 func (c *WebSocketHandler) OnOpen(socket *websocket.Conn) {
-
+	//go func() {
+	//	ticker := time.NewTicker(30 * time.Second)
+	//	defer ticker.Stop()
+	//	for {
+	//		select {
+	//		case <-socket.Context.Done():
+	//			println("restarting", socket)
+	//			return
+	//		case <-ticker.C:
+	//			socket.WritePing(nil)
+	//		}
+	//	}
+	//}()
 }
 
 func (c *WebSocketHandler) OnMessage(socket *websocket.Conn, m *websocket.Message) {
@@ -79,7 +91,7 @@ func (c *WebSocketHandler) OnVerify(socket *websocket.Conn) {
 }
 
 func (c *WebSocketHandler) OnBench(socket *websocket.Conn) {
-	const count = 100000
+	const count = 1000000
 	for i := 0; i < count; i++ {
 		var size = rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)

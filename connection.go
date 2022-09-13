@@ -3,6 +3,8 @@ package websocket
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"github.com/lxzan/gws/internal"
 	"log"
 	"net"
@@ -10,17 +12,21 @@ import (
 )
 
 type Conn struct {
-	ctx    context.Context
-	cancel func()
-
 	// store session information
 	Storage *internal.Map
+
+	// parent context
+	ctx context.Context
+	// cancel func
+	cancel func()
 	// websocket protocol upgrader
 	conf *ServerOptions
 	// distinguish server/client side
 	side uint8
 	// make sure to exit only once
 	onceClose sync.Once
+	// make sure print log only once
+	onceLog sync.Once
 	// whether you use compression
 	compressEnabled bool
 	// websocket event handler
@@ -49,10 +55,8 @@ type Conn struct {
 	compressors *compressors
 }
 
-func serveWebSocket(parentCtx context.Context, conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
-	ctx, cancel := context.WithCancel(parentCtx)
-	defer cancel()
-
+func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
+	ctx, cancel := context.WithCancel(context.Background())
 	c := &Conn{
 		ctx:             ctx,
 		cancel:          cancel,
@@ -62,6 +66,7 @@ func serveWebSocket(parentCtx context.Context, conf *Upgrader, r *Request, netCo
 		side:            serverSide,
 		mu:              sync.Mutex{},
 		onceClose:       sync.Once{},
+		onceLog:         sync.Once{},
 		compressEnabled: compressEnabled,
 		netConn:         netConn,
 		handler:         handler,
@@ -91,6 +96,10 @@ func serveWebSocket(parentCtx context.Context, conf *Upgrader, r *Request, netCo
 	}
 }
 
+func (c *Conn) Context() context.Context {
+	return c.ctx
+}
+
 func (c *Conn) isCanceled() bool {
 	select {
 	case <-c.ctx.Done():
@@ -103,7 +112,9 @@ func (c *Conn) isCanceled() bool {
 // print debug log
 func (c *Conn) debugLog(err error) {
 	if c.conf.LogEnabled && err != nil {
-		log.Printf("websocket error: " + err.Error())
+		c.onceLog.Do(func() {
+			log.Printf("websocket error: " + err.Error())
+		})
 	}
 }
 
@@ -126,15 +137,18 @@ func (c *Conn) emitError(err error) {
 	})
 }
 
-func (c *Conn) Raw() net.Conn {
-	return c.netConn
-}
-
-// close the connection
 func (c *Conn) Close(code Code, reason []byte) (err error) {
+	var str = ""
+	if len(reason) == 0 {
+		str = code.Error()
+	}
+
 	c.onceClose.Do(func() {
+		var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
+		c.debugLog(errors.New(msg))
 		c.writeClose(code, reason)
 		err = c.netConn.Close()
+		c.handler.OnClose(c, code, reason)
 	})
 	return
 }
@@ -147,4 +161,8 @@ func (c *Conn) writeClose(code Code, reason []byte) {
 		content = append(content, code.Error()...)
 	}
 	_ = c.writeFrame(OpcodeCloseConnection, content, false)
+}
+
+func (c *Conn) Raw() net.Conn {
+	return c.netConn
 }

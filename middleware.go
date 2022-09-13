@@ -1,8 +1,9 @@
 package websocket
 
-import "bytes"
-
-const PANIC_SIGNAL_ABORT = "PANIC_SIGNAL_ABORT"
+import (
+	"bytes"
+	"github.com/lxzan/gws/internal"
+)
 
 type Message struct {
 	index      int
@@ -36,7 +37,7 @@ func (c *Message) Next(socket *Conn) {
 
 // abort the message
 func (c *Message) Abort(socket *Conn) {
-	panic(PANIC_SIGNAL_ABORT)
+	panic(internal.PANIC_ABORT)
 }
 
 type HandlerFunc func(socket *Conn, msg *Message)
