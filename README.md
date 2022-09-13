@@ -123,3 +123,11 @@ func (h *Handler) OnPong(socket *gws.Conn, m []byte) {
 	_ = socket.SetDeadline(30 * time.Second)
 }
 ```
+
+- Client Side HeartBeat
+```go
+func (h *Handler) OnPing(socket *gws.Conn, m []byte) {
+    socket.WritePong(nil)
+    _ = socket.SetDeadline(30 * time.Second)
+}
+```
