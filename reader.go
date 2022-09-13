@@ -140,7 +140,8 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	if fin {
 		switch opcode {
 		case OpcodeContinuation:
-			if err := writeN(buf, c.fragmentBuffer.Bytes(), contentLength); err != nil {
+			buf.Reset()
+			if _, err := io.CopyN(buf, c.fragmentBuffer, int64(c.fragmentBuffer.Len())); err != nil {
 				return false, err
 			}
 			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: c.opcode, data: buf, index: -1})
