@@ -111,7 +111,7 @@ func (c *Conn) isCanceled() bool {
 func (c *Conn) debugLog(err error) {
 	if c.conf.LogEnabled && err != nil {
 		c.onceLog.Do(func() {
-			log.Printf("websocket error: " + err.Error())
+			log.Printf("websocket: " + err.Error())
 		})
 	}
 }

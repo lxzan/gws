@@ -12,7 +12,7 @@ type Message struct {
 	data       *bytes.Buffer
 }
 
-func newMessage(messageType Opcode, data []byte) *Message {
+func NewMessage(messageType Opcode, data []byte) *Message {
 	return &Message{
 		index:      -1,
 		compressed: false,
@@ -29,9 +29,9 @@ func (c *Message) Bytes() []byte {
 	return c.data.Bytes()
 }
 
-func (c *Message) Close() error {
+func (c *Message) Close() {
 	_pool.Put(c.data)
-	return nil
+	return
 }
 
 // call next handler function

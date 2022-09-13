@@ -177,6 +177,7 @@ func (c *Conn) messageLoop() {
 
 		// server is stopping
 		if c.isCanceled() {
+			c.mq.Done()
 			c.emitError(CloseServiceRestart)
 			return
 		}
