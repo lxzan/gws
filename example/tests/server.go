@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 var directory string
@@ -21,6 +22,7 @@ func main() {
 		ServerOptions: &websocket.ServerOptions{
 			LogEnabled:      true,
 			CompressEnabled: false,
+			ReadTimeout:     time.Hour,
 		},
 		CheckOrigin: func(r *websocket.Request) bool {
 			return true

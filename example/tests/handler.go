@@ -74,7 +74,7 @@ func (c *WebSocketHandler) OnPong(socket *websocket.Conn, m []byte) {
 }
 
 func (c *WebSocketHandler) OnTest(socket *websocket.Conn) {
-	const count = 1000
+	const count = 1
 	for i := 0; i < count; i++ {
 		var size = rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)

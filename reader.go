@@ -11,7 +11,7 @@ import (
 // read control frame
 func (c *Conn) readControl() (continued bool, retErr error) {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if c.side == serverSide && !c.fh.GetMask() {
+	if !c.fh.GetMask() {
 		return false, CloseProtocolError
 	}
 
@@ -51,11 +51,11 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 	case OpcodeCloseConnection:
 		switch n {
 		case 0:
-			c.Close(CloseNormalClosure, nil)
+			_ = c.Close(CloseNormalClosure, nil)
 		case 1:
-			c.Close(CloseProtocolError, nil)
+			_ = c.Close(CloseProtocolError, nil)
 		default:
-			c.Close(Code(binary.BigEndian.Uint16(payload[:2])), payload[2:])
+			_ = c.Close(Code(binary.BigEndian.Uint16(payload[:2])), payload[2:])
 		}
 		return false, nil
 	default:
@@ -116,23 +116,17 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	}
 
 	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if c.side == serverSide && !maskOn {
+	if !maskOn {
 		return false, CloseProtocolError
 	}
 
-	if maskOn {
-		if err := c.readN(c.fh[10:14], 4); err != nil {
-			return false, err
-		}
-		if _, err := io.CopyN(buf, c.netConn, int64(contentLength)); err != nil {
-			return false, err
-		}
-		maskXOR(buf.Bytes(), c.fh[10:14])
-	} else {
-		if _, err := io.CopyN(buf, c.netConn, int64(contentLength)); err != nil {
-			return false, err
-		}
+	if err := c.readN(c.fh[10:14], 4); err != nil {
+		return false, err
 	}
+	if _, err := io.CopyN(buf, c.netConn, int64(contentLength)); err != nil {
+		return false, err
+	}
+	maskXOR(buf.Bytes(), c.fh[10:14])
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if err := writeN(c.fragmentBuffer, buf.Bytes(), contentLength); err != nil {

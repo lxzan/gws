@@ -22,8 +22,6 @@ type Conn struct {
 	cancel func()
 	// websocket protocol upgrader
 	conf *ServerOptions
-	// distinguish server/client side
-	side uint8
 	// make sure to exit only once
 	onceClose sync.Once
 	// make sure print log only once
@@ -37,13 +35,13 @@ type Conn struct {
 	// websocket middlewares
 	middlewares []HandlerFunc
 
-	// opcode for fragment
+	// opcode for fragment frame
 	opcode Opcode
 	// message queue
 	mq *internal.Queue
 	// flate decompressors
 	decompressors *decompressors
-	// continuation frame for read
+	// continuation frame
 	fragmentBuffer *bytes.Buffer
 	// frame payload for read control frame
 	controlBuffer [internal.PayloadSizeLv1 + 4]byte
@@ -64,7 +62,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		fh:              frameHeader{},
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
-		side:            serverSide,
 		mu:              sync.Mutex{},
 		onceClose:       sync.Once{},
 		onceLog:         sync.Once{},
