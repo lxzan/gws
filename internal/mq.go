@@ -7,10 +7,11 @@ type Iterator struct {
 	Data interface{}
 }
 
-func NewQueue(concurrency int64) *Queue {
+func NewQueue(concurrency int64, capacity int64) *Queue {
 	return &Queue{
 		Mutex:       sync.Mutex{},
 		length:      0,
+		capacity:    capacity,
 		concurrency: concurrency,
 		running:     0,
 		head:        nil,
@@ -21,6 +22,7 @@ func NewQueue(concurrency int64) *Queue {
 type Queue struct {
 	sync.Mutex
 	length      int
+	capacity    int64
 	concurrency int64
 	running     int64
 	head        *Iterator
@@ -43,6 +45,11 @@ func (c *Queue) Len() int {
 func (c *Queue) Push(v interface{}) {
 	c.Lock()
 	defer c.Unlock()
+
+	// discard extra messages
+	if int64(c.length+1) > c.capacity {
+		return
+	}
 
 	var ele = &Iterator{Data: v}
 	if c.length > 0 {

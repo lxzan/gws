@@ -69,7 +69,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		netConn:         netConn,
 		handler:         handler,
 		fragmentBuffer:  bytes.NewBuffer(nil),
-		mq:              internal.NewQueue(int64(conf.Concurrency)),
+		mq:              internal.NewQueue(int64(conf.Concurrency), int64(conf.MessageQueueCap)),
 		middlewares:     conf.middlewares,
 	}
 

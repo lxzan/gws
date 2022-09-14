@@ -3,6 +3,7 @@ package gws
 import (
 	"compress/flate"
 	"github.com/lxzan/gws/internal"
+	"math"
 	"time"
 )
 
@@ -28,12 +29,16 @@ type ServerOptions struct {
 	// write buffer size, dv=dv=4*1024 (4KB)
 	WriteBufferSize int
 
-	// max message length, dv=1024*1024 (1MiB)
+	// max message length, dv=1024*1024 (1MB)
 	MaxContentLength int
 
 	// number of concurrently processed messages allowed by the connection, dv=4
 	// Concurrency=pow(2, n), eg: 4, 8, 16...
 	Concurrency uint8
+
+	// capacity of message queue(gws server use mq to receive message), extra messages will be discarded
+	// -1 means unlimited
+	MessageQueueCap int
 
 	// read frame timeout, dv=5s
 	ReadTimeout time.Duration
@@ -50,6 +55,7 @@ var defaultConfig = ServerOptions{
 	CompressEnabled:  false,
 	CompressLevel:    flate.BestSpeed,
 	Concurrency:      4,
+	MessageQueueCap:  128,
 	WriteBufferSize:  4 * 1024,        // 4KB
 	ReadBufferSize:   4 * 1024,        // 4KB
 	MaxContentLength: 1 * 1024 * 1024, // 1MB
@@ -77,5 +83,8 @@ func (c *ServerOptions) init() {
 	}
 	if c.Concurrency == 0 {
 		c.Concurrency = d.Concurrency
+	}
+	if c.MessageQueueCap <= 0 {
+		c.MessageQueueCap = math.MaxInt
 	}
 }
