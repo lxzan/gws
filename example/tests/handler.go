@@ -93,7 +93,7 @@ func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 }
 
 func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
-	const count = 100000
+	const count = 1000000
 	for i := 0; i < count; i++ {
 		var size = 10 + rand.Intn(1024)
 		var k = internal.AlphabetNumeric.Generate(size)

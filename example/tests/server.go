@@ -27,8 +27,10 @@ func main() {
 		},
 	}
 
+	var handler = NewWebSocketHandler()
+
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
-		upgrader.Upgrade(writer, request, NewWebSocketHandler())
+		upgrader.Upgrade(writer, request, handler)
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
