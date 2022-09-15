@@ -53,7 +53,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler EventHandler) error {
+func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
 	if c.ServerOptions == nil {
 		var options = defaultConfig
 		c.ServerOptions = &options
@@ -67,17 +67,17 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler Event
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
-		return errors.New("http method must be get")
+		return nil, errors.New("http method must be get")
 	}
 	if version := r.Header.Get(internal.SecWebSocketVersion); version != internal.SecWebSocketVersion_Value {
 		msg := "websocket protocol not supported: " + version
-		return errors.New(msg)
+		return nil, errors.New(msg)
 	}
 	if val := r.Header.Get(internal.Connection); strings.ToLower(val) != strings.ToLower(internal.Connection_Value) {
-		return ERR_WebSocketHandshake
+		return nil, ERR_WebSocketHandshake
 	}
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
-		return ERR_WebSocketHandshake
+		return nil, ERR_WebSocketHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
 		c.Header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
@@ -86,34 +86,33 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler Event
 
 	hj, ok := w.(http.Hijacker)
 	if !ok {
-		return CloseInternalServerErr
+		return nil, CloseInternalServerErr
 	}
 	netConn, _, err := hj.Hijack()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !c.CheckOrigin(request) {
-		return ERR_CheckOrigin
+		return nil, ERR_CheckOrigin
 	}
 
 	// handshake with timeout control
 	if err := netConn.SetDeadline(time.Now().Add(c.HandshakeTimeout)); err != nil {
-		return err
+		return nil, err
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
 	if err := c.handshake(netConn, websocketKey); err != nil {
-		return err
+		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
-		return err
+		return nil, err
 	}
 	if err := netConn.SetReadDeadline(time.Time{}); err != nil {
-		return err
+		return nil, err
 	}
 	if err := netConn.SetWriteDeadline(time.Time{}); err != nil {
-		return err
+		return nil, err
 	}
 
-	serveWebSocket(c, request, netConn, compressEnabled, handler)
-	return nil
+	return serveWebSocket(c, request, netConn, compressEnabled, handler), nil
 }

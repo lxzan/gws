@@ -54,7 +54,7 @@ type Conn struct {
 	compressors *compressors
 }
 
-func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) {
+func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Conn{
 		ctx:             ctx,
@@ -82,16 +82,20 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 
 	handler.OnOpen(c)
 
-	for {
-		continued, err := c.readMessage()
-		if err != nil {
-			c.emitError(err)
-			return
+	go func() {
+		for {
+			continued, err := c.readMessage()
+			if err != nil {
+				c.emitError(err)
+				return
+			}
+			if !continued {
+				return
+			}
 		}
-		if !continued {
-			return
-		}
-	}
+	}()
+
+	return c
 }
 
 func (c *Conn) Context() context.Context {
