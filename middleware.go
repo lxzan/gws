@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"github.com/lxzan/gws/internal"
 )
 
@@ -9,7 +8,7 @@ type Message struct {
 	index      int
 	compressed bool
 	opcode     Opcode
-	data       *bytes.Buffer
+	data       *internal.Buffer
 }
 
 func NewMessage(messageType Opcode, data []byte) *Message {
@@ -17,7 +16,7 @@ func NewMessage(messageType Opcode, data []byte) *Message {
 		index:      -1,
 		compressed: false,
 		opcode:     messageType,
-		data:       bytes.NewBuffer(data),
+		data:       internal.NewBuffer(data),
 	}
 }
 

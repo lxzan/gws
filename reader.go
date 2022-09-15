@@ -92,7 +92,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	var contentLength = int(lengthCode)
 
 	// read data frame
-	var buf *bytes.Buffer
+	var buf *internal.Buffer
 	switch lengthCode {
 	case 126:
 		if err := c.readN(c.fh[2:4], 2); err != nil {

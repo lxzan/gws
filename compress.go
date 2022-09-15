@@ -120,7 +120,7 @@ type decompressor struct {
 }
 
 // 解压
-func (c *decompressor) Decompress(content *bytes.Buffer) (*bytes.Buffer, error) {
+func (c *decompressor) Decompress(content *internal.Buffer) (*internal.Buffer, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"time"
 )
 
@@ -26,7 +25,6 @@ func (c *Conn) WriteClose(code Code, reason []byte) {
 // send a message; this method reclaims memory and should not be used to write control frames
 func (c *Conn) Write(messageType Opcode, content []byte) {
 	c.emitError(c.writeMessage(messageType, content))
-	_pool.Put(bytes.NewBuffer(content))
 }
 
 func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
