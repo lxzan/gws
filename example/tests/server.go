@@ -22,7 +22,7 @@ func main() {
 	var upgrader = websocket.Upgrader{
 		ServerOptions: &websocket.ServerOptions{
 			LogEnabled:      true,
-			CompressEnabled: false,
+			CompressEnabled: true,
 			Concurrency:     16,
 			WriteBufferSize: bufferSize,
 			ReadBufferSize:  bufferSize,

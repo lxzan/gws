@@ -6,17 +6,19 @@ import (
 
 type Message struct {
 	index      int
+	abort      bool
 	compressed bool
 	opcode     Opcode
 	data       *internal.Buffer
 }
 
-func NewMessage(messageType Opcode, data []byte) *Message {
+func NewMessage(compressed bool, messageType Opcode, data *internal.Buffer) *Message {
 	return &Message{
 		index:      0,
-		compressed: false,
+		abort:      false,
+		compressed: compressed,
 		opcode:     messageType,
-		data:       internal.NewBuffer(data),
+		data:       data,
 	}
 }
 
@@ -35,6 +37,10 @@ func (c *Message) Close() {
 
 // call next handler function
 func (c *Message) Next(socket *Conn) {
+	if c.abort {
+		return
+	}
+
 	if c.index < len(socket.middlewares) {
 		c.index++
 		socket.middlewares[c.index-1](socket, c)
@@ -43,9 +49,9 @@ func (c *Message) Next(socket *Conn) {
 	}
 }
 
-// abort the message
+// abort the next handlerFuncs, but previous handlerFuncs will be executed
 func (c *Message) Abort(socket *Conn) {
-	panic(internal.PANIC_ABORT)
+	c.abort = true
 }
 
 type HandlerFunc func(socket *Conn, msg *Message)

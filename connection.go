@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -36,16 +35,16 @@ type Conn struct {
 	// websocket middlewares
 	middlewares []HandlerFunc
 
-	//
+	// read buffer
 	rbuf *bufio.Reader
-	// opcode for fragment frame
-	opcode Opcode
 	// message queue
 	mq *internal.Queue
 	// flate decompressors
 	decompressors *decompressors
+	// opcode for fragment frame
+	opcode Opcode
 	// continuation frame
-	fragmentBuffer *bytes.Buffer
+	fragment *internal.Buffer
 	// frame payload for read control frame
 	controlBuffer [internal.Bv7]byte
 	// frame header for read
@@ -83,7 +82,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		rbuf:            bufio.NewReaderSize(netConn, conf.ReadBufferSize),
 		fh:              frameHeader{},
 		mq:              internal.NewQueue(int64(conf.Concurrency)),
-		fragmentBuffer:  bytes.NewBuffer(nil),
+		fragment:        internal.NewBuffer(nil),
 	}
 
 	c.wtimer = time.AfterFunc(conf.FlushLatency, func() { c.flush() })

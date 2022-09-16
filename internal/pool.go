@@ -74,5 +74,5 @@ func (p *BufferPool) Get(n int) *Buffer {
 		buf.Reset()
 		return buf
 	}
-	return NewBuffer(nil)
+	return NewBuffer(make([]byte, 0, Lv4))
 }

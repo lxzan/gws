@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"io"
@@ -77,13 +76,13 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()
-	if !isDataFrame(opcode) {
-		return c.readControl()
-	}
-
 	// just for continuation opcode
 	if opcode == OpcodeText || opcode == OpcodeBinary {
 		c.opcode = opcode
+	}
+
+	if !isDataFrame(opcode) {
+		return c.readControl()
 	}
 
 	var fin = c.fh.GetFIN()
@@ -129,10 +128,10 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	maskXOR(buf.Bytes(), c.fh[10:14])
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
-		if err := writeN(c.fragmentBuffer, buf.Bytes(), contentLength); err != nil {
+		if err := writeN(c.fragment, buf.Bytes(), contentLength); err != nil {
 			return false, err
 		}
-		if c.fragmentBuffer.Len() > c.conf.MaxContentLength {
+		if c.fragment.Len() > c.conf.MaxContentLength {
 			return false, CloseMessageTooLarge
 		}
 	}
@@ -141,18 +140,18 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 		switch opcode {
 		case OpcodeContinuation:
 			buf.Reset()
-			if _, err := io.CopyN(buf, c.fragmentBuffer, int64(c.fragmentBuffer.Len())); err != nil {
+			if _, err := io.CopyN(buf, c.fragment, int64(c.fragment.Len())); err != nil {
 				return false, err
 			}
-			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: c.opcode, data: buf, index: 0})
+			c.mq.Push(NewMessage(c.compressEnabled, opcode, buf))
 			c.messageLoop()
 
-			c.fragmentBuffer.Reset()
-			if c.fragmentBuffer.Cap() > c.conf.ReadBufferSize {
-				c.fragmentBuffer = bytes.NewBuffer(nil)
+			c.fragment.Reset()
+			if c.fragment.Cap() > c.conf.ReadBufferSize {
+				c.fragment = internal.NewBuffer(nil)
 			}
 		case OpcodeText, OpcodeBinary:
-			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: opcode, data: buf, index: 0})
+			c.mq.Push(NewMessage(c.compressEnabled, opcode, buf))
 			c.messageLoop()
 		default:
 		}
@@ -170,9 +169,6 @@ func (c *Conn) messageLoop() {
 	go func(msg *Message) {
 		defer func() {
 			exception := recover()
-			if s, ok := exception.(string); ok && s == internal.PANIC_ABORT {
-				return
-			}
 			c.handler.OnRecover(c, exception)
 		}()
 

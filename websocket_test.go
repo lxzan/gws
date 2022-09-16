@@ -165,13 +165,6 @@ func TestMiddleware(t *testing.T) {
 
 	t.Run("abort", func(t *testing.T) {
 		var s = ""
-		defer func() {
-			recover()
-			if s != "13" {
-				t.Fail()
-			}
-		}()
-
 		socket.middlewares = append(socket.middlewares,
 			func(socket *Conn, msg *Message) {
 				s += "1"
@@ -190,5 +183,8 @@ func TestMiddleware(t *testing.T) {
 		)
 		var msg = &Message{index: 0}
 		msg.Next(socket)
+		if s != "1342" {
+			t.Fail()
+		}
 	})
 }
