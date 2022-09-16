@@ -22,7 +22,7 @@ func (c *Conn) readControl() (continued bool, retErr error) {
 
 	var n = c.fh.GetLengthCode()
 	// RFC6455: All control frames MUST have a payload length of 125 bytes or fewer and MUST NOT be fragmented.
-	if n > internal.PayloadSizeLv1 {
+	if n > internal.Lv1 {
 		return false, CloseProtocolError
 	}
 

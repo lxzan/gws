@@ -29,22 +29,20 @@ const (
 	Bv6  = 1 << 6
 	Bv7  = 1 << 7
 	Bv8  = 1 << 8
-	Bv10 = 1 << 10 // 1KB
-	Bv12 = 1 << 12 // 4KB
-	Bv16 = 1 << 16 // 64KB
-)
-
-const (
-	PayloadSizeLv1 = 125     // 125B
-	PayloadSizeLv2 = 1 << 16 // 64KB
-	PayloadSizeLv3 = 1 << 20 // 1MB
+	Bv10 = 1 << 10
+	Bv12 = 1 << 12
+	Bv16 = 1 << 16
 )
 
 // Add four bytes as specified in RFC
 // Add final block to squelch unexpected EOF error from flate reader.
 var FlateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 
-var (
-	PingFrame = []byte{137, 1, 48}
-	PongFrame = []byte{138, 1, 49}
+// buffer level
+const (
+	Lv1 = 125
+	Lv2 = 1024
+	Lv3 = 4 * 1024
+	Lv4 = 64*1024 - 1
+	Lv5 = 1024 * 1024
 )

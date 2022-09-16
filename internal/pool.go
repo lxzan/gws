@@ -19,13 +19,13 @@ func NewBufferPool() *BufferPool {
 		p3: sync.Pool{},
 	}
 	p.p0.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Bv7))
+		return NewBuffer(make([]byte, 0, Lv1))
 	}
 	p.p1.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Bv10))
+		return NewBuffer(make([]byte, 0, Lv2))
 	}
 	p.p2.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Bv12))
+		return NewBuffer(make([]byte, 0, Lv3))
 	}
 	p.p3.New = func() interface{} {
 		return NewBuffer(nil)
@@ -35,41 +35,41 @@ func NewBufferPool() *BufferPool {
 
 func (p *BufferPool) Put(b *Buffer) {
 	n := b.Cap()
-	if n <= Bv7 {
+	if n <= Lv1 {
 		p.p0.Put(b)
 		return
 	}
-	if n <= Bv10 {
+	if n <= Lv2 {
 		p.p1.Put(b)
 		return
 	}
-	if n <= Bv12 {
+	if n <= Lv3 {
 		p.p2.Put(b)
 		return
 	}
-	if n <= Bv16 {
+	if n <= Lv4 {
 		p.p3.Put(b)
 		return
 	}
 }
 
 func (p *BufferPool) Get(n int) *Buffer {
-	if n <= Bv7 {
+	if n <= Lv1 {
 		buf := p.p0.Get().(*Buffer)
 		buf.Reset()
 		return buf
 	}
-	if n <= Bv10 {
+	if n <= Lv2 {
 		buf := p.p1.Get().(*Buffer)
 		buf.Reset()
 		return buf
 	}
-	if n <= Bv12 {
+	if n <= Lv3 {
 		buf := p.p2.Get().(*Buffer)
 		buf.Reset()
 		return buf
 	}
-	if n <= Bv16 {
+	if n <= Lv4 {
 		buf := p.p3.Get().(*Buffer)
 		buf.Reset()
 		return buf

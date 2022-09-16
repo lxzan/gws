@@ -44,7 +44,7 @@ type Conn struct {
 	// continuation frame
 	fragmentBuffer *bytes.Buffer
 	// frame payload for read control frame
-	controlBuffer [internal.PayloadSizeLv1 + 4]byte
+	controlBuffer [internal.Bv7]byte
 	// frame header for read
 	fh frameHeader
 
