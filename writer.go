@@ -22,17 +22,6 @@ func (c *Conn) WritePong(payload []byte) {
 	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
-// send close frame
-func (c *Conn) WriteClose(code Code, reason []byte) {
-	var content = code.Bytes()
-	content = append(content, reason...)
-	if err := c.writeFrame(OpcodeCloseConnection, content, false); err != nil {
-		c.emitError(err)
-		return
-	}
-	c.flush()
-}
-
 // 发送消息
 // send a message
 func (c *Conn) Write(messageType Opcode, content []byte) {

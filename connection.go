@@ -13,13 +13,11 @@ import (
 )
 
 type Conn struct {
+	// context
+	Context context.Context
 	// store session information
 	Storage *internal.Map
 
-	// parent context
-	ctx context.Context
-	// cancel func
-	cancel func()
 	// websocket protocol upgrader
 	conf *ServerOptions
 	// make sure to exit only once
@@ -66,8 +64,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &Conn{
-		ctx:             ctx,
-		cancel:          cancel,
+		Context:         ctx,
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
 		onceClose:       sync.Once{},
@@ -86,6 +83,10 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	}
 
 	c.wtimer = time.AfterFunc(conf.FlushLatency, func() { c.flush() })
+	defer func() {
+		cancel()
+		c.wtimer.Stop()
+	}()
 
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor
@@ -112,13 +113,9 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	return c
 }
 
-func (c *Conn) Context() context.Context {
-	return c.ctx
-}
-
 func (c *Conn) isCanceled() bool {
 	select {
-	case <-c.ctx.Done():
+	case <-c.Context.Done():
 		return true
 	default:
 		return false
@@ -150,7 +147,6 @@ func (c *Conn) emitError(err error) {
 		c.writeClose(code, nil)
 		_ = c.netConn.Close()
 		c.handler.OnError(c, err)
-		c.cancel()
 	})
 }
 
@@ -166,7 +162,6 @@ func (c *Conn) Close(code Code, reason []byte) (err error) {
 		c.writeClose(code, reason)
 		err = c.netConn.Close()
 		c.handler.OnClose(c, code, reason)
-		c.cancel()
 	})
 	return
 }
@@ -179,9 +174,18 @@ func (c *Conn) writeClose(code Code, reason []byte) {
 		content = append(content, code.Error()...)
 	}
 	_ = c.writeFrame(OpcodeCloseConnection, content, false)
+	c.flush()
 }
 
 // set connection deadline
 func (c *Conn) SetDeadline(d time.Duration) error {
 	return c.netConn.SetDeadline(time.Now().Add(d))
+}
+
+func (c *Conn) LocalAddr() net.Addr {
+	return c.netConn.LocalAddr()
+}
+
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.netConn.RemoteAddr()
 }

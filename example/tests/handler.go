@@ -23,7 +23,7 @@ func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-socket.Context().Done():
+			case <-socket.Context.Done():
 				println("connection closed")
 				return
 			case <-ticker.C:
@@ -77,7 +77,7 @@ func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {
 func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
 	const count = 1000
 	for i := 0; i < count; i++ {
-		var size = internal.AlphabetNumeric.Intn(1024)
+		var size = internal.AlphabetNumeric.Intn(8 * 1024)
 		var k = internal.AlphabetNumeric.Generate(size)
 		socket.Storage.Put(string(k), 1)
 		socket.Write(gws.OpcodeText, k)
