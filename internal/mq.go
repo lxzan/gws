@@ -93,10 +93,7 @@ func (c *Queue) doPop() *Iterator {
 }
 
 func NewTokenBucket(capacity int64) *TokenBucket {
-	return &TokenBucket{
-		capacity: capacity,
-		bucket:   capacity,
-	}
+	return &TokenBucket{capacity: capacity, bucket: capacity}
 }
 
 type TokenBucket struct {
@@ -108,8 +105,8 @@ func (c *TokenBucket) Reset() {
 	atomic.StoreInt64(&c.bucket, c.capacity)
 }
 
-func (c *TokenBucket) Put() {
-	atomic.AddInt64(&c.bucket, 1)
+func (c *TokenBucket) Put() int64 {
+	return atomic.AddInt64(&c.bucket, 1)
 }
 
 func (c *TokenBucket) Get() int64 {

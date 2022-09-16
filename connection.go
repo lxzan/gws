@@ -56,8 +56,6 @@ type Conn struct {
 	compressors *compressors
 	// write buffer
 	wbuf *bufio.Writer
-	// concurrent write number
-	wnum int64
 	// flush write buffer
 	wtimer *time.Timer
 }
@@ -77,7 +75,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		handler:         handler,
 		middlewares:     conf.middlewares,
 		wbuf:            bufio.NewWriterSize(netConn, conf.WriteBufferSize),
-		wnum:            0,
 		wmu:             sync.Mutex{},
 		rbuf:            bufio.NewReaderSize(netConn, conf.ReadBufferSize),
 		fh:              frameHeader{},
@@ -90,8 +87,8 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor
 	if c.compressEnabled {
-		c.compressors = newCompressors(int(conf.Concurrency), conf.WriteBufferSize)
-		c.decompressors = newDecompressors(int(conf.Concurrency), conf.ReadBufferSize)
+		c.compressors = newCompressors(int(conf.Concurrency))
+		c.decompressors = newDecompressors(int(conf.Concurrency))
 	}
 
 	handler.OnOpen(c)

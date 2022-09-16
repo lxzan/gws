@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"compress/flate"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
@@ -17,10 +16,10 @@ type compressors struct {
 	cps    []*compressor
 }
 
-func newCompressors(n int, wSize int) *compressors {
+func newCompressors(n int) *compressors {
 	var c = make([]*compressor, 0, n)
 	for i := 0; i < n; i++ {
-		cps := newCompressor(wSize)
+		cps := newCompressor()
 		c = append(c, cps)
 	}
 	return &compressors{cps: c, n: uint64(n)}
@@ -32,12 +31,11 @@ func (c *compressors) Select() *compressor {
 	return c.cps[idx]
 }
 
-func newCompressor(writeBufferSize int) *compressor {
+func newCompressor() *compressor {
 	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
 	return &compressor{
 		mu:          sync.Mutex{},
-		wSize:       writeBufferSize,
-		writeBuffer: bytes.NewBuffer(nil),
+		writeBuffer: internal.NewBuffer(nil),
 		fw:          fw,
 	}
 }
@@ -45,16 +43,15 @@ func newCompressor(writeBufferSize int) *compressor {
 // 压缩器
 type compressor struct {
 	mu          sync.Mutex
-	wSize       int
-	writeBuffer *bytes.Buffer
+	writeBuffer *internal.Buffer
 	fw          *flate.Writer
 }
 
 // 压缩并构建WriteFrame
 func (c *compressor) Compress(content []byte) ([]byte, error) {
 	c.mu.Lock()
-	if c.writeBuffer.Cap() > c.wSize {
-		c.writeBuffer = bytes.NewBuffer(nil)
+	if c.writeBuffer.Cap() > internal.Lv3 {
+		c.writeBuffer = internal.NewBuffer(nil)
 	}
 
 	c.writeBuffer.Reset()
@@ -88,10 +85,10 @@ type decompressors struct {
 	dps    []*decompressor
 }
 
-func newDecompressors(n int, rSize int) *decompressors {
+func newDecompressors(n int) *decompressors {
 	var c = make([]*decompressor, 0, n)
 	for i := 0; i < n; i++ {
-		dps := newDecompressor(rSize)
+		dps := newDecompressor()
 		c = append(c, dps)
 	}
 	return &decompressors{dps: c, n: uint64(n)}
@@ -103,30 +100,22 @@ func (c *decompressors) Select() *decompressor {
 	return c.dps[idx]
 }
 
-func newDecompressor(readBufferSize int) *decompressor {
+func newDecompressor() *decompressor {
 	return &decompressor{
-		mu:         sync.Mutex{},
-		rSize:      readBufferSize,
-		readBuffer: bytes.NewBuffer(nil),
-		fr:         flate.NewReader(nil),
+		mu: sync.Mutex{},
+		fr: flate.NewReader(nil),
 	}
 }
 
 type decompressor struct {
-	mu         sync.Mutex
-	rSize      int
-	readBuffer *bytes.Buffer
-	fr         io.ReadCloser
+	mu sync.Mutex
+	fr io.ReadCloser
 }
 
 // 解压
 func (c *decompressor) Decompress(content *internal.Buffer) (*internal.Buffer, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	if c.readBuffer.Cap() > c.rSize {
-		c.readBuffer = bytes.NewBuffer(nil)
-	}
 
 	_, _ = content.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)

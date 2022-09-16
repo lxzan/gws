@@ -22,7 +22,7 @@ func main() {
 	var upgrader = gws.Upgrader{
 		ServerOptions: &gws.ServerOptions{
 			LogEnabled:      true,
-			CompressEnabled: false,
+			CompressEnabled: true,
 			Concurrency:     16,
 			WriteBufferSize: bufferSize,
 			ReadBufferSize:  bufferSize,
@@ -33,7 +33,7 @@ func main() {
 		},
 	}
 
-	upgrader.Use(gws.RateLimiter(time.Minute, 100))
+	//upgrader.Use(gws.RateLimiter(time.Minute, 10))
 
 	var handler = NewWebSocketHandler()
 

@@ -75,6 +75,5 @@ func RateLimiter(d time.Duration, n int64) HandlerFunc {
 		} else {
 			msg.Abort(socket)
 		}
-		limiter.Put()
 	}
 }
