@@ -22,7 +22,7 @@ func main() {
 	var upgrader = gws.Upgrader{
 		ServerOptions: &gws.ServerOptions{
 			LogEnabled:      true,
-			CompressEnabled: true,
+			CompressEnabled: false,
 			Concurrency:     16,
 			WriteBufferSize: bufferSize,
 			ReadBufferSize:  bufferSize,
