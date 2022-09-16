@@ -88,3 +88,40 @@ func (c *Queue) doPop() *Iterator {
 	}
 	return result
 }
+
+func NewStack() *Stack {
+	return &Stack{
+		mu:     sync.Mutex{},
+		bucket: make([]uint8, 0),
+	}
+}
+
+type Stack struct {
+	mu     sync.Mutex
+	bucket []uint8
+}
+
+func (c *Stack) Len() int {
+	c.mu.Lock()
+	n := len(c.bucket)
+	c.mu.Unlock()
+	return n
+}
+
+func (c *Stack) Push(v uint8) {
+	c.mu.Lock()
+	c.bucket = append(c.bucket, v)
+	c.mu.Unlock()
+}
+
+func (c *Stack) Pop() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	n := len(c.bucket)
+	if n > 0 {
+		c.bucket = c.bucket[:n-1]
+		return n - 1
+	}
+	return 0
+}

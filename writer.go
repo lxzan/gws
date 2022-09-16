@@ -21,13 +21,30 @@ func (c *Conn) WriteClose(code Code, reason []byte) {
 	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false))
 }
 
+func (c *Conn) flush() {
+	c.wmu.Lock()
+	err := c.wbuf.Flush()
+	c.wmu.Unlock()
+	if err != nil {
+		c.debugLog(err)
+		c.emitError(CloseInternalServerErr)
+	}
+}
+
 // 发送消息; 此方法会回收内存, 不要用来写控制帧
 // send a message; this method reclaims memory and should not be used to write control frames
 func (c *Conn) Write(messageType Opcode, content []byte) {
-	c.emitError(c.writeMessage(messageType, content))
+	c.wstack.Push(1)
+	if err := c.prepareMessage(messageType, content); err != nil {
+		c.emitError(err)
+		return
+	}
+	if c.wstack.Pop() == 0 {
+		c.flush()
+	}
 }
 
-func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
+func (c *Conn) prepareMessage(opcode Opcode, content []byte) error {
 	var enableCompress = c.compressEnabled && isDataFrame(opcode)
 	if !enableCompress {
 		return c.writeFrame(opcode, content, enableCompress)
@@ -49,22 +66,22 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	var header = frameHeader{}
 	var n = len(payload)
 	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
-	c.mu.Lock()
-	defer func() {
-		_ = c.netConn.SetWriteDeadline(time.Time{})
-		c.mu.Unlock()
-	}()
+
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
 
 	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.conf.WriteTimeout)); err != nil {
 		return err
 	}
-	if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
+	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
 	if n > 0 {
-		if err := writeN(c.netConn, payload, n); err != nil {
+		if err := writeN(c.wbuf, payload, n); err != nil {
 			return err
 		}
 	}
+
+	_ = c.netConn.SetWriteDeadline(time.Time{})
 	return nil
 }

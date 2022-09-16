@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -49,9 +50,13 @@ type Conn struct {
 	fh frameHeader
 
 	// write lock
-	mu sync.Mutex
+	wmu sync.Mutex
 	// flate compressors
 	compressors *compressors
+	//
+	wbuf *bufio.Writer
+	//
+	wstack *internal.Stack
 }
 
 func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) *Conn {
@@ -62,7 +67,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		fh:              frameHeader{},
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
-		mu:              sync.Mutex{},
 		onceClose:       sync.Once{},
 		onceLog:         sync.Once{},
 		compressEnabled: compressEnabled,
@@ -71,6 +75,9 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		fragmentBuffer:  bytes.NewBuffer(nil),
 		mq:              internal.NewQueue(int64(conf.Concurrency)),
 		middlewares:     conf.middlewares,
+		wbuf:            bufio.NewWriterSize(netConn, conf.WriteBufferSize),
+		wstack:          internal.NewStack(),
+		wmu:             sync.Mutex{},
 	}
 
 	// 为节省资源, 动态初始化压缩器
