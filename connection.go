@@ -18,6 +18,8 @@ type Conn struct {
 	// store session information
 	Storage *internal.Map
 
+	// cancel func
+	cancel func()
 	// websocket protocol upgrader
 	conf *ServerOptions
 	// make sure to exit only once
@@ -65,6 +67,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 
 	c := &Conn{
 		Context:         ctx,
+		cancel:          cancel,
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
 		onceClose:       sync.Once{},
@@ -83,10 +86,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 	}
 
 	c.wtimer = time.AfterFunc(conf.FlushLatency, func() { c.flush() })
-	defer func() {
-		cancel()
-		c.wtimer.Stop()
-	}()
 
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor
@@ -97,18 +96,23 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 
 	handler.OnOpen(c)
 
-	go func() {
+	go func(socket *Conn) {
+		defer func() {
+			socket.wtimer.Stop()
+			socket.cancel()
+		}()
+
 		for {
-			continued, err := c.readMessage()
+			continued, err := socket.readMessage()
 			if err != nil {
-				c.emitError(err)
+				socket.emitError(err)
 				return
 			}
 			if !continued {
 				return
 			}
 		}
-	}()
+	}(c)
 
 	return c
 }

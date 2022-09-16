@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	websocket "github.com/lxzan/gws"
+	"github.com/lxzan/gws"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -19,8 +19,8 @@ func main() {
 	flag.Parse()
 
 	const bufferSize = 16 * 1024
-	var upgrader = websocket.Upgrader{
-		ServerOptions: &websocket.ServerOptions{
+	var upgrader = gws.Upgrader{
+		ServerOptions: &gws.ServerOptions{
 			LogEnabled:      true,
 			CompressEnabled: false,
 			Concurrency:     16,
@@ -28,10 +28,12 @@ func main() {
 			ReadBufferSize:  bufferSize,
 			ReadTimeout:     time.Hour,
 		},
-		CheckOrigin: func(r *websocket.Request) bool {
+		CheckOrigin: func(r *gws.Request) bool {
 			return true
 		},
 	}
+
+	upgrader.Use(gws.RateLimiter(time.Minute, 100))
 
 	var handler = NewWebSocketHandler()
 

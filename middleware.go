@@ -2,6 +2,7 @@ package gws
 
 import (
 	"github.com/lxzan/gws/internal"
+	"time"
 )
 
 type Message struct {
@@ -55,3 +56,25 @@ func (c *Message) Abort(socket *Conn) {
 }
 
 type HandlerFunc func(socket *Conn, msg *Message)
+
+// if d=1min and n=100, max speed is 100/min
+func RateLimiter(d time.Duration, n int) HandlerFunc {
+	var limiter = internal.NewTokenBucket(n)
+	go func() {
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			limiter.Reset()
+		}
+	}()
+
+	return func(socket *Conn, msg *Message) {
+		if x := limiter.Pop(); x == 1 {
+			msg.Next(socket)
+			limiter.Push()
+			return
+		}
+		msg.Abort(socket)
+	}
+}
