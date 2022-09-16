@@ -1,6 +1,9 @@
 package internal
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type Iterator struct {
 	next *Iterator
@@ -89,47 +92,26 @@ func (c *Queue) doPop() *Iterator {
 	return result
 }
 
-func NewTokenBucket(capacity int) *TokenBucket {
+func NewTokenBucket(capacity int64) *TokenBucket {
 	return &TokenBucket{
 		capacity: capacity,
-		mu:       sync.Mutex{},
-		bucket:   make([]uint8, capacity, capacity),
+		bucket:   capacity,
 	}
 }
 
 type TokenBucket struct {
-	capacity int
-	mu       sync.Mutex
-	bucket   []uint8
+	capacity int64
+	bucket   int64
 }
 
 func (c *TokenBucket) Reset() {
-	c.mu.Lock()
-	c.bucket = make([]uint8, c.capacity, c.capacity)
-	c.mu.Unlock()
+	atomic.StoreInt64(&c.bucket, c.capacity)
 }
 
-func (c *TokenBucket) Len() int {
-	c.mu.Lock()
-	n := len(c.bucket)
-	c.mu.Unlock()
-	return n
+func (c *TokenBucket) Put() {
+	atomic.AddInt64(&c.bucket, 1)
 }
 
-func (c *TokenBucket) Push() {
-	c.mu.Lock()
-	c.bucket = append(c.bucket, 1)
-	c.mu.Unlock()
-}
-
-func (c *TokenBucket) Pop() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	n := len(c.bucket)
-	if n > 0 {
-		c.bucket = c.bucket[:n-1]
-		return 1
-	}
-	return 0
+func (c *TokenBucket) Get() int64 {
+	return atomic.AddInt64(&c.bucket, -1)
 }

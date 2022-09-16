@@ -58,7 +58,7 @@ func (c *Message) Abort(socket *Conn) {
 type HandlerFunc func(socket *Conn, msg *Message)
 
 // if d=1min and n=100, max speed is 100/min
-func RateLimiter(d time.Duration, n int) HandlerFunc {
+func RateLimiter(d time.Duration, n int64) HandlerFunc {
 	var limiter = internal.NewTokenBucket(n)
 	go func() {
 		ticker := time.NewTicker(d)
@@ -70,11 +70,11 @@ func RateLimiter(d time.Duration, n int) HandlerFunc {
 	}()
 
 	return func(socket *Conn, msg *Message) {
-		if x := limiter.Pop(); x == 1 {
+		if x := limiter.Get(); x >= 0 {
 			msg.Next(socket)
-			limiter.Push()
-			return
+		} else {
+			msg.Abort(socket)
 		}
-		msg.Abort(socket)
+		limiter.Put()
 	}
 }
