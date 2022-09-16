@@ -6,42 +6,41 @@ import (
 
 // send ping frame
 func (c *Conn) WritePing(payload []byte) {
-	c.emitError(c.writeFrame(OpcodePing, payload, false))
+	if err := c.writeFrame(OpcodePing, payload, false); err != nil {
+		c.emitError(err)
+		return
+	}
+	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 // send pong frame
 func (c *Conn) WritePong(payload []byte) {
-	c.emitError(c.writeFrame(OpcodePong, payload, false))
+	if err := c.writeFrame(OpcodePong, payload, false); err != nil {
+		c.emitError(err)
+		return
+	}
+	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 // send close frame
 func (c *Conn) WriteClose(code Code, reason []byte) {
 	var content = code.Bytes()
 	content = append(content, reason...)
-	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false))
-}
-
-func (c *Conn) flush() {
-	c.wmu.Lock()
-	err := c.wbuf.Flush()
-	c.wmu.Unlock()
-	if err != nil {
-		c.debugLog(err)
-		c.emitError(CloseInternalServerErr)
+	if err := c.writeFrame(OpcodeCloseConnection, content, false); err != nil {
+		c.emitError(err)
+		return
 	}
+	c.flush()
 }
 
-// 发送消息; 此方法会回收内存, 不要用来写控制帧
-// send a message; this method reclaims memory and should not be used to write control frames
+// 发送消息
+// send a message
 func (c *Conn) Write(messageType Opcode, content []byte) {
-	c.wstack.Push(1)
 	if err := c.prepareMessage(messageType, content); err != nil {
 		c.emitError(err)
 		return
 	}
-	if c.wstack.Pop() == 0 {
-		c.flush()
-	}
+	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 func (c *Conn) prepareMessage(opcode Opcode, content []byte) error {
@@ -73,6 +72,7 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.conf.WriteTimeout)); err != nil {
 		return err
 	}
+
 	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
@@ -84,4 +84,10 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 
 	_ = c.netConn.SetWriteDeadline(time.Time{})
 	return nil
+}
+
+func (c *Conn) flush() {
+	c.wmu.Lock()
+	c.emitError(c.wbuf.Flush())
+	c.wmu.Unlock()
 }

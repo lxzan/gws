@@ -28,6 +28,9 @@ type ServerOptions struct {
 	// write buffer size, dv=dv=4*1024 (4KB)
 	WriteBufferSize int
 
+	// max flush latency of write buffer, dv=5ms
+	FlushLatency time.Duration
+
 	// max message length, dv=1024*1024 (1MiB)
 	MaxContentLength int
 
@@ -47,6 +50,7 @@ var defaultConfig = ServerOptions{
 	HandshakeTimeout: 3 * time.Second,
 	ReadTimeout:      5 * time.Second,
 	WriteTimeout:     5 * time.Second,
+	FlushLatency:     5 * time.Millisecond,
 	CompressEnabled:  false,
 	CompressLevel:    flate.BestSpeed,
 	Concurrency:      4,
@@ -77,5 +81,8 @@ func (c *ServerOptions) init() {
 	}
 	if c.Concurrency == 0 {
 		c.Concurrency = d.Concurrency
+	}
+	if c.FlushLatency == 0 {
+		c.FlushLatency = d.FlushLatency
 	}
 }

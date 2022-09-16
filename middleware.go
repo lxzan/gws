@@ -13,7 +13,7 @@ type Message struct {
 
 func NewMessage(messageType Opcode, data []byte) *Message {
 	return &Message{
-		index:      -1,
+		index:      0,
 		compressed: false,
 		opcode:     messageType,
 		data:       internal.NewBuffer(data),
@@ -35,9 +35,9 @@ func (c *Message) Close() {
 
 // call next handler function
 func (c *Message) Next(socket *Conn) {
-	c.index++
 	if c.index < len(socket.middlewares) {
-		socket.middlewares[c.index](socket, c)
+		c.index++
+		socket.middlewares[c.index-1](socket, c)
 	} else {
 		socket.handler.OnMessage(socket, c)
 	}

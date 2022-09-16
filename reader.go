@@ -123,7 +123,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 	if err := c.readN(c.fh[10:14], 4); err != nil {
 		return false, err
 	}
-	if _, err := io.CopyN(buf, c.netConn, int64(contentLength)); err != nil {
+	if _, err := io.CopyN(buf, c.rbuf, int64(contentLength)); err != nil {
 		return false, err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
@@ -144,7 +144,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 			if _, err := io.CopyN(buf, c.fragmentBuffer, int64(c.fragmentBuffer.Len())); err != nil {
 				return false, err
 			}
-			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: c.opcode, data: buf, index: -1})
+			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: c.opcode, data: buf, index: 0})
 			c.messageLoop()
 
 			c.fragmentBuffer.Reset()
@@ -152,7 +152,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 				c.fragmentBuffer = bytes.NewBuffer(nil)
 			}
 		case OpcodeText, OpcodeBinary:
-			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: opcode, data: buf, index: -1})
+			c.mq.Push(&Message{compressed: c.compressEnabled, opcode: opcode, data: buf, index: 0})
 			c.messageLoop()
 		default:
 		}

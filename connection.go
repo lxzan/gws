@@ -36,6 +36,8 @@ type Conn struct {
 	// websocket middlewares
 	middlewares []HandlerFunc
 
+	//
+	rbuf *bufio.Reader
 	// opcode for fragment frame
 	opcode Opcode
 	// message queue
@@ -53,18 +55,20 @@ type Conn struct {
 	wmu sync.Mutex
 	// flate compressors
 	compressors *compressors
-	//
+	// write buffer
 	wbuf *bufio.Writer
-	//
-	wstack *internal.Stack
+	// concurrent write number
+	wnum int64
+	// flush write buffer
+	wtimer *time.Timer
 }
 
 func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	c := &Conn{
 		ctx:             ctx,
 		cancel:          cancel,
-		fh:              frameHeader{},
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,
 		onceClose:       sync.Once{},
@@ -72,13 +76,17 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		compressEnabled: compressEnabled,
 		netConn:         netConn,
 		handler:         handler,
-		fragmentBuffer:  bytes.NewBuffer(nil),
-		mq:              internal.NewQueue(int64(conf.Concurrency)),
 		middlewares:     conf.middlewares,
 		wbuf:            bufio.NewWriterSize(netConn, conf.WriteBufferSize),
-		wstack:          internal.NewStack(),
+		wnum:            0,
 		wmu:             sync.Mutex{},
+		rbuf:            bufio.NewReaderSize(netConn, conf.ReadBufferSize),
+		fh:              frameHeader{},
+		mq:              internal.NewQueue(int64(conf.Concurrency)),
+		fragmentBuffer:  bytes.NewBuffer(nil),
 	}
+
+	c.wtimer = time.AfterFunc(conf.FlushLatency, func() { c.flush() })
 
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor

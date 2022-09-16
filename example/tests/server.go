@@ -18,10 +18,14 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
+	const bufferSize = 16 * 1024
 	var upgrader = websocket.Upgrader{
 		ServerOptions: &websocket.ServerOptions{
 			LogEnabled:      true,
 			CompressEnabled: false,
+			Concurrency:     16,
+			WriteBufferSize: bufferSize,
+			ReadBufferSize:  bufferSize,
 			ReadTimeout:     time.Hour,
 		},
 		CheckOrigin: func(r *websocket.Request) bool {

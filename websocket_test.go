@@ -71,7 +71,7 @@ func BenchmarkMask(b *testing.B) {
 	var s1 = internal.AlphabetNumeric.Generate(1280)
 	var s2 = s1
 	var key [4]byte
-	binary.LittleEndian.PutUint32(key[:4], internal.R.Uint32())
+	binary.LittleEndian.PutUint32(key[:4], internal.AlphabetNumeric.Uint32())
 	for i := 0; i < b.N; i++ {
 		maskXOR(s2, key[:4])
 	}
@@ -124,7 +124,7 @@ func TestMask(t *testing.T) {
 		copy(s2, s1)
 
 		var key = make([]byte, 4, 4)
-		binary.LittleEndian.PutUint32(key, internal.R.Uint32())
+		binary.LittleEndian.PutUint32(key, internal.AlphabetNumeric.Uint32())
 		maskXOR(s1, key)
 		internal.MaskByByte(s2, key)
 		for i, _ := range s1 {
@@ -156,7 +156,7 @@ func TestMiddleware(t *testing.T) {
 				s += "6"
 			},
 		)
-		var msg = &Message{index: -1}
+		var msg = &Message{index: 0}
 		msg.Next(socket)
 		if s != "135642" {
 			t.Fail()
@@ -188,7 +188,7 @@ func TestMiddleware(t *testing.T) {
 				s += "6"
 			},
 		)
-		var msg = &Message{index: -1}
+		var msg = &Message{index: 0}
 		msg.Next(socket)
 	})
 }
