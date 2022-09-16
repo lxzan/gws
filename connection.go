@@ -60,7 +60,7 @@ type Conn struct {
 	wtimer *time.Timer
 }
 
-func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnabled bool, handler EventHandler) *Conn {
+func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool, handler EventHandler) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &Conn{
@@ -74,9 +74,9 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 		netConn:         netConn,
 		handler:         handler,
 		middlewares:     conf.middlewares,
-		wbuf:            bufio.NewWriterSize(netConn, conf.WriteBufferSize),
+		wbuf:            brw.Writer,
 		wmu:             sync.Mutex{},
-		rbuf:            bufio.NewReaderSize(netConn, conf.ReadBufferSize),
+		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		mq:              internal.NewQueue(int64(conf.Concurrency)),
 		fragment:        internal.NewBuffer(nil),
@@ -95,6 +95,7 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, compressEnable
 
 	go func(socket *Conn) {
 		defer func() {
+			_ = c.netConn.Close()
 			socket.wtimer.Stop()
 			socket.cancel()
 		}()
@@ -146,12 +147,11 @@ func (c *Conn) emitError(err error) {
 	// try to send close message
 	c.onceClose.Do(func() {
 		c.writeClose(code, nil)
-		_ = c.netConn.Close()
 		c.handler.OnError(c, err)
 	})
 }
 
-func (c *Conn) Close(code Code, reason []byte) (err error) {
+func (c *Conn) Close(code Code, reason []byte) error {
 	var str = ""
 	if len(reason) == 0 {
 		str = code.Error()
@@ -161,10 +161,9 @@ func (c *Conn) Close(code Code, reason []byte) (err error) {
 		var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
 		c.debugLog(errors.New(msg))
 		c.writeClose(code, reason)
-		err = c.netConn.Close()
 		c.handler.OnClose(c, code, reason)
 	})
-	return
+	return nil
 }
 
 func (c *Conn) writeClose(code Code, reason []byte) {

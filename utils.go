@@ -43,7 +43,8 @@ func maskXOR(b []byte, key []byte) {
 }
 
 func (c *Conn) readN(data []byte, n int) error {
-	num, err := io.ReadFull(c.rbuf, data)
+	num, err := c.netConn.Read(data)
+	//num, err := io.ReadFull(c.rbuf, data)
 	if err != nil {
 		return err
 	}

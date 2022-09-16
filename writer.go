@@ -62,11 +62,11 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 		return err
 	}
 
-	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
+	if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
 		return err
 	}
 	if n > 0 {
-		if err := writeN(c.wbuf, payload, n); err != nil {
+		if err := writeN(c.netConn, payload, n); err != nil {
 			return err
 		}
 	}
@@ -76,7 +76,8 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 }
 
 func (c *Conn) flush() {
-	c.wmu.Lock()
-	c.emitError(c.wbuf.Flush())
-	c.wmu.Unlock()
+	return
+	//c.wmu.Lock()
+	//c.emitError(c.wbuf.Flush())
+	//c.wmu.Unlock()
 }

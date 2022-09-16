@@ -70,3 +70,7 @@ func (c *Buffer) Cap() int {
 func (c *Buffer) Len() int {
 	return len(c.b) - c.offset
 }
+
+func (c *Buffer) Available() int {
+	return cap(c.b) - len(c.b)
+}

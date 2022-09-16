@@ -88,7 +88,7 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler Event
 	if !ok {
 		return nil, CloseInternalServerErr
 	}
-	netConn, _, err := hj.Hijack()
+	netConn, brw, err := hj.Hijack()
 	if err != nil {
 		return nil, err
 	}
@@ -114,5 +114,5 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler Event
 		return nil, err
 	}
 
-	return serveWebSocket(c, request, netConn, compressEnabled, handler), nil
+	return serveWebSocket(c, request, netConn, brw, compressEnabled, handler), nil
 }
