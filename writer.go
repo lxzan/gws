@@ -10,7 +10,6 @@ func (c *Conn) WritePing(payload []byte) {
 		c.emitError(err)
 		return
 	}
-	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 // send pong frame
@@ -19,7 +18,6 @@ func (c *Conn) WritePong(payload []byte) {
 		c.emitError(err)
 		return
 	}
-	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 // 发送消息
@@ -29,7 +27,6 @@ func (c *Conn) Write(messageType Opcode, content []byte) {
 		c.emitError(err)
 		return
 	}
-	c.wtimer.Reset(c.conf.FlushLatency)
 }
 
 func (c *Conn) prepareMessage(opcode Opcode, content []byte) error {
@@ -62,22 +59,16 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 		return err
 	}
 
-	if err := writeN(c.netConn, header[:headerLength], headerLength); err != nil {
+	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
 	if n > 0 {
-		if err := writeN(c.netConn, payload, n); err != nil {
+		if err := writeN(c.wbuf, payload, n); err != nil {
 			return err
 		}
 	}
-
-	_ = c.netConn.SetWriteDeadline(time.Time{})
-	return nil
-}
-
-func (c *Conn) flush() {
-	return
-	//c.wmu.Lock()
-	//c.emitError(c.wbuf.Flush())
-	//c.wmu.Unlock()
+	if err := c.wbuf.Flush(); err != nil {
+		return err
+	}
+	return c.netConn.SetWriteDeadline(time.Time{})
 }

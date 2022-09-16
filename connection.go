@@ -56,8 +56,6 @@ type Conn struct {
 	compressors *compressors
 	// write buffer
 	wbuf *bufio.Writer
-	// flush write buffer
-	wtimer *time.Timer
 }
 
 func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool, handler EventHandler) *Conn {
@@ -82,8 +80,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.Rea
 		fragment:        internal.NewBuffer(nil),
 	}
 
-	c.wtimer = time.AfterFunc(conf.FlushLatency, func() { c.flush() })
-
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor
 	if c.compressEnabled {
@@ -96,7 +92,6 @@ func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.Rea
 	go func(socket *Conn) {
 		defer func() {
 			_ = c.netConn.Close()
-			socket.wtimer.Stop()
 			socket.cancel()
 		}()
 
@@ -174,7 +169,6 @@ func (c *Conn) writeClose(code Code, reason []byte) {
 		content = append(content, code.Error()...)
 	}
 	_ = c.writeFrame(OpcodeCloseConnection, content, false)
-	c.flush()
 }
 
 // set connection deadline
