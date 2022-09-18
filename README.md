@@ -13,13 +13,9 @@ import (
 	"sync"
 )
 
-var handler = &Handler{sessions: sync.Map{}}
-
 type Handler struct {
 	sessions sync.Map
 }
-
-func (h *Handler) OnRecover(socket *gws.Conn, exception interface{}) {}
 
 func (h *Handler) OnOpen(socket *gws.Conn) {
 	name, _ := socket.Storage.Get("name")
@@ -66,8 +62,11 @@ func main() {
 		},
 	}
 
+	var handler = &Handler{sessions: sync.Map{}}
+	var ctx = context.Background()
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		upgrader.Upgrade(w, r, handler)
+		upgrader.Upgrade(ctx, w, r, handler)
 	})
 
 	http.ListenAndServe(":3000", nil)
@@ -77,7 +76,6 @@ func main() {
 ### Core
 ```go
 type EventHandler interface {
-	OnRecover(socket *Conn, exception interface{})
 	OnOpen(socket *Conn)
 	OnClose(socket *Conn, code Code, reason []byte)
 	OnMessage(socket *Conn, m *Message)
@@ -88,10 +86,17 @@ type EventHandler interface {
 ```
 
 ### Usage
-- Middleware
+#### Middleware
+- use internal middleware
 ```go
 var upgrader = gws.Upgrader{}
+upgrader.Use(gws.Recovery(func(exception interface{}) {
+	fmt.Printf("%v", exception)
+}))
+```
 
+- write a middleware
+```go
 upgrader.Use(func(socket *gws.Conn, msg *gws.Message) {
     var t0 = time.Now().UnixNano()
     msg.Next(socket)
@@ -100,7 +105,8 @@ upgrader.Use(func(socket *gws.Conn, msg *gws.Message) {
 })
 ```
 
-- Sever Side HeartBeat
+#### Heartbeat
+- Sever Side Heartbeat
 ```go
 func (h *Handler) OnOpen(socket *gws.Conn) {
 	go func(ws *gws.Conn) {
@@ -111,7 +117,7 @@ func (h *Handler) OnOpen(socket *gws.Conn) {
 			select {
 			case <-ticker.C:
 				ws.WritePing(nil)
-			case <-ws.Context().Done():
+			case <-ws.Context.Done():
 				return
 			}
 		}
@@ -124,7 +130,7 @@ func (h *Handler) OnPong(socket *gws.Conn, m []byte) {
 }
 ```
 
-- Client Side HeartBeat
+- Client Side Heartbeat
 ```go
 func (h *Handler) OnPing(socket *gws.Conn, m []byte) {
     socket.WritePong(nil)
