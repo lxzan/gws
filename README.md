@@ -1,8 +1,11 @@
 # gws
-#### event driven websocket framework
+
+#### a event driven websocket framework
 
 ### Quick Start
+
 chat room
+
 ```go
 package main
 
@@ -74,30 +77,35 @@ func main() {
 ```
 
 ### Core
+
 ```go
 type EventHandler interface {
-	OnOpen(socket *Conn)
-	OnClose(socket *Conn, code Code, reason []byte)
-	OnMessage(socket *Conn, m *Message)
-	OnError(socket *Conn, err error)
-	OnPing(socket *Conn, m []byte)
-	OnPong(socket *Conn, m []byte)
+    OnOpen(socket *Conn)
+    OnClose(socket *Conn, code Code, reason []byte)
+    OnMessage(socket *Conn, m *Message)
+    OnError(socket *Conn, err error)
+    OnPing(socket *Conn, m []byte)
+    OnPong(socket *Conn, m []byte)
 }
 ```
 
 ### Usage
+
 #### Middleware
+
 - use internal middleware
+
 ```go
 var upgrader = gws.Upgrader{}
 upgrader.Use(gws.Recovery(func(exception interface{}) {
-	fmt.Printf("%v", exception)
+    fmt.Printf("%v", exception)
 }))
 ```
 
 - write a middleware
+
 ```go
-upgrader.Use(func(socket *gws.Conn, msg *gws.Message) {
+upgrader.Use(func (socket *gws.Conn, msg *gws.Message) {
     var t0 = time.Now().UnixNano()
     msg.Next(socket)
     var t1 = time.Now().UnixNano()
@@ -106,27 +114,29 @@ upgrader.Use(func(socket *gws.Conn, msg *gws.Message) {
 ```
 
 #### Heartbeat
+
 - Sever Side Heartbeat
+
 ```go
 func (h *Handler) OnOpen(socket *gws.Conn) {
-	go func(ws *gws.Conn) {
-		ticker := time.NewTicker(15 * time.Second)
-		defer ticker.Stop()
+    go func (ws *gws.Conn) {
+        ticker := time.NewTicker(15 * time.Second)
+        defer ticker.Stop()
+    
+        for {
+            select {
+            case <-ticker.C:
+            ws.WritePing(nil)
+            case <-ws.Context.Done():
+            return
+            }
+        }
 
-		for {
-			select {
-			case <-ticker.C:
-				ws.WritePing(nil)
-			case <-ws.Context.Done():
-				return
-			}
-		}
-
-	}(socket)
+    }(socket)
 }
 
 func (h *Handler) OnPong(socket *gws.Conn, m []byte) {
-	_ = socket.SetDeadline(30 * time.Second)
+    _ = socket.SetDeadline(30 * time.Second)
 }
 ```
 
