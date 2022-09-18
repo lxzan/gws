@@ -13,8 +13,6 @@ import (
 
 type testEventHandler struct{}
 
-func (t testEventHandler) OnRecover(socket *Conn, exception interface{}) {}
-
 func (t testEventHandler) OnOpen(socket *Conn) {}
 
 func (t testEventHandler) OnClose(socket *Conn, code Code, reason []byte) {}

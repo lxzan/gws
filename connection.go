@@ -24,7 +24,7 @@ type Conn struct {
 	conf *ServerOptions
 	// make sure to exit only once
 	onceClose sync.Once
-	// make sure print log only once
+	// make sure print log at most once
 	onceLog sync.Once
 	// whether you use compression
 	compressEnabled bool
@@ -58,11 +58,11 @@ type Conn struct {
 	wbuf *bufio.Writer
 }
 
-func serveWebSocket(conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool, handler EventHandler) *Conn {
-	ctx, cancel := context.WithCancel(context.Background())
+func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool, handler EventHandler) *Conn {
+	childCtx, cancel := context.WithCancel(ctx)
 
 	c := &Conn{
-		Context:         ctx,
+		Context:         childCtx,
 		cancel:          cancel,
 		Storage:         r.Storage,
 		conf:            conf.ServerOptions,

@@ -13,10 +13,6 @@ func NewWebSocketHandler() *WebSocketHandler {
 
 type WebSocketHandler struct{}
 
-func (c *WebSocketHandler) OnRecover(socket *gws.Conn, exception interface{}) {
-
-}
-
 func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)

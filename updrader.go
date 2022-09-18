@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"context"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
@@ -53,7 +54,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
+func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
 	if c.ServerOptions == nil {
 		var options = defaultConfig
 		c.ServerOptions = &options
@@ -114,5 +115,5 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, handler Event
 		return nil, err
 	}
 
-	return serveWebSocket(c, request, netConn, brw, compressEnabled, handler), nil
+	return serveWebSocket(ctx, c, request, netConn, brw, compressEnabled, handler), nil
 }

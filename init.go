@@ -22,15 +22,6 @@ type ServerOptions struct {
 	// websocket  handshake timeout, dv=3s
 	HandshakeTimeout time.Duration
 
-	// read buffer size, dv=4KB
-	ReadBufferSize int
-
-	// write buffer size, dv=dv=4*1024 (4KB)
-	WriteBufferSize int
-
-	// max flush latency of write buffer, dv=5ms
-	FlushLatency time.Duration
-
 	// max message length, dv=1024*1024 (1MiB)
 	MaxContentLength int
 
@@ -50,12 +41,9 @@ var defaultConfig = ServerOptions{
 	HandshakeTimeout: 3 * time.Second,
 	ReadTimeout:      5 * time.Second,
 	WriteTimeout:     5 * time.Second,
-	FlushLatency:     5 * time.Millisecond,
 	CompressEnabled:  false,
 	CompressLevel:    flate.BestSpeed,
 	Concurrency:      4,
-	WriteBufferSize:  4 * 1024,        // 4KB
-	ReadBufferSize:   4 * 1024,        // 4KB
 	MaxContentLength: 1 * 1024 * 1024, // 1MB
 }
 
@@ -63,12 +51,6 @@ func (c *ServerOptions) init() {
 	var d = defaultConfig
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = d.HandshakeTimeout
-	}
-	if c.WriteBufferSize <= 0 {
-		c.WriteBufferSize = d.WriteBufferSize
-	}
-	if c.ReadBufferSize <= 0 {
-		c.ReadBufferSize = d.ReadBufferSize
 	}
 	if c.MaxContentLength <= 0 {
 		c.MaxContentLength = d.MaxContentLength
@@ -81,8 +63,5 @@ func (c *ServerOptions) init() {
 	}
 	if c.Concurrency == 0 {
 		c.Concurrency = d.Concurrency
-	}
-	if c.FlushLatency == 0 {
-		c.FlushLatency = d.FlushLatency
 	}
 }

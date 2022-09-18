@@ -57,6 +57,7 @@ func (c *Message) Abort(socket *Conn) {
 
 type HandlerFunc func(socket *Conn, msg *Message)
 
+// global rate limiter
 // if d=1min and n=100, max speed is 100/min
 func RateLimiter(d time.Duration, n int64) HandlerFunc {
 	var limiter = internal.NewTokenBucket(n)
@@ -75,5 +76,16 @@ func RateLimiter(d time.Duration, n int64) HandlerFunc {
 		} else {
 			msg.Abort(socket)
 		}
+	}
+}
+
+func Recovery(exceptionHandler func(exception interface{})) HandlerFunc {
+	return func(socket *Conn, msg *Message) {
+		defer func() {
+			if e := recover(); e != nil {
+				exceptionHandler(e)
+			}
+		}()
+		msg.Next(socket)
 	}
 }

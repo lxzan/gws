@@ -14,7 +14,6 @@ const (
 )
 
 type EventHandler interface {
-	OnRecover(socket *Conn, exception interface{})
 	OnOpen(socket *Conn)
 	OnClose(socket *Conn, code Code, reason []byte)
 	OnMessage(socket *Conn, m *Message)

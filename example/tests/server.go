@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
 	_ "net/http/pprof"
@@ -18,14 +20,11 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	const bufferSize = 16 * 1024
 	var upgrader = gws.Upgrader{
 		ServerOptions: &gws.ServerOptions{
 			LogEnabled:      true,
 			CompressEnabled: false,
-			Concurrency:     16,
-			WriteBufferSize: bufferSize,
-			ReadBufferSize:  bufferSize,
+			Concurrency:     8,
 			ReadTimeout:     time.Hour,
 		},
 		CheckOrigin: func(r *gws.Request) bool {
@@ -33,12 +32,15 @@ func main() {
 		},
 	}
 
-	//upgrader.Use(gws.RateLimiter(time.Minute, 10))
+	upgrader.Use(gws.Recovery(func(exception interface{}) {
+		fmt.Printf("%v", exception)
+	}))
 
 	var handler = NewWebSocketHandler()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
-		upgrader.Upgrade(writer, request, handler)
+		upgrader.Upgrade(ctx, writer, request, handler)
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
@@ -54,4 +56,6 @@ func main() {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	cancel()
+	time.Sleep(3 * time.Second)
 }

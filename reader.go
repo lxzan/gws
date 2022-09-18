@@ -147,7 +147,7 @@ func (c *Conn) readMessage() (continued bool, retErr error) {
 			c.messageLoop()
 
 			c.fragment.Reset()
-			if c.fragment.Cap() > c.conf.ReadBufferSize {
+			if c.fragment.Cap() > internal.Lv3 {
 				c.fragment = internal.NewBuffer(nil)
 			}
 		case OpcodeText, OpcodeBinary:
@@ -167,11 +167,6 @@ func (c *Conn) messageLoop() {
 
 	var d = ele.Data.(*Message)
 	go func(msg *Message) {
-		defer func() {
-			exception := recover()
-			c.handler.OnRecover(c, exception)
-		}()
-
 		// server is stopping
 		if c.isCanceled() {
 			c.mq.Done()
