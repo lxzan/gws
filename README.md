@@ -22,9 +22,21 @@ type Handler struct {
 	sessions sync.Map
 }
 
+func (h *Handler) deleteSession(socket *gws.Conn) {
+	name, _ := socket.Storage.Get("name")
+	h.sessions.Delete(name)
+}
+
 func (h *Handler) OnOpen(socket *gws.Conn) {
 	name, _ := socket.Storage.Get("name")
 	h.sessions.Store(name.(string), socket)
+
+	go func(conn *gws.Conn) {
+		for {
+			<-conn.Context.Done()
+			h.deleteSession(conn)
+		}
+	}(socket)
 }
 
 func (h *Handler) OnClose(socket *gws.Conn, code gws.Code, reason []byte) {}
