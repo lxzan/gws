@@ -1,10 +1,15 @@
 # gws
+## a event driven websocket framework
 
-#### a event driven websocket framework
+### Features
+- event-driven api design
+- use queues to process messages parallelly, with concurrency control
+- middleware support
+- self-implementing buffer, more memory-saving
+- no dependency
 
 ### Quick Start
-
-chat room
+chat room example:
 
 server
 ```go
@@ -85,14 +90,14 @@ func main() {
 }
 ```
 
-client
+client(browser console)
 ```js
 let ws1 = new WebSocket('ws://127.0.0.1:3000/ws?name=caster');
 let ws2 = new WebSocket('ws://127.0.0.1:3000/ws?name=lancer');
 ws1.send('{"to": "lancer", "msg": "Hello! I am caster"}');
 ```
 
-### Core
+### API
 
 ```go
 type EventHandler interface {
@@ -142,9 +147,9 @@ func (h *Handler) OnOpen(socket *gws.Conn) {
         for {
             select {
             case <-ticker.C:
-            ws.WritePing(nil)
+            	ws.WritePing(nil)
             case <-ws.Context.Done():
-            return
+            	return
             }
         }
 

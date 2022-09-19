@@ -90,10 +90,7 @@ func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net
 	handler.OnOpen(c)
 
 	go func(socket *Conn) {
-		defer func() {
-			_ = c.netConn.Close()
-			socket.cancel()
-		}()
+		defer socket.cancel()
 
 		for {
 			continued, err := socket.readMessage()
@@ -142,6 +139,7 @@ func (c *Conn) emitError(err error) {
 	// try to send close message
 	c.onceClose.Do(func() {
 		c.writeClose(code, nil)
+		_ = c.netConn.Close()
 		c.handler.OnError(c, err)
 	})
 }
@@ -156,6 +154,7 @@ func (c *Conn) Close(code Code, reason []byte) error {
 		var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
 		c.debugLog(errors.New(msg))
 		c.writeClose(code, reason)
+		_ = c.netConn.Close()
 		c.handler.OnClose(c, code, reason)
 	})
 	return nil

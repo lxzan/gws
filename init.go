@@ -22,7 +22,7 @@ type ServerOptions struct {
 	// websocket  handshake timeout, dv=3s
 	HandshakeTimeout time.Duration
 
-	// max message length, dv=1024*1024 (1MiB)
+	// max message length, dv=1024*1024 (1MB)
 	MaxContentLength int
 
 	// number of concurrently processed messages allowed by the connection, dv=4
