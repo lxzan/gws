@@ -11,6 +11,7 @@ server
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/lxzan/gws"
 	"net/http"
