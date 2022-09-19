@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
-	"math/rand"
 	"time"
 )
 
@@ -91,8 +90,9 @@ func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
 	const count = 1000000
 	for i := 0; i < count; i++ {
-		var size = 10 + rand.Intn(1024)
-		var k = internal.AlphabetNumeric.Generate(size)
-		socket.Write(gws.OpcodeText, k)
+		//var size = 10 + rand.Intn(1024)
+		//var k = internal.AlphabetNumeric.Generate(size)
+		//socket.Write(gws.OpcodeText, k)
+		socket.Write(gws.OpcodeText, []byte("Hello"))
 	}
 }

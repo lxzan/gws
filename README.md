@@ -6,6 +6,7 @@
 
 chat room
 
+server
 ```go
 package main
 
@@ -35,15 +36,10 @@ type Request struct {
 func (h *Handler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	var request Request
 	json.Unmarshal(m.Bytes(), &request)
+	defer m.Close()
 
-	me, _ := socket.Storage.Get("name")
-	if me.(string) == request.To {
-		socket.Write(m.MessageType(), m.Bytes())
-		m.Close()
-	} else {
-		if receiver, ok := h.sessions.Load(request.To); ok {
-			h.OnMessage(receiver.(*gws.Conn), m)
-		}
+	if receiver, ok := h.sessions.Load(request.To); ok {
+		receiver.(*gws.Conn).Write(gws.OpcodeText, m.Bytes())
 	}
 }
 
@@ -74,6 +70,13 @@ func main() {
 
 	http.ListenAndServe(":3000", nil)
 }
+```
+
+client
+```js
+let ws1 = new WebSocket('ws://127.0.0.1:3000/ws?name=caster');
+let ws2 = new WebSocket('ws://127.0.0.1:3000/ws?name=lancer');
+ws1.send('{"to": "lancer", "msg": "Hello! I am caster"}');
 ```
 
 ### Core
