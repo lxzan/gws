@@ -114,8 +114,12 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err := netConn.SetWriteDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
-		return nil, err
+
+	if r.URL.Scheme == "http" {
+		if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
+			return nil, err
+		}
 	}
+
 	return serveWebSocket(ctx, c, request, netConn, brw, compressEnabled, handler), nil
 }
