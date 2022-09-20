@@ -27,32 +27,25 @@ type Handler struct {
 	sessions sync.Map
 }
 
-func (h *Handler) deleteSession(socket *gws.Conn) {
-	name, _ := socket.Storage.Get("name")
-	h.sessions.Delete(name)
-}
+func (h *Handler) OnOpen(s *gws.Conn) {
+	name, _ := s.Storage.Get("name")
+	h.sessions.Store(name.(string), s)
 
-func (h *Handler) OnOpen(socket *gws.Conn) {
-	name, _ := socket.Storage.Get("name")
-	h.sessions.Store(name.(string), socket)
-
-	go func(conn *gws.Conn) {
+	go func(socket *gws.Conn, key string) {
 		for {
-			<-conn.Context.Done()
-			h.deleteSession(conn)
+			<-socket.Context.Done()
+			h.sessions.Delete(key)
 		}
-	}(socket)
+	}(s, name.(string))
 }
 
 func (h *Handler) OnClose(socket *gws.Conn, code gws.Code, reason []byte) {}
 
-type Request struct {
-	To      string `json:"to"`
-	Message string `json:"message"`
-}
-
 func (h *Handler) OnMessage(socket *gws.Conn, m *gws.Message) {
-	var request Request
+	var request = struct {
+		To      string `json:"to"`
+		Message string `json:"message"`
+	}{}
 	json.Unmarshal(m.Bytes(), &request)
 	defer m.Close()
 
@@ -74,8 +67,11 @@ func main() {
 			CompressEnabled: false,
 		},
 		CheckOrigin: func(r *gws.Request) bool {
-			r.Storage.Put("name", r.URL.Query().Get("name"))
-			return true
+			if name := r.URL.Query().Get("name"); name != "" {
+				r.Storage.Put("name", name)
+				return true
+			}
+			return false
 		},
 	}
 
