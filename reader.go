@@ -74,7 +74,7 @@ func (c *Conn) readControl() error {
 	}
 }
 
-func (c *Conn) readMessage() error {
+func (c *Conn) readMessage() (retErr error) {
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return err
 	}
@@ -82,9 +82,8 @@ func (c *Conn) readMessage() error {
 	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
 		return err
 	}
-	defer func() {
-		_ = c.netConn.SetReadDeadline(time.Time{})
-	}()
+
+	defer c.netConn.SetReadDeadline(time.Time{})
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()

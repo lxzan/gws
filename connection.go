@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"github.com/lxzan/gws/internal"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -17,8 +16,6 @@ type Conn struct {
 	Storage *internal.Map
 	// message channel
 	messageChan chan *Message
-	// make sure print log at most once
-	onceLog sync.Once
 	// whether you use compression
 	compressEnabled bool
 	// tcp connection
@@ -53,7 +50,6 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		Storage:            r.Storage,
 		configs:            u,
 		messageChan:        make(chan *Message, u.MessageChannelBufferSize),
-		onceLog:            sync.Once{},
 		compressEnabled:    compressEnabled,
 		netConn:            netConn,
 		wbuf:               brw.Writer,
@@ -62,9 +58,6 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		fh:                 frameHeader{},
 		continuationBuffer: internal.NewBuffer(nil),
 	}
-
-	// 为节省资源, 动态初始化压缩器
-	// To save resources, dynamically initialize the compressor
 	if c.compressEnabled {
 		c.compressor = newCompressor()
 		c.decompressor = newDecompressor()
@@ -88,15 +81,6 @@ func (c *Conn) isCanceled() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// print debug log
-func (c *Conn) debugLog(err error) {
-	if c.configs.LogEnabled && err != nil {
-		c.onceLog.Do(func() {
-			log.Printf("websocket: " + err.Error())
-		})
 	}
 }
 

@@ -1,166 +1,106 @@
 # gws
-## a event driven websocket framework
+### minimal websocket server
 
-### Features
-- event-driven api design
-- use queues to process messages parallelly, with concurrency control
-- middleware support
-- self-implementing buffer, more memory-saving
-- no dependency
-
-### Quick Start
-chat room example:
-
-server
+#### Quick Start
+main.go
 ```go
 package main
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"github.com/lxzan/gws"
 	"net/http"
-	"sync"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 )
 
-type Handler struct {
-	sessions sync.Map
-}
-
-func (h *Handler) OnOpen(s *gws.Conn) {
-	name, _ := s.Storage.Get("name")
-	h.sessions.Store(name.(string), s)
-
-	go func(socket *gws.Conn, key string) {
-		for {
-			<-socket.Context.Done()
-			h.sessions.Delete(key)
-		}
-	}(s, name.(string))
-}
-
-func (h *Handler) OnClose(socket *gws.Conn, code gws.Code, reason []byte) {}
-
-func (h *Handler) OnMessage(socket *gws.Conn, m *gws.Message) {
-	var request = struct {
-		To      string `json:"to"`
-		Message string `json:"message"`
-	}{}
-	json.Unmarshal(m.Bytes(), &request)
-	defer m.Close()
-
-	if receiver, ok := h.sessions.Load(request.To); ok {
-		receiver.(*gws.Conn).Write(gws.OpcodeText, m.Bytes())
-	}
-}
-
-func (h *Handler) OnError(socket *gws.Conn, err error) {}
-
-func (h *Handler) OnPing(socket *gws.Conn, m []byte) {}
-
-func (h *Handler) OnPong(socket *gws.Conn, m []byte) {}
-
 func main() {
-	var upgrader = gws.Upgrader{
-		ServerOptions: &gws.ServerOptions{
-			LogEnabled:      true,
-			CompressEnabled: false,
-		},
-		CheckOrigin: func(r *gws.Request) bool {
-			if name := r.URL.Query().Get("name"); name != "" {
-				r.Storage.Put("name", name)
-				return true
+	var upgrader = gws.Upgrader{}
+
+	var handler = NewWebSocketHandler()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(ctx, writer, request)
+		if err != nil {
+			return
+		}
+		defer socket.Close()
+
+		handler.OnOpen(socket)
+		for {
+			select {
+			case <-ctx.Done():
+				handler.OnError(socket, gws.CloseServiceRestart)
+				return
+			case msg := <-socket.Read():
+				if err := msg.Err(); err != nil {
+					handler.OnError(socket, err)
+					return
+				}
+
+				switch msg.Typ() {
+				case gws.OpcodeText, gws.OpcodeBinary:
+					handler.OnMessage(socket, msg)
+				case gws.OpcodePing:
+					handler.OnPing(socket, msg.Bytes())
+				case gws.OpcodePong:
+					handler.OnPong(socket, msg.Bytes())
+				default:
+					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
+					return
+				}
 			}
-			return false
-		},
-	}
-
-	var handler = &Handler{sessions: sync.Map{}}
-	var ctx = context.Background()
-
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		upgrader.Upgrade(ctx, w, r, handler)
+		}
 	})
 
-	http.ListenAndServe(":3000", nil)
+	go http.ListenAndServe(":3000", nil)
+
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	cancel()
+	time.Sleep(100 * time.Millisecond)
 }
 ```
 
-client(browser console)
-```js
-let ws1 = new WebSocket('ws://127.0.0.1:3000/ws?name=caster');
-let ws2 = new WebSocket('ws://127.0.0.1:3000/ws?name=lancer');
-ws1.send('{"to": "lancer", "msg": "Hello! I am caster"}');
-```
-
-### API
-
+handler.go
 ```go
-type EventHandler interface {
-    OnOpen(socket *Conn)
-    OnClose(socket *Conn, code Code, reason []byte)
-    OnMessage(socket *Conn, m *Message)
-    OnError(socket *Conn, err error)
-    OnPing(socket *Conn, m []byte)
-    OnPong(socket *Conn, m []byte)
-}
-```
+package main
 
-### Usage
+import (
+	"github.com/lxzan/gws"
+)
 
-#### Middleware
-
-- use internal middleware
-
-```go
-var upgrader = gws.Upgrader{}
-upgrader.Use(gws.Recovery(func(exception interface{}) {
-    fmt.Printf("%v", exception)
-}))
-```
-
-- write a middleware
-
-```go
-upgrader.Use(func (socket *gws.Conn, msg *gws.Message) {
-    var t0 = time.Now().UnixNano()
-    msg.Next(socket)
-    var t1 = time.Now().UnixNano()
-    fmt.Printf("cost=%dms\n", (t1-t0)/1000000)
-})
-```
-
-#### Heartbeat
-
-- Sever Side Heartbeat
-
-```go
-func (h *Handler) OnOpen(socket *gws.Conn) {
-    go func (ws *gws.Conn) {
-        ticker := time.NewTicker(15 * time.Second)
-        defer ticker.Stop()
-    
-        for {
-            select {
-            case <-ticker.C:
-            	ws.WritePing(nil)
-            case <-ws.Context.Done():
-            	return
-            }
-        }
-
-    }(socket)
+func NewWebSocketHandler() *WebSocketHandler {
+	return &WebSocketHandler{}
 }
 
-func (h *Handler) OnPong(socket *gws.Conn, m []byte) {
-    _ = socket.SetDeadline(30 * time.Second)
-}
-```
+type WebSocketHandler struct{}
 
-- Client Side Heartbeat
-```go
-func (h *Handler) OnPing(socket *gws.Conn, m []byte) {
-    socket.WritePong(nil)
-    _ = socket.SetDeadline(30 * time.Second)
+func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
+	println("connected")
+}
+
+func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
+	defer m.Close()
+	println(string(m.Bytes()))
+}
+
+func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
+	println(err.Error())
+}
+
+func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
+	println("onping")
+}
+
+func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {
+	println("onpong")
 }
 ```
