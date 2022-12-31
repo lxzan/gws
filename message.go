@@ -23,7 +23,7 @@ func (c *Message) Err() error {
 	return c.err
 }
 
-func (c *Message) MessageType() Opcode {
+func (c *Message) Typ() Opcode {
 	return c.opcode
 }
 

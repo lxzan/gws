@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -20,27 +21,42 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var upgrader = gws.Upgrader{
-		ServerOptions: &gws.ServerOptions{
-			LogEnabled:      true,
-			CompressEnabled: false,
-			Concurrency:     8,
-			ReadTimeout:     time.Hour,
-		},
-		CheckOrigin: func(r *gws.Request) bool {
-			return true
-		},
-	}
-
-	upgrader.Use(gws.Recovery(func(exception interface{}) {
-		fmt.Printf("%v", exception)
-	}))
+	var upgrader = gws.Upgrader{}
 
 	var handler = NewWebSocketHandler()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
-		upgrader.Upgrade(ctx, writer, request, handler)
+		socket, err := upgrader.Upgrade(ctx, writer, request)
+		if err != nil {
+			return
+		}
+
+		handler.OnOpen(socket)
+		for {
+			select {
+			case <-ctx.Done():
+				handler.OnError(socket, gws.CloseServiceRestart)
+				return
+			case msg := <-socket.Read():
+				if err := msg.Err(); err != nil {
+					handler.OnError(socket, err)
+					return
+				}
+
+				switch msg.Typ() {
+				case gws.OpcodeText, gws.OpcodeBinary:
+					handler.OnMessage(socket, msg)
+				case gws.OpcodePing:
+					handler.OnPing(socket, msg.Bytes())
+				case gws.OpcodePong:
+					handler.OnPong(socket, msg.Bytes())
+				default:
+					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
+					return
+				}
+			}
+		}
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {

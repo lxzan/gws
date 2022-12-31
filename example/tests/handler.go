@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
-	"time"
 )
 
 func NewWebSocketHandler() *WebSocketHandler {
@@ -13,19 +12,7 @@ func NewWebSocketHandler() *WebSocketHandler {
 type WebSocketHandler struct{}
 
 func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
-	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-socket.Context.Done():
-				println("connection closed")
-				return
-			case <-ticker.C:
-				socket.WritePing(nil)
-			}
-		}
-	}()
+
 }
 
 func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
@@ -45,11 +32,10 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 		c.OnVerify(socket)
 	case "ok":
 	case "ping":
-		socket.WritePing(nil)
+		socket.Write(gws.OpcodePing, nil)
 	case "pong":
-		socket.WritePong(nil)
+		socket.Write(gws.OpcodePong, nil)
 	case "close":
-		socket.Close(1001, []byte("goodbye"))
 	default:
 		socket.Storage.Delete(key)
 	}

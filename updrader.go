@@ -8,17 +8,17 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
 const (
-	DefaultHandshakeTimeout = 3 * time.Second
-	DefaultReadTimeout      = 5 * time.Second
-	DefaultWriteTimeout     = 5 * time.Second
-	DefaultCompressLevel    = flate.BestSpeed
-	DefaultMaxFrameLength   = 128 * 1024      // 128KiB
-	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
+	DefaultMessageChannelBufferSize = 16
+	DefaultHandshakeTimeout         = 3 * time.Second
+	DefaultReadTimeout              = 5 * time.Second
+	DefaultWriteTimeout             = 5 * time.Second
+	DefaultCompressLevel            = flate.BestSpeed
+	DefaultMaxFrameLength           = 128 * 1024      // 128KiB
+	DefaultMaxContentLength         = 1 * 1024 * 1024 // 1MiB
 )
 
 type (
@@ -41,6 +41,9 @@ type (
 		// max message size, dv=1024*1024 (1MiB)
 		MaxContentLength int
 
+		// message channel buffer size, dv=16
+		MessageChannelBufferSize int
+
 		// read frame timeout, dv=5s
 		ReadTimeout time.Duration
 
@@ -55,12 +58,20 @@ type (
 	}
 
 	Request struct {
-		*http.Request           // http request
-		Storage       *sync.Map // store user session
+		*http.Request               // http request
+		Storage       *internal.Map // store user session
 	}
 )
 
 func (c *Upgrader) initialize() {
+	if c.CheckOrigin == nil {
+		c.CheckOrigin = func(r *Request) bool {
+			return true
+		}
+	}
+	if c.MessageChannelBufferSize <= 0 {
+		c.MessageChannelBufferSize = DefaultMessageChannelBufferSize
+	}
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = DefaultHandshakeTimeout
 	}
@@ -104,7 +115,7 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	c.initialize()
 
-	var request = &Request{Request: r, Storage: &sync.Map{}}
+	var request = &Request{Request: r, Storage: internal.NewMap()}
 	if c.Header == nil {
 		c.Header = http.Header{}
 	}

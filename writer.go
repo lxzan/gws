@@ -39,7 +39,7 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 		_ = c.netConn.SetWriteDeadline(time.Time{})
 	}()
 
-	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.conf.WriteTimeout)); err != nil {
+	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.configs.WriteTimeout)); err != nil {
 		return err
 	}
 

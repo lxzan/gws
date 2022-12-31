@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+func (c *Conn) Read() <-chan *Message {
+	return c.messageChan
+}
+
 // read control frame
 func (c *Conn) readControl() error {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
@@ -42,11 +46,9 @@ func (c *Conn) readControl() error {
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
-		c.messageChan <- &Message{opcode: OpcodePing, dbuf: internal.NewBuffer(payload)}
-		return nil
+		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: internal.NewBuffer(payload)})
 	case OpcodePong:
-		c.messageChan <- &Message{opcode: OpcodePong, dbuf: internal.NewBuffer(payload)}
-		return nil
+		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: internal.NewBuffer(payload)})
 	case OpcodeCloseConnection:
 		switch n {
 		case 0:
@@ -66,7 +68,7 @@ func (c *Conn) readMessage() error {
 		return err
 	}
 
-	if err := c.netConn.SetReadDeadline(time.Now().Add(c.conf.ReadTimeout)); err != nil {
+	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
 		return err
 	}
 	defer func() {
@@ -116,7 +118,7 @@ func (c *Conn) readMessage() error {
 		buf = _pool.Get(int(lengthCode))
 	}
 
-	if contentLength > c.conf.MaxContentLength {
+	if contentLength > c.configs.MaxContentLength {
 		return CloseMessageTooLarge
 	}
 
@@ -137,7 +139,7 @@ func (c *Conn) readMessage() error {
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
 		}
-		if c.continuationBuffer.Len() > c.conf.MaxContentLength {
+		if c.continuationBuffer.Len() > c.configs.MaxContentLength {
 			return CloseMessageTooLarge
 		}
 	}
@@ -169,7 +171,11 @@ func (c *Conn) readMessage() error {
 }
 
 func (c *Conn) emitMessage(msg *Message) error {
-	if !c.compressEnabled {
+	if c.isCanceled() {
+		return nil
+	}
+
+	if !c.compressEnabled || msg.opcode == OpcodePing || msg.opcode == OpcodePong {
 		c.messageChan <- msg
 		return nil
 	}

@@ -14,22 +14,20 @@ type Conn struct {
 	// context
 	ctx context.Context
 	// store session information
-	storage *sync.Map
+	Storage *internal.Map
 	// message channel
 	messageChan chan *Message
-	// websocket protocol upgrader
-	conf *ServerOptions
 	// make sure print log at most once
 	onceLog sync.Once
 	// whether you use compression
 	compressEnabled bool
 	// tcp connection
 	netConn net.Conn
+	// server configs
+	configs *Upgrader
 
 	// read buffer
 	rbuf *bufio.Reader
-	// message queue
-	mq *internal.Queue
 	// flate decompressors
 	decompressor *decompressor
 	// opcode for fragment frame
@@ -49,11 +47,12 @@ type Conn struct {
 	wbuf *bufio.Writer
 }
 
-func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:                ctx,
-		storage:            &sync.Map{},
-		conf:               conf.ServerOptions,
+		Storage:            r.Storage,
+		configs:            u,
+		messageChan:        make(chan *Message, u.MessageChannelBufferSize),
 		onceLog:            sync.Once{},
 		compressEnabled:    compressEnabled,
 		netConn:            netConn,
@@ -61,7 +60,6 @@ func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net
 		wmu:                sync.Mutex{},
 		rbuf:               brw.Reader,
 		fh:                 frameHeader{},
-		mq:                 internal.NewQueue(int64(conf.Concurrency)),
 		continuationBuffer: internal.NewBuffer(nil),
 	}
 
@@ -95,7 +93,7 @@ func (c *Conn) isCanceled() bool {
 
 // print debug log
 func (c *Conn) debugLog(err error) {
-	if c.conf.LogEnabled && err != nil {
+	if c.configs.LogEnabled && err != nil {
 		c.onceLog.Do(func() {
 			log.Printf("websocket: " + err.Error())
 		})

@@ -15,7 +15,6 @@ const (
 
 type EventHandler interface {
 	OnOpen(socket *Conn)
-	OnClose(socket *Conn, code Code, reason []byte)
 	OnMessage(socket *Conn, m *Message)
 	OnError(socket *Conn, err error)
 	OnPing(socket *Conn, m []byte)
