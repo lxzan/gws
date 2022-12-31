@@ -39,8 +39,8 @@ var closeErrorMap = map[Code]string{
 }
 
 var (
-	ERR_CheckOrigin        = errors.New("check origin error")
-	ERR_WebSocketHandshake = errors.New("websocket handshake error")
+	ErrCheckOrigin = errors.New("check origin error")
+	ErrHandshake   = errors.New("handshake error")
 )
 
 type Code uint16

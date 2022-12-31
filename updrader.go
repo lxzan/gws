@@ -13,11 +13,10 @@ import (
 
 const (
 	DefaultMessageChannelBufferSize = 16
-	DefaultHandshakeTimeout         = 3 * time.Second
-	DefaultReadTimeout              = 5 * time.Second
-	DefaultWriteTimeout             = 5 * time.Second
+	DefaultHandshakeTimeout         = 5 * time.Second
+	DefaultReadTimeout              = 30 * time.Second
+	DefaultWriteTimeout             = 30 * time.Second
 	DefaultCompressLevel            = flate.BestSpeed
-	DefaultMaxFrameLength           = 128 * 1024      // 128KiB
 	DefaultMaxContentLength         = 1 * 1024 * 1024 // 1MiB
 )
 
@@ -34,9 +33,6 @@ type (
 
 		// websocket  handshake timeout, dv=3s
 		HandshakeTimeout time.Duration
-
-		// max single frame size, dv=128*1024 (128KiB)
-		MaxFrameLength int
 
 		// max message size, dv=1024*1024 (1MiB)
 		MaxContentLength int
@@ -74,9 +70,6 @@ func (c *Upgrader) initialize() {
 	}
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = DefaultHandshakeTimeout
-	}
-	if c.MaxFrameLength <= 0 {
-		c.MaxFrameLength = DefaultMaxFrameLength
 	}
 	if c.MaxContentLength <= 0 {
 		c.MaxContentLength = DefaultMaxContentLength
@@ -129,10 +122,10 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 		return nil, errors.New(msg)
 	}
 	if val := r.Header.Get(internal.Connection); strings.ToLower(val) != strings.ToLower(internal.Connection_Value) {
-		return nil, ERR_WebSocketHandshake
+		return nil, ErrHandshake
 	}
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
-		return nil, ERR_WebSocketHandshake
+		return nil, ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
 		c.Header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
@@ -148,7 +141,7 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 		return nil, err
 	}
 	if !c.CheckOrigin(request) {
-		return nil, ERR_CheckOrigin
+		return nil, ErrCheckOrigin
 	}
 
 	// handshake with timeout control

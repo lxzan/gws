@@ -11,6 +11,17 @@ func (c *Conn) Read() <-chan *Message {
 	return c.messageChan
 }
 
+func (c *Conn) readN(data []byte, n int) error {
+	num, err := io.ReadFull(c.rbuf, data)
+	if err != nil {
+		return err
+	}
+	if num != n {
+		return CloseGoingAway
+	}
+	return nil
+}
+
 // read control frame
 func (c *Conn) readControl() error {
 	// RFC6455: All frames sent from client to server have this bit set to 1.

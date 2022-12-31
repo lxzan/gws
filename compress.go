@@ -7,29 +7,7 @@ import (
 	"io"
 	"math"
 	"sync"
-	"sync/atomic"
 )
-
-type compressors struct {
-	serial uint64
-	n      uint64
-	cps    []*compressor
-}
-
-func newCompressors(n int) *compressors {
-	var c = make([]*compressor, 0, n)
-	for i := 0; i < n; i++ {
-		cps := newCompressor()
-		c = append(c, cps)
-	}
-	return &compressors{cps: c, n: uint64(n)}
-}
-
-func (c *compressors) Select() *compressor {
-	next := atomic.AddUint64(&c.serial, 1)
-	idx := next & (c.n - 1)
-	return c.cps[idx]
-}
 
 func newCompressor() *compressor {
 	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
@@ -75,27 +53,6 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 	}
 
 	return compressedContent, nil
-}
-
-type decompressors struct {
-	serial uint64
-	n      uint64
-	dps    []*decompressor
-}
-
-func newDecompressors(n int) *decompressors {
-	var c = make([]*decompressor, 0, n)
-	for i := 0; i < n; i++ {
-		dps := newDecompressor()
-		c = append(c, dps)
-	}
-	return &decompressors{dps: c, n: uint64(n)}
-}
-
-func (c *decompressors) Select() *decompressor {
-	next := atomic.AddUint64(&c.serial, 1)
-	idx := next & (c.n - 1)
-	return c.dps[idx]
 }
 
 func newDecompressor() *decompressor {

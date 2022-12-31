@@ -31,6 +31,7 @@ func main() {
 		if err != nil {
 			return
 		}
+		defer socket.Close()
 
 		handler.OnOpen(socket)
 		for {
@@ -73,5 +74,5 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	cancel()
-	time.Sleep(3 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 }

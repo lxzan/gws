@@ -45,6 +45,7 @@ func (c *WebSocketHandler) OnClose(socket *gws.Conn, code gws.Code, reason []byt
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
+	println(err.Error())
 }
 
 func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
@@ -67,7 +68,7 @@ func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
 
 func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 	if socket.Storage.Len() != 0 {
-		panic("failed")
+		socket.Write(gws.OpcodeText, []byte("failed"))
 	}
 
 	socket.Write(gws.OpcodeText, []byte("ok"))

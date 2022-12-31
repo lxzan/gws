@@ -70,14 +70,14 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		c.decompressor = newDecompressor()
 	}
 
-	go func(socket *Conn) {
+	go func() {
 		for {
-			if err := socket.readMessage(); err != nil {
-				c.messageChan <- &Message{err: err}
+			if err := c.readMessage(); err != nil {
+				go func() { c.messageChan <- &Message{err: err} }()
 				return
 			}
 		}
-	}(c)
+	}()
 
 	return c
 }

@@ -1,14 +1,26 @@
 package gws
 
 import (
+	"io"
 	"time"
 )
+
+func writeN(writer io.Writer, content []byte, n int) error {
+	num, err := writer.Write(content)
+	if err != nil {
+		return err
+	}
+	if num != n {
+		return CloseGoingAway
+	}
+	return nil
+}
 
 // 发送消息
 // send a message
 func (c *Conn) Write(messageType Opcode, content []byte) {
 	if err := c.prepareMessage(messageType, content); err != nil {
-		c.messageChan <- &Message{err: err}
+		go func() { c.messageChan <- &Message{err: err} }()
 		return
 	}
 }
