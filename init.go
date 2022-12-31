@@ -25,10 +25,6 @@ type ServerOptions struct {
 	// max message length, dv=1024*1024 (1MB)
 	MaxContentLength int
 
-	// number of concurrently processed messages allowed by the connection, dv=4
-	// Concurrency=pow(2, n), eg: 4, 8, 16...
-	Concurrency uint8
-
 	// read frame timeout, dv=5s
 	ReadTimeout time.Duration
 
@@ -43,7 +39,6 @@ var defaultConfig = ServerOptions{
 	WriteTimeout:     5 * time.Second,
 	CompressEnabled:  false,
 	CompressLevel:    flate.BestSpeed,
-	Concurrency:      4,
 	MaxContentLength: 1 * 1024 * 1024, // 1MB
 }
 
@@ -60,8 +55,5 @@ func (c *ServerOptions) init() {
 	}
 	if c.WriteTimeout <= 0 {
 		c.WriteTimeout = d.WriteTimeout
-	}
-	if c.Concurrency == 0 {
-		c.Concurrency = d.Concurrency
 	}
 }

@@ -50,6 +50,8 @@ type compressor struct {
 // 压缩并构建WriteFrame
 func (c *compressor) Compress(content []byte) ([]byte, error) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.writeBuffer.Cap() > internal.Lv3 {
 		c.writeBuffer = internal.NewBuffer(nil)
 	}
@@ -73,10 +75,6 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 	}
 
 	return compressedContent, nil
-}
-
-func (c *compressor) Close() {
-	c.mu.Unlock()
 }
 
 type decompressors struct {
@@ -113,18 +111,18 @@ type decompressor struct {
 }
 
 // 解压
-func (c *decompressor) Decompress(content *internal.Buffer) (*internal.Buffer, error) {
+func (c *decompressor) Decompress(msg *Message) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, _ = content.Write(internal.FlateTail)
+	msg.cbuf = msg.dbuf
+	_, _ = msg.dbuf.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
-	if err := resetter.Reset(content, nil); err != nil {
-		return nil, err
+	if err := resetter.Reset(msg.dbuf, nil); err != nil {
+		return err
 	}
 
-	var dst = _pool.Get(content.Len())
-	_, err := io.Copy(dst, c.fr)
-	_pool.Put(content)
-	return dst, err
+	msg.dbuf = _pool.Get(msg.dbuf.Len())
+	_, err := io.Copy(msg.dbuf, c.fr)
+	return err
 }

@@ -4,27 +4,11 @@ import (
 	"time"
 )
 
-// send ping frame
-func (c *Conn) WritePing(payload []byte) {
-	if err := c.writeFrame(OpcodePing, payload, false); err != nil {
-		c.emitError(err)
-		return
-	}
-}
-
-// send pong frame
-func (c *Conn) WritePong(payload []byte) {
-	if err := c.writeFrame(OpcodePong, payload, false); err != nil {
-		c.emitError(err)
-		return
-	}
-}
-
 // 发送消息
 // send a message
 func (c *Conn) Write(messageType Opcode, content []byte) {
 	if err := c.prepareMessage(messageType, content); err != nil {
-		c.emitError(err)
+		c.messageChan <- &Message{err: err}
 		return
 	}
 }
@@ -35,11 +19,8 @@ func (c *Conn) prepareMessage(opcode Opcode, content []byte) error {
 		return c.writeFrame(opcode, content, enableCompress)
 	}
 
-	var compressor = c.compressors.Select()
-	compressedContent, err := compressor.Compress(content)
-	defer compressor.Close()
+	compressedContent, err := c.compressor.Compress(content)
 	if err != nil {
-		c.debugLog(err)
 		return CloseInternalServerErr
 	}
 	return c.writeFrame(opcode, compressedContent, enableCompress)
@@ -53,7 +34,10 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
 
 	c.wmu.Lock()
-	defer c.wmu.Unlock()
+	defer func() {
+		c.wmu.Unlock()
+		_ = c.netConn.SetWriteDeadline(time.Time{})
+	}()
 
 	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.conf.WriteTimeout)); err != nil {
 		return err
@@ -70,5 +54,5 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	if err := c.wbuf.Flush(); err != nil {
 		return err
 	}
-	return c.netConn.SetWriteDeadline(time.Time{})
+	return nil
 }

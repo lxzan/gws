@@ -3,8 +3,6 @@ package gws
 import (
 	"bufio"
 	"context"
-	"errors"
-	"fmt"
 	"github.com/lxzan/gws/internal"
 	"log"
 	"net"
@@ -14,37 +12,30 @@ import (
 
 type Conn struct {
 	// context
-	Context context.Context
+	ctx context.Context
 	// store session information
-	Storage *internal.Map
-
-	// cancel func
-	cancel func()
+	storage *sync.Map
+	// message channel
+	messageChan chan *Message
 	// websocket protocol upgrader
 	conf *ServerOptions
-	// make sure to exit only once
-	onceClose sync.Once
 	// make sure print log at most once
 	onceLog sync.Once
 	// whether you use compression
 	compressEnabled bool
-	// websocket event handler
-	handler EventHandler
 	// tcp connection
 	netConn net.Conn
-	// websocket middlewares
-	middlewares []HandlerFunc
 
 	// read buffer
 	rbuf *bufio.Reader
 	// message queue
 	mq *internal.Queue
 	// flate decompressors
-	decompressors *decompressors
+	decompressor *decompressor
 	// opcode for fragment frame
-	opcode Opcode
+	continuationOpcode Opcode
 	// continuation frame
-	fragment *internal.Buffer
+	continuationBuffer *internal.Buffer
 	// frame payload for read control frame
 	controlBuffer [internal.Bv7]byte
 	// frame header for read
@@ -53,52 +44,38 @@ type Conn struct {
 	// write lock
 	wmu sync.Mutex
 	// flate compressors
-	compressors *compressors
+	compressor *compressor
 	// write buffer
 	wbuf *bufio.Writer
 }
 
-func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool, handler EventHandler) *Conn {
-	childCtx, cancel := context.WithCancel(ctx)
-
+func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool) *Conn {
 	c := &Conn{
-		Context:         childCtx,
-		cancel:          cancel,
-		Storage:         r.Storage,
-		conf:            conf.ServerOptions,
-		onceClose:       sync.Once{},
-		onceLog:         sync.Once{},
-		compressEnabled: compressEnabled,
-		netConn:         netConn,
-		handler:         handler,
-		middlewares:     conf.middlewares,
-		wbuf:            brw.Writer,
-		wmu:             sync.Mutex{},
-		rbuf:            brw.Reader,
-		fh:              frameHeader{},
-		mq:              internal.NewQueue(int64(conf.Concurrency)),
-		fragment:        internal.NewBuffer(nil),
+		ctx:                ctx,
+		storage:            &sync.Map{},
+		conf:               conf.ServerOptions,
+		onceLog:            sync.Once{},
+		compressEnabled:    compressEnabled,
+		netConn:            netConn,
+		wbuf:               brw.Writer,
+		wmu:                sync.Mutex{},
+		rbuf:               brw.Reader,
+		fh:                 frameHeader{},
+		mq:                 internal.NewQueue(int64(conf.Concurrency)),
+		continuationBuffer: internal.NewBuffer(nil),
 	}
 
 	// 为节省资源, 动态初始化压缩器
 	// To save resources, dynamically initialize the compressor
 	if c.compressEnabled {
-		c.compressors = newCompressors(int(conf.Concurrency))
-		c.decompressors = newDecompressors(int(conf.Concurrency))
+		c.compressor = newCompressor()
+		c.decompressor = newDecompressor()
 	}
 
-	handler.OnOpen(c)
-
 	go func(socket *Conn) {
-		defer socket.cancel()
-
 		for {
-			continued, err := socket.readMessage()
-			if err != nil {
-				socket.emitError(err)
-				return
-			}
-			if !continued {
+			if err := socket.readMessage(); err != nil {
+				c.messageChan <- &Message{err: err}
 				return
 			}
 		}
@@ -109,7 +86,7 @@ func serveWebSocket(ctx context.Context, conf *Upgrader, r *Request, netConn net
 
 func (c *Conn) isCanceled() bool {
 	select {
-	case <-c.Context.Done():
+	case <-c.ctx.Done():
 		return true
 	default:
 		return false
@@ -125,49 +102,8 @@ func (c *Conn) debugLog(err error) {
 	}
 }
 
-func (c *Conn) emitError(err error) {
-	if err == nil {
-		return
-	}
-
-	code, ok := err.(Code)
-	if !ok {
-		c.debugLog(err)
-		code = CloseGoingAway
-	}
-
-	// try to send close message
-	c.onceClose.Do(func() {
-		c.writeClose(code, nil)
-		_ = c.netConn.Close()
-		c.handler.OnError(c, err)
-	})
-}
-
-func (c *Conn) Close(code Code, reason []byte) error {
-	var str = ""
-	if len(reason) == 0 {
-		str = code.Error()
-	}
-
-	c.onceClose.Do(func() {
-		var msg = fmt.Sprintf("received close frame, code=%d, reason=%s", code.Uint16(), str)
-		c.debugLog(errors.New(msg))
-		c.writeClose(code, reason)
-		_ = c.netConn.Close()
-		c.handler.OnClose(c, code, reason)
-	})
-	return nil
-}
-
-func (c *Conn) writeClose(code Code, reason []byte) {
-	var content = code.Bytes()
-	if len(content) > 0 {
-		content = append(content, reason...)
-	} else {
-		content = append(content, code.Error()...)
-	}
-	_ = c.writeFrame(OpcodeCloseConnection, content, false)
+func (c *Conn) Close() error {
+	return c.netConn.Close()
 }
 
 // set connection deadline

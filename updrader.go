@@ -1,37 +1,84 @@
 package gws
 
 import (
+	"compress/flate"
 	"context"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
-	serverSide = 0
-	clientSide = 1
+	DefaultHandshakeTimeout = 3 * time.Second
+	DefaultReadTimeout      = 5 * time.Second
+	DefaultWriteTimeout     = 5 * time.Second
+	DefaultCompressLevel    = flate.BestSpeed
+	DefaultMaxFrameLength   = 128 * 1024      // 128KiB
+	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
 )
 
 type (
 	Upgrader struct {
-		*ServerOptions                       // config
-		Header         http.Header           // set response header
-		middlewares    []HandlerFunc         // middlewares
-		CheckOrigin    func(r *Request) bool // filter user request
+		// whether to show error log, dv=true
+		LogEnabled bool
+
+		// whether to compress data, dv = false
+		CompressEnabled bool
+
+		// compress level eg: flate.BestSpeed
+		CompressLevel int
+
+		// websocket  handshake timeout, dv=3s
+		HandshakeTimeout time.Duration
+
+		// max single frame size, dv=128*1024 (128KiB)
+		MaxFrameLength int
+
+		// max message size, dv=1024*1024 (1MiB)
+		MaxContentLength int
+
+		// read frame timeout, dv=5s
+		ReadTimeout time.Duration
+
+		// write frame timeout, dv=5s
+		WriteTimeout time.Duration
+
+		// set response header
+		Header http.Header
+
+		// filter user request
+		CheckOrigin func(r *Request) bool
 	}
 
 	Request struct {
-		*http.Request               // http request
-		Storage       *internal.Map // store user session
+		*http.Request           // http request
+		Storage       *sync.Map // store user session
 	}
 )
 
-// use middleware
-func (c *Upgrader) Use(handlers ...HandlerFunc) {
-	c.middlewares = append(c.middlewares, handlers...)
+func (c *Upgrader) initialize() {
+	if c.HandshakeTimeout <= 0 {
+		c.HandshakeTimeout = DefaultHandshakeTimeout
+	}
+	if c.MaxFrameLength <= 0 {
+		c.MaxFrameLength = DefaultMaxFrameLength
+	}
+	if c.MaxContentLength <= 0 {
+		c.MaxContentLength = DefaultMaxContentLength
+	}
+	if c.ReadTimeout <= 0 {
+		c.ReadTimeout = DefaultReadTimeout
+	}
+	if c.WriteTimeout <= 0 {
+		c.WriteTimeout = DefaultWriteTimeout
+	}
+	if c.CompressEnabled && c.CompressLevel == 0 {
+		c.CompressLevel = DefaultCompressLevel
+	}
 }
 
 func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
@@ -54,14 +101,10 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
-	if c.ServerOptions == nil {
-		var options = defaultConfig
-		c.ServerOptions = &options
-	}
-	c.ServerOptions.init()
+func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	c.initialize()
 
-	var request = &Request{Request: r, Storage: internal.NewMap()}
+	var request = &Request{Request: r, Storage: &sync.Map{}}
 	if c.Header == nil {
 		c.Header = http.Header{}
 	}
@@ -117,5 +160,5 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(ctx, c, request, netConn, brw, compressEnabled, handler), nil
+	return serveWebSocket(ctx, c, request, netConn, brw, compressEnabled), nil
 }

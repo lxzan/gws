@@ -23,7 +23,7 @@ type EventHandler interface {
 }
 
 var closeErrorMap = map[Code]string{
-	CloseNormalClosure:     "normal",
+	CloseNormalClosure:     "close normal",
 	CloseGoingAway:         "client going away",
 	CloseProtocolError:     "protocol error",
 	CloseUnsupported:       "unsupported data",
@@ -99,5 +99,5 @@ func (c Code) Bytes() []byte {
 }
 
 func (c Code) Error() string {
-	return "websocket close: " + closeErrorMap[c]
+	return "gws: " + closeErrorMap[c]
 }

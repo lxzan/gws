@@ -34,6 +34,7 @@ func NewBufferPool() *BufferPool {
 }
 
 func (p *BufferPool) Put(b *Buffer) {
+	b.Reset()
 	n := b.Cap()
 	if n <= Lv1 {
 		p.p0.Put(b)
