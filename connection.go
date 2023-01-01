@@ -65,8 +65,16 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 
 	go func() {
 		for {
+			if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
+				c.emitError(err)
+				return
+			}
 			if err := c.readMessage(); err != nil {
-				go func() { c.messageChan <- &Message{err: err} }()
+				c.emitError(err)
+				return
+			}
+			if err := c.netConn.SetReadDeadline(time.Time{}); err != nil {
+				c.emitError(err)
 				return
 			}
 		}

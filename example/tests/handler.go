@@ -36,15 +36,14 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	case "pong":
 		socket.Write(gws.OpcodePong, nil)
 	case "close":
-		socket.Write(gws.OpcodeCloseConnection, []byte("goodbye"))
-		//socket.Write(gws.OpcodeCloseConnection, nil)
-		//socket.Close()
+		socket.WriteClose(gws.CloseGoingAway, []byte("goodbye"))
+		socket.Close()
 	default:
 		socket.Storage.Delete(key)
 	}
 }
 
-func (c *WebSocketHandler) OnClose(socket *gws.Conn, code gws.Code, reason []byte) {
+func (c *WebSocketHandler) OnClose(socket *gws.Conn, code gws.CloseCode, reason []byte) {
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {

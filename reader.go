@@ -2,9 +2,10 @@ package gws
 
 import (
 	"encoding/binary"
+	"errors"
 	"github.com/lxzan/gws/internal"
 	"io"
-	"time"
+	"strconv"
 )
 
 func (c *Conn) Read() <-chan *Message {
@@ -67,7 +68,7 @@ func (c *Conn) readControl() error {
 		case 1:
 			return CloseProtocolError
 		default:
-			return Code(binary.BigEndian.Uint16(payload[:2]))
+			return CloseCode(binary.BigEndian.Uint16(payload[:2]))
 		}
 	default:
 		return CloseUnsupportedData
@@ -78,12 +79,6 @@ func (c *Conn) readMessage() (retErr error) {
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return err
 	}
-
-	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
-		return err
-	}
-
-	defer c.netConn.SetReadDeadline(time.Time{})
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()
@@ -145,6 +140,10 @@ func (c *Conn) readMessage() (retErr error) {
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
 
+	if !fin && c.continuationBuffer == nil {
+		c.continuationOpcode = opcode
+		c.continuationBuffer = internal.NewBuffer(nil)
+	}
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
@@ -152,32 +151,20 @@ func (c *Conn) readMessage() (retErr error) {
 		if c.continuationBuffer.Len() > c.configs.MaxContentLength {
 			return CloseMessageTooLarge
 		}
-	}
-
-	if fin {
-		switch opcode {
-		case OpcodeContinuation:
-			// just for continuation opcode
-			if opcode == OpcodeText || opcode == OpcodeBinary {
-				c.continuationOpcode = opcode
-			}
-
-			buf.Reset()
-			if _, err := io.CopyN(buf, c.continuationBuffer, int64(c.continuationBuffer.Len())); err != nil {
-				return err
-			}
-
-			c.continuationBuffer.Reset()
-			if c.continuationBuffer.Cap() > internal.Lv3 {
-				c.continuationBuffer = internal.NewBuffer(nil)
-			}
-			return c.emitMessage(&Message{opcode: c.continuationOpcode, dbuf: buf})
-		case OpcodeText, OpcodeBinary:
-			return c.emitMessage(&Message{opcode: opcode, dbuf: buf})
-		default:
+		if fin {
+			msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer}
+			c.continuationOpcode = 0
+			c.continuationBuffer = nil
+			return c.emitMessage(msg)
 		}
 	}
-	return nil
+
+	switch opcode {
+	case OpcodeText, OpcodeBinary:
+		return c.emitMessage(&Message{opcode: opcode, dbuf: buf})
+	default:
+		return errors.New("unexpected opcode: " + strconv.Itoa(int(opcode)))
+	}
 }
 
 func (c *Conn) emitMessage(msg *Message) error {
