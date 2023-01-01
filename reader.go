@@ -6,6 +6,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strconv"
+	"time"
 )
 
 func (c *Conn) ReadMessage() <-chan *Message {
@@ -75,8 +76,12 @@ func (c *Conn) readControl() error {
 	}
 }
 
-func (c *Conn) readMessage() (retErr error) {
+func (c *Conn) readMessage() error {
 	if err := c.readN(c.fh[:2], 2); err != nil {
+		return err
+	}
+
+	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
 		return err
 	}
 
