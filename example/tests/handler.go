@@ -32,9 +32,9 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 		c.OnVerify(socket)
 	case "ok":
 	case "ping":
-		socket.Write(gws.OpcodePing, nil)
+		socket.WriteMessage(gws.OpcodePing, nil)
 	case "pong":
-		socket.Write(gws.OpcodePong, nil)
+		socket.WriteMessage(gws.OpcodePong, nil)
 	case "close":
 		socket.WriteClose(gws.CloseGoingAway, []byte("goodbye"))
 		socket.Close()
@@ -64,16 +64,16 @@ func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
 		var size = internal.AlphabetNumeric.Intn(8 * 1024)
 		var k = internal.AlphabetNumeric.Generate(size)
 		socket.Storage.Put(string(k), 1)
-		socket.Write(gws.OpcodeText, k)
+		socket.WriteMessage(gws.OpcodeText, k)
 	}
 }
 
 func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 	if socket.Storage.Len() != 0 {
-		socket.Write(gws.OpcodeText, []byte("failed"))
+		socket.WriteMessage(gws.OpcodeText, []byte("failed"))
 	}
 
-	socket.Write(gws.OpcodeText, []byte("ok"))
+	socket.WriteMessage(gws.OpcodeText, []byte("ok"))
 }
 
 func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
@@ -82,6 +82,6 @@ func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
 		//var size = 10 + rand.Intn(1024)
 		//var k = internal.AlphabetNumeric.Generate(size)
 		//socket.Write(gws.OpcodeText, k)
-		socket.Write(gws.OpcodeText, []byte("Hello"))
+		socket.WriteMessage(gws.OpcodeText, []byte("Hello"))
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func (c *Conn) Read() <-chan *Message {
+func (c *Conn) ReadMessage() <-chan *Message {
 	return c.messageChan
 }
 

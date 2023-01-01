@@ -32,31 +32,44 @@ func (c *Conn) WriteClose(code CloseCode, reason []byte) {
 	} else {
 		content = append(content, code.Error()...)
 	}
-	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false))
+	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false, true))
 }
 
+// WriteMessage  send message
 // 发送消息
-// send a message
-func (c *Conn) Write(messageType Opcode, content []byte) {
-	c.emitError(c.writeMessage(messageType, content))
+func (c *Conn) WriteMessage(messageType Opcode, content []byte) {
+	c.emitError(c.writeMessage(messageType, content, true))
 }
 
-func (c *Conn) writeMessage(opcode Opcode, content []byte) error {
+// WriteBatch
+// 批量写入消息，最后一次写入后需要调用Flush
+func (c *Conn) WriteBatch(messageType Opcode, content []byte) {
+	c.emitError(c.writeMessage(messageType, content, false))
+}
+
+// Flush
+// 刷新写入缓冲区
+// flush write buffer
+func (c *Conn) Flush() {
+	c.emitError(c.wbuf.Flush())
+}
+
+func (c *Conn) writeMessage(opcode Opcode, content []byte, flush bool) error {
 	var enableCompress = c.compressEnabled && isDataFrame(opcode)
 	if !enableCompress {
-		return c.writeFrame(opcode, content, enableCompress)
+		return c.writeFrame(opcode, content, enableCompress, flush)
 	}
 
 	compressedContent, err := c.compressor.Compress(content)
 	if err != nil {
 		return CloseInternalServerErr
 	}
-	return c.writeFrame(opcode, compressedContent, enableCompress)
+	return c.writeFrame(opcode, compressedContent, enableCompress, flush)
 }
 
 // 加锁是为了防止frame header和payload并发写入后乱序
 // write a websocket frame, content is prepared
-func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) error {
+func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool, flush bool) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
@@ -75,8 +88,10 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 			return err
 		}
 	}
-	if err := c.wbuf.Flush(); err != nil {
-		return err
+	if flush {
+		if err := c.wbuf.Flush(); err != nil {
+			return err
+		}
 	}
 	return c.netConn.SetWriteDeadline(time.Time{})
 }

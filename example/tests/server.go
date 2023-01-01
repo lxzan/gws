@@ -39,7 +39,7 @@ func main() {
 			case <-ctx.Done():
 				handler.OnError(socket, gws.CloseServiceRestart)
 				return
-			case msg := <-socket.Read():
+			case msg := <-socket.ReadMessage():
 				if err := msg.Err(); err != nil {
 					handler.OnError(socket, err)
 					return

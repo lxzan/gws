@@ -1,13 +1,3 @@
-# gws
-### minimal websocket server
-
-#### Attention
-- it's designed for api server, do not write big message
-- it's recommended not to enable data compression in the intranet
-- need to manage your own message handling coroutine
-
-#### Quick Start
-```go
 package main
 
 import (
@@ -92,4 +82,3 @@ func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
 func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {
 	println("onpong")
 }
-```
