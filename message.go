@@ -11,14 +11,6 @@ type Message struct {
 	cbuf   *internal.Buffer // 解码器缓冲
 }
 
-//func NewMessage(compressed bool, messageType Opcode, data *internal.Buffer) *Message {
-//	return &Message{
-//		compressed: compressed,
-//		opcode:     messageType,
-//		dbuf:       data,
-//	}
-//}
-
 func (c *Message) Err() error {
 	return c.err
 }

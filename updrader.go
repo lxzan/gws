@@ -22,9 +22,6 @@ const (
 
 type (
 	Upgrader struct {
-		// whether to show error log, dv=true
-		LogEnabled bool
-
 		// whether to compress data, dv = false
 		CompressEnabled bool
 
@@ -45,9 +42,6 @@ type (
 
 		// write frame timeout, dv=5s
 		WriteTimeout time.Duration
-
-		// set response header
-		Header http.Header
 
 		// filter user request
 		CheckOrigin func(r *Request) bool
@@ -85,7 +79,7 @@ func (c *Upgrader) initialize() {
 	}
 }
 
-func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
+func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -93,10 +87,10 @@ func (c *Upgrader) handshake(conn net.Conn, websocketKey string) error {
 	buf = append(buf, "Sec-WebSocket-Accept: "...)
 	buf = append(buf, internal.ComputeAcceptKey(websocketKey)...)
 	buf = append(buf, "\r\n"...)
-	for k, _ := range c.Header {
+	for k, _ := range headers {
 		buf = append(buf, k...)
 		buf = append(buf, ": "...)
-		buf = append(buf, c.Header.Get(k)...)
+		buf = append(buf, headers.Get(k)...)
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
@@ -109,9 +103,7 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	c.initialize()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}
-	if c.Header == nil {
-		c.Header = http.Header{}
-	}
+	var headers = http.Header{}
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
@@ -128,7 +120,7 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 		return nil, ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
-		c.Header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
+		headers.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
 
@@ -149,7 +141,7 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 		return nil, err
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := c.handshake(netConn, websocketKey); err != nil {
+	if err := c.handshake(netConn, headers, websocketKey); err != nil {
 		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
