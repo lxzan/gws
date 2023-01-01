@@ -36,6 +36,9 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	case "pong":
 		socket.Write(gws.OpcodePong, nil)
 	case "close":
+		socket.Write(gws.OpcodeCloseConnection, []byte("goodbye"))
+		//socket.Write(gws.OpcodeCloseConnection, nil)
+		//socket.Close()
 	default:
 		socket.Storage.Delete(key)
 	}

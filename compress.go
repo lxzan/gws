@@ -57,21 +57,16 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 
 func newDecompressor() *decompressor {
 	return &decompressor{
-		mu: sync.Mutex{},
 		fr: flate.NewReader(nil),
 	}
 }
 
 type decompressor struct {
-	mu sync.Mutex
 	fr io.ReadCloser
 }
 
 // 解压
 func (c *decompressor) Decompress(msg *Message) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	msg.cbuf = msg.dbuf
 	_, _ = msg.dbuf.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)

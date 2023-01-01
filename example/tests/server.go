@@ -21,7 +21,7 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var upgrader = gws.Upgrader{}
+	var upgrader = gws.Upgrader{CompressEnabled: true}
 
 	var handler = NewWebSocketHandler()
 	ctx, cancel := context.WithCancel(context.Background())
