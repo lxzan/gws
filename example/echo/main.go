@@ -22,7 +22,12 @@ func main() {
 		if err != nil {
 			return
 		}
-		defer socket.Close()
+
+		ticker := time.NewTicker(15 * time.Second)
+		defer func() {
+			socket.Close()
+			ticker.Stop()
+		}()
 
 		handler.OnOpen(socket)
 		for {
@@ -30,6 +35,8 @@ func main() {
 			case <-ctx.Done():
 				handler.OnError(socket, gws.CloseServiceRestart)
 				return
+			case <-ticker.C:
+				socket.WriteMessage(gws.OpcodePing, nil)
 			case msg := <-socket.ReadMessage():
 				if err := msg.Err(); err != nil {
 					handler.OnError(socket, err)
