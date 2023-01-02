@@ -21,12 +21,12 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var upgrader = gws.Upgrader{CompressEnabled: true}
+	var upgrader = gws.Upgrader{}
 
 	var handler = NewWebSocketHandler()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(ctx, writer, request)
 		if err != nil {
 			return

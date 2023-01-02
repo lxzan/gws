@@ -59,6 +59,12 @@ func (c *Conn) readControl() error {
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
+		if c.pingTime.IsZero() || time.Since(c.pingTime) < c.configs.MinPingInterval {
+			c.pingCount++
+		} else {
+			c.pingTime = time.Now()
+			c.pingCount = 0
+		}
 		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: internal.NewBuffer(payload)})
 	case OpcodePong:
 		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: internal.NewBuffer(payload)})
@@ -145,11 +151,11 @@ func (c *Conn) readMessage() error {
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
 
-	if !fin && c.continuationBuffer == nil {
-		c.continuationOpcode = opcode
-		c.continuationBuffer = internal.NewBuffer(nil)
-	}
 	if !fin || (fin && opcode == OpcodeContinuation) {
+		if c.continuationBuffer == nil {
+			c.continuationOpcode = opcode
+			c.continuationBuffer = internal.NewBuffer(nil)
+		}
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
 		}
@@ -177,7 +183,15 @@ func (c *Conn) emitMessage(msg *Message) error {
 		return nil
 	}
 
-	if !c.compressEnabled || msg.opcode == OpcodePing || msg.opcode == OpcodePong {
+	if msg.opcode == OpcodePing || msg.opcode == OpcodePong {
+		c.messageChan <- msg
+		if c.pingCount >= 10 {
+			err := errors.New("ping operation is too frequently")
+			c.messageChan <- &Message{err: err}
+		}
+		return nil
+	}
+	if !c.compressEnabled {
 		c.messageChan <- msg
 		return nil
 	}

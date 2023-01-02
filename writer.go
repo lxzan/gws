@@ -2,6 +2,7 @@ package gws
 
 import (
 	"io"
+	"math"
 	"time"
 )
 
@@ -20,7 +21,19 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	go func() { c.messageChan <- &Message{err: err} }()
+	go func() {
+		code := CloseNormalClosure
+		if v, ok := err.(CloseCode); ok && v.Uint16() > 0 {
+			code = v
+		}
+		var content = code.Bytes()
+		content = append(content, err.Error()...)
+		if len(content) > math.MaxInt8 {
+			content = content[:math.MaxInt8]
+		}
+		_ = c.writeFrame(OpcodeCloseConnection, content, false, true)
+		c.messageChan <- &Message{err: err}
+	}()
 }
 
 // WriteClose send close frame

@@ -23,10 +23,8 @@ func main() {
 			return
 		}
 
-		ticker := time.NewTicker(15 * time.Second)
 		defer func() {
 			socket.Close()
-			ticker.Stop()
 		}()
 
 		handler.OnOpen(socket)
@@ -35,8 +33,6 @@ func main() {
 			case <-ctx.Done():
 				handler.OnError(socket, gws.CloseServiceRestart)
 				return
-			case <-ticker.C:
-				socket.WriteMessage(gws.OpcodePing, nil)
 			case msg := <-socket.ReadMessage():
 				if err := msg.Err(); err != nil {
 					handler.OnError(socket, err)
@@ -75,7 +71,7 @@ func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
 
 func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	defer m.Close()
-	println(string(m.Bytes()))
+	socket.WriteMessage(m.Typ(), m.Bytes())
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
@@ -83,7 +79,8 @@ func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
 }
 
 func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
-	println("onping")
+	println(string(m))
+	socket.WriteMessage(gws.OpcodePong, m)
 }
 
 func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {

@@ -22,6 +22,10 @@ type Conn struct {
 	netConn net.Conn
 	// server configs
 	configs *Upgrader
+	// last ping time
+	pingTime time.Time
+	// ping count
+	pingCount int
 
 	// read buffer
 	rbuf *bufio.Reader
