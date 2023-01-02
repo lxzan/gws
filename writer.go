@@ -59,6 +59,14 @@ func (c *Conn) WriteClose(code CloseCode, reason []byte) {
 	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false, true))
 }
 
+func (c *Conn) WritePing(payload []byte) {
+	c.emitError(c.writeFrame(OpcodePing, payload, false, true))
+}
+
+func (c *Conn) WritePong(payload []byte) {
+	c.emitError(c.writeFrame(OpcodePong, payload, false, true))
+}
+
 // WriteMessage  send message
 // 发送消息
 func (c *Conn) WriteMessage(messageType Opcode, content []byte) {
@@ -66,15 +74,15 @@ func (c *Conn) WriteMessage(messageType Opcode, content []byte) {
 }
 
 // WriteBatch
-// 批量写入消息，最后一次写入后需要调用Flush
+// 批量写入消息，最后一次写入后需要调用FlushWriter
 func (c *Conn) WriteBatch(messageType Opcode, content []byte) {
 	c.emitError(c.writeMessage(messageType, content, false))
 }
 
-// Flush
+// FlushWriter
 // 刷新写入缓冲区
 // flush write buffer
-func (c *Conn) Flush() {
+func (c *Conn) FlushWriter() {
 	c.emitError(c.wbuf.Flush())
 }
 

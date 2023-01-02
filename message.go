@@ -5,10 +5,11 @@ import (
 )
 
 type Message struct {
-	err    error
-	opcode Opcode
-	dbuf   *internal.Buffer // 数据缓冲
-	cbuf   *internal.Buffer // 解码器缓冲
+	err        error
+	opcode     Opcode
+	compressed bool
+	dbuf       *internal.Buffer // 数据缓冲
+	cbuf       *internal.Buffer // 解码器缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {

@@ -22,6 +22,7 @@ type EventHandler interface {
 }
 
 var closeErrorMap = map[CloseCode]string{
+	0:                      "empty code",
 	CloseNormalClosure:     "close normal",
 	CloseGoingAway:         "client going away",
 	CloseProtocolError:     "protocol error",

@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	var upgrader = gws.Upgrader{}
+	var upgrader = gws.Upgrader{CompressEnabled: true, MaxContentLength: 32 * 1024 * 1024}
 	var handler = new(WebSocketHandler)
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -10,6 +10,12 @@ import (
 	"unicode/utf8"
 )
 
+var _pool *internal.BufferPool
+
+func init() {
+	_pool = internal.NewBufferPool()
+}
+
 func (c *Conn) ReadMessage() <-chan *Message {
 	return c.messageChan
 }
@@ -93,7 +99,7 @@ func (c *Conn) readMessage() error {
 	//      the negotiated extensions defines the meaning of such a nonzero
 	//      value, the receiving endpoint MUST _Fail the WebSocket
 	//      Connection_.
-	if c.fh.GetRSV1() != c.compressEnabled || c.fh.GetRSV2() || c.fh.GetRSV3() {
+	if !c.compressEnabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
 		return CloseProtocolError
 	}
 
@@ -103,6 +109,7 @@ func (c *Conn) readMessage() error {
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()
+	var compressed = c.compressEnabled && c.fh.GetRSV1()
 	if !isDataFrame(opcode) {
 		return c.readControl()
 	}
@@ -161,7 +168,7 @@ func (c *Conn) readMessage() error {
 			return CloseMessageTooLarge
 		}
 		if fin {
-			msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer}
+			msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer, compressed: compressed}
 			c.continuationOpcode = 0
 			c.continuationBuffer = nil
 			return c.emitMessage(msg)
@@ -176,7 +183,7 @@ func (c *Conn) readMessage() error {
 
 	switch opcode {
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{opcode: opcode, dbuf: buf})
+		return c.emitMessage(&Message{opcode: opcode, dbuf: buf, compressed: compressed})
 	default:
 		return errors.New("unexpected opcode: " + strconv.Itoa(int(opcode)))
 	}
