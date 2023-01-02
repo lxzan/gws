@@ -22,10 +22,6 @@ type Conn struct {
 	netConn net.Conn
 	// server configs
 	configs *Upgrader
-	// last ping time
-	pingTime time.Time
-	// ping count
-	pingCount int
 
 	// read buffer
 	rbuf *bufio.Reader
@@ -35,8 +31,6 @@ type Conn struct {
 	continuationOpcode Opcode
 	// continuation frame
 	continuationBuffer *internal.Buffer
-	// frame payload for read control frame
-	controlBuffer [internal.Bv7]byte
 	// frame header for read
 	fh frameHeader
 
@@ -50,17 +44,16 @@ type Conn struct {
 
 func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool) *Conn {
 	c := &Conn{
-		ctx:                ctx,
-		Storage:            r.Storage,
-		configs:            u,
-		messageChan:        make(chan *Message, u.MessageChannelBufferSize),
-		compressEnabled:    compressEnabled,
-		netConn:            netConn,
-		wbuf:               brw.Writer,
-		wmu:                sync.Mutex{},
-		rbuf:               brw.Reader,
-		fh:                 frameHeader{},
-		continuationBuffer: internal.NewBuffer(nil),
+		ctx:             ctx,
+		Storage:         r.Storage,
+		configs:         u,
+		messageChan:     make(chan *Message, u.MessageChannelBufferSize),
+		compressEnabled: compressEnabled,
+		netConn:         netConn,
+		wbuf:            brw.Writer,
+		wmu:             sync.Mutex{},
+		rbuf:            brw.Reader,
+		fh:              frameHeader{},
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor()

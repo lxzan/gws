@@ -56,6 +56,14 @@ func (c *frameHeader) GetRSV1() bool {
 	return ((*c)[0] << 1 >> 7) == 1
 }
 
+func (c *frameHeader) GetRSV2() bool {
+	return ((*c)[0] << 2 >> 7) == 1
+}
+
+func (c *frameHeader) GetRSV3() bool {
+	return ((*c)[0] << 3 >> 7) == 1
+}
+
 func (c *frameHeader) GetOpcode() Opcode {
 	return Opcode((*c)[0] << 4 >> 4)
 }

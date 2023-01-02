@@ -23,8 +23,19 @@ func (c *Conn) emitError(err error) {
 	}
 	go func() {
 		code := CloseNormalClosure
-		if v, ok := err.(CloseCode); ok && v.Uint16() > 0 {
-			code = v
+		v, ok := err.(CloseCode)
+		if ok {
+			closeCode := v.Uint16()
+			if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
+				code = CloseProtocolError
+			} else {
+				switch closeCode {
+				case 1004, 1005, 1006, 1014:
+					code = CloseProtocolError
+				default:
+					code = v
+				}
+			}
 		}
 		var content = code.Bytes()
 		content = append(content, err.Error()...)

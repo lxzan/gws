@@ -75,11 +75,10 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
-	println(err.Error())
+	println("error: ", err.Error())
 }
 
 func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
-	println(string(m))
 	socket.WriteMessage(gws.OpcodePong, m)
 }
 

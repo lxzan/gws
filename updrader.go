@@ -14,7 +14,6 @@ import (
 const (
 	DefaultMessageChannelBufferSize = 16
 	DefaultHandshakeTimeout         = 5 * time.Second
-	DefaultMinPingInterval          = 3 * time.Second
 	DefaultReadTimeout              = 30 * time.Second
 	DefaultWriteTimeout             = 30 * time.Second
 	DefaultCompressLevel            = flate.BestSpeed
@@ -44,9 +43,6 @@ type (
 		// write frame timeout, dv=5s
 		WriteTimeout time.Duration
 
-		// minimum ping interval, dv=3s
-		MinPingInterval time.Duration
-
 		// filter user request
 		CheckOrigin func(r *Request) bool
 	}
@@ -74,9 +70,6 @@ func (c *Upgrader) initialize() {
 	}
 	if c.ReadTimeout <= 0 {
 		c.ReadTimeout = DefaultReadTimeout
-	}
-	if c.MinPingInterval <= 0 {
-		c.MinPingInterval = DefaultMinPingInterval
 	}
 	if c.WriteTimeout <= 0 {
 		c.WriteTimeout = DefaultWriteTimeout

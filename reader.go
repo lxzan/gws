@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"time"
+	"unicode/utf8"
 )
 
 func (c *Conn) ReadMessage() <-chan *Message {
@@ -43,31 +44,25 @@ func (c *Conn) readControl() error {
 	}
 
 	var maskOn = c.fh.GetMask()
-	var payload = c.controlBuffer[0:n]
+	var payload = _pool.Get(internal.Lv1)
 	if maskOn {
 		if err := c.readN(c.fh[10:14], 4); err != nil {
 			return err
 		}
 	}
-	if err := c.readN(payload, int(n)); err != nil {
+	if _, err := io.CopyN(payload, c.rbuf, int64(n)); err != nil {
 		return err
 	}
 
 	if maskOn {
-		maskXOR(payload, c.fh[10:14])
+		maskXOR(payload.Bytes(), c.fh[10:14])
 	}
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
-		if c.pingTime.IsZero() || time.Since(c.pingTime) < c.configs.MinPingInterval {
-			c.pingCount++
-		} else {
-			c.pingTime = time.Now()
-			c.pingCount = 0
-		}
-		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: internal.NewBuffer(payload)})
+		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: payload})
 	case OpcodePong:
-		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: internal.NewBuffer(payload)})
+		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: payload})
 	case OpcodeCloseConnection:
 		switch n {
 		case 0:
@@ -75,16 +70,31 @@ func (c *Conn) readControl() error {
 		case 1:
 			return CloseProtocolError
 		default:
-			return CloseCode(binary.BigEndian.Uint16(payload[:2]))
+			var data = payload.Bytes()
+			if !utf8.Valid(data[2:]) {
+				return CloseUnsupportedData
+			}
+			return CloseCode(binary.BigEndian.Uint16(data[:2]))
 		}
 	default:
-		return CloseUnsupportedData
+		return CloseProtocolError
 	}
 }
 
 func (c *Conn) readMessage() error {
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return err
+	}
+
+	// RSV1, RSV2, RSV3:  1 bit each
+	//
+	//      MUST be 0 unless an extension is negotiated that defines meanings
+	//      for non-zero values.  If a nonzero value is received and none of
+	//      the negotiated extensions defines the meaning of such a nonzero
+	//      value, the receiving endpoint MUST _Fail the WebSocket
+	//      Connection_.
+	if c.fh.GetRSV1() != c.compressEnabled || c.fh.GetRSV2() || c.fh.GetRSV3() {
+		return CloseProtocolError
 	}
 
 	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
@@ -100,19 +110,7 @@ func (c *Conn) readMessage() error {
 	var fin = c.fh.GetFIN()
 	var maskOn = c.fh.GetMask()
 	var lengthCode = c.fh.GetLengthCode()
-	var rsv1 = c.fh.GetRSV1()
 	var contentLength = int(lengthCode)
-
-	// RSV1, RSV2, RSV3:  1 bit each
-	//
-	//      MUST be 0 unless an extension is negotiated that defines meanings
-	//      for non-zero values.  If a nonzero value is received and none of
-	//      the negotiated extensions defines the meaning of such a nonzero
-	//      value, the receiving endpoint MUST _Fail the WebSocket
-	//      Connection_.
-	if rsv1 != c.compressEnabled {
-		return CloseProtocolError
-	}
 
 	// read data frame
 	var buf *internal.Buffer
@@ -154,7 +152,7 @@ func (c *Conn) readMessage() error {
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if c.continuationBuffer == nil {
 			c.continuationOpcode = opcode
-			c.continuationBuffer = internal.NewBuffer(nil)
+			c.continuationBuffer = internal.NewBuffer(make([]byte, 0, contentLength))
 		}
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
@@ -168,6 +166,12 @@ func (c *Conn) readMessage() error {
 			c.continuationBuffer = nil
 			return c.emitMessage(msg)
 		}
+		return nil
+	}
+
+	// Send unfragmented Text Message after Continuation Frame with FIN = false
+	if fin && c.continuationBuffer != nil && opcode != OpcodeContinuation {
+		return CloseProtocolError
 	}
 
 	switch opcode {
@@ -183,21 +187,19 @@ func (c *Conn) emitMessage(msg *Message) error {
 		return nil
 	}
 
-	if msg.opcode == OpcodePing || msg.opcode == OpcodePong {
-		c.messageChan <- msg
-		if c.pingCount >= 10 {
-			err := errors.New("ping operation is too frequently")
-			c.messageChan <- &Message{err: err}
+	if !c.compressEnabled || msg.opcode == OpcodePing || msg.opcode == OpcodePong {
+		if msg.opcode == OpcodeText && !utf8.Valid(msg.Bytes()) {
+			return CloseUnsupportedData
 		}
-		return nil
-	}
-	if !c.compressEnabled {
 		c.messageChan <- msg
 		return nil
 	}
 
 	if err := c.decompressor.Decompress(msg); err != nil {
 		return CloseInternalServerErr
+	}
+	if msg.opcode == OpcodeText && !utf8.Valid(msg.Bytes()) {
+		return CloseUnsupportedData
 	}
 	c.messageChan <- msg
 	return nil
