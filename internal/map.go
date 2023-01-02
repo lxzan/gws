@@ -39,11 +39,3 @@ func (c *Map) Delete(k string) {
 	delete(c.data, k)
 	c.mu.Unlock()
 }
-
-func (c *Map) Foreach(fn func(k string, v interface{})) {
-	c.mu.RLock()
-	for k, v := range c.data {
-		fn(k, v)
-	}
-	c.mu.RUnlock()
-}

@@ -17,7 +17,9 @@ func (c *Message) Read(p []byte) (n int, err error) {
 }
 
 func (c *Message) Close() error {
-	_pool.Put(c.dbuf)
+	if c.dbuf != nil {
+		_pool.Put(c.dbuf)
+	}
 	if c.cbuf != nil {
 		_pool.Put(c.cbuf)
 	}

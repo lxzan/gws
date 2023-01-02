@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"io"
 	"testing"
 )
@@ -33,6 +34,15 @@ func TestBytesBuffer_Read(t *testing.T) {
 		if string(s1) != string(s2) {
 			t.Fail()
 			return
+		}
+	}
+
+	{
+		var buf = bytes.NewBufferString("hello")
+		var s = make([]byte, 2)
+		_, _ = buf.Read(s)
+		if string(s) != "he" || string(buf.Bytes()) != "llo" {
+			t.Fail()
 		}
 	}
 }

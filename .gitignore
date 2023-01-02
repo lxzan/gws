@@ -17,4 +17,4 @@
 .vscode/
 vendor/
 bin/
-debug/
+examples/debug/

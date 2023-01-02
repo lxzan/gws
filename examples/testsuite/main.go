@@ -1,17 +1,3 @@
-# gws
-### minimal websocket server
-
-#### Highlight
-- No dependency
-- Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
-
-#### Attention
-- It's designed for api server, do not write big message
-- It's recommended not to enable data compression in the intranet
-- You need to manage your own message handling coroutine
-
-#### Quick Start
-```go
 package main
 
 import (
@@ -95,4 +81,3 @@ func (c *WebSocketHandler) OnPing(socket *gws.Conn, m *gws.Message) {
 
 func (c *WebSocketHandler) OnPong(socket *gws.Conn, payload []byte) {
 }
-```

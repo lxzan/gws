@@ -90,8 +90,8 @@ func (c *Conn) Close() error {
 }
 
 // set connection deadline
-func (c *Conn) SetDeadline(d time.Duration) error {
-	return c.netConn.SetDeadline(time.Now().Add(d))
+func (c *Conn) SetDeadline(t time.Time) {
+	c.emitError(c.netConn.SetDeadline(t))
 }
 
 func (c *Conn) LocalAddr() net.Addr {
