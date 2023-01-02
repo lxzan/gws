@@ -6,13 +6,11 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"math"
-	"sync"
 )
 
 func newCompressor() *compressor {
 	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
 	return &compressor{
-		mu:          sync.Mutex{},
 		writeBuffer: internal.NewBuffer(nil),
 		fw:          fw,
 	}
@@ -20,16 +18,12 @@ func newCompressor() *compressor {
 
 // 压缩器
 type compressor struct {
-	mu          sync.Mutex
 	writeBuffer *internal.Buffer
 	fw          *flate.Writer
 }
 
-// 压缩并构建WriteFrame
+// Compress 压缩
 func (c *compressor) Compress(content []byte) ([]byte, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.writeBuffer.Cap() > internal.Lv3 {
 		c.writeBuffer = internal.NewBuffer(nil)
 	}
@@ -65,7 +59,7 @@ type decompressor struct {
 	fr io.ReadCloser
 }
 
-// 解压
+// Decompress 解压
 func (c *decompressor) Decompress(msg *Message) error {
 	msg.cbuf = msg.dbuf
 	_, _ = msg.dbuf.Write(internal.FlateTail)

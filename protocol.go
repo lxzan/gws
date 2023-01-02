@@ -17,8 +17,8 @@ type EventHandler interface {
 	OnOpen(socket *Conn)
 	OnMessage(socket *Conn, m *Message)
 	OnError(socket *Conn, err error)
-	OnPing(socket *Conn, m []byte)
-	OnPong(socket *Conn, m []byte)
+	OnPing(socket *Conn, m *Message)
+	OnPong(socket *Conn, m *Message)
 }
 
 var closeErrorMap = map[CloseCode]string{

@@ -85,6 +85,7 @@ func (c *Conn) isCanceled() bool {
 	}
 }
 
+// Close
 func (c *Conn) Close() error {
 	return c.netConn.Close()
 }

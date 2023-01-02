@@ -55,6 +55,8 @@ func main() {
 					handler.OnMessage(socket, msg)
 				case gws.OpcodePing:
 					handler.OnPing(socket, msg)
+				case gws.OpcodePong:
+					handler.OnPong(socket, msg)
 				default:
 					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
 					return
@@ -78,21 +80,22 @@ func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
 	println("connected")
 }
 
-func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
-	defer m.Close()
-	socket.WriteMessage(m.Typ(), m.Bytes())
+func (c *WebSocketHandler) OnMessage(socket *gws.Conn, message *gws.Message) {
+	defer message.Close()
+	socket.WriteMessage(message.Typ(), message.Bytes())
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
 	println("error: ", err.Error())
 }
 
-func (c *WebSocketHandler) OnPing(socket *gws.Conn, m *gws.Message) {
-	defer m.Close()
-	socket.WritePong(nil)
+func (c *WebSocketHandler) OnPing(socket *gws.Conn, message *gws.Message) {
+	socket.WritePong(message.Bytes())
 	socket.SetDeadline(time.Now().Add(30 * time.Second))
+	_ = message.Close()
 }
 
-func (c *WebSocketHandler) OnPong(socket *gws.Conn, payload []byte) {
+func (c *WebSocketHandler) OnPong(socket *gws.Conn, message *gws.Message) {
+	_ = message.Close()
 }
 ```
