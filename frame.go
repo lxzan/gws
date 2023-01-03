@@ -7,7 +7,6 @@ import (
 )
 
 type Message struct {
-	err        error            // 错误
 	closeCode  CloseCode        // 关闭状态码
 	opcode     Opcode           // 帧状态码
 	compressed bool             // 是否压缩了数据
@@ -30,13 +29,6 @@ func (c *Message) Close() error {
 		c.cbuf = nil
 	}
 	return nil
-}
-
-// Err get error
-// 获取WebSocket错误
-// 为了方便服务端处理退出逻辑, 关闭帧和读写错误都会向channel写入error
-func (c *Message) Err() error {
-	return c.err
 }
 
 // Code get close code

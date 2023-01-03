@@ -17,7 +17,7 @@ func (c Opcode) IsDataFrame() bool {
 	return c <= OpcodeBinary
 }
 
-type EventHandler interface {
+type Event interface {
 	OnOpen(socket *Conn)
 	OnError(socket *Conn, err error)
 	OnClose(socket *Conn, message *Message)

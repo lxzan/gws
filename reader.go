@@ -16,10 +16,6 @@ func init() {
 	_pool = internal.NewBufferPool()
 }
 
-func (c *Conn) ReadMessage() <-chan *Message {
-	return c.messageChan
-}
-
 func (c *Conn) readN(data []byte, n int) error {
 	if n == 0 {
 		return nil

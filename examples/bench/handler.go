@@ -7,21 +7,21 @@ import (
 	"math/rand"
 )
 
-func NewWebSocketHandler() *WebSocketHandler {
-	return &WebSocketHandler{}
+func NewWebSocket() *WebSocket {
+	return &WebSocket{}
 }
 
-func (c *WebSocketHandler) OnClose(socket *gws.Conn, message *gws.Message) {
+func (c *WebSocket) OnClose(socket *gws.Conn, message *gws.Message) {
 	fmt.Printf("onclose: code=%d, payload=%s", message.Code(), string(message.Bytes()))
 }
 
-type WebSocketHandler struct{}
+type WebSocket struct{}
 
-func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
+func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	println("connected")
 }
 
-func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
+func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
 	body := m.Bytes()
 	defer m.Close()
 
@@ -49,21 +49,21 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	}
 }
 
-func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
+func (c *WebSocket) OnError(socket *gws.Conn, err error) {
 	println(err.Error())
 }
 
-func (c *WebSocketHandler) OnPing(socket *gws.Conn, m *gws.Message) {
+func (c *WebSocket) OnPing(socket *gws.Conn, m *gws.Message) {
 	socket.WritePong(nil)
 	_ = m.Close()
 }
 
-func (c *WebSocketHandler) OnPong(socket *gws.Conn, m *gws.Message) {
+func (c *WebSocket) OnPong(socket *gws.Conn, m *gws.Message) {
 	println("onpong")
 	_ = m.Close()
 }
 
-func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
+func (c *WebSocket) OnTest(socket *gws.Conn) {
 	const count = 1000
 	for i := 0; i < count; i++ {
 		var size = internal.AlphabetNumeric.Intn(8 * 1024)
@@ -73,7 +73,7 @@ func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
 	}
 }
 
-func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
+func (c *WebSocket) OnVerify(socket *gws.Conn) {
 	if socket.Storage.Len() != 0 {
 		socket.WriteMessage(gws.OpcodeText, []byte("failed"))
 	}
@@ -81,7 +81,7 @@ func (c *WebSocketHandler) OnVerify(socket *gws.Conn) {
 	socket.WriteMessage(gws.OpcodeText, []byte("ok"))
 }
 
-func (c *WebSocketHandler) OnBench(socket *gws.Conn) {
+func (c *WebSocket) OnBench(socket *gws.Conn) {
 	const count = 1000000
 	for i := 0; i < count; i++ {
 		var size = 10 + rand.Intn(1024)

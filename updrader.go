@@ -12,13 +12,12 @@ import (
 )
 
 const (
-	DefaultMessageChannelBufferSize = 16
-	DefaultHandshakeTimeout         = 5 * time.Second
-	DefaultReadTimeout              = 30 * time.Second
-	DefaultWriteTimeout             = 30 * time.Second
-	DefaultCompressLevel            = flate.BestSpeed
-	DefaultMaxConcurrency           = 8
-	DefaultMaxContentLength         = 1 * 1024 * 1024 // 1MiB
+	DefaultHandshakeTimeout = 5 * time.Second
+	DefaultReadTimeout      = 30 * time.Second
+	DefaultWriteTimeout     = 30 * time.Second
+	DefaultCompressLevel    = flate.BestSpeed
+	DefaultConcurrency      = 8
+	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
 )
 
 type (
@@ -35,17 +34,14 @@ type (
 		// max message size, dv=1024*1024 (1MiB)
 		MaxContentLength int
 
-		// message channel buffer size, dv=16
-		MessageChannelBufferSize int
-
 		// read frame timeout, dv=5s
 		ReadTimeout time.Duration
 
 		// write frame timeout, dv=5s
 		WriteTimeout time.Duration
 
-		// max coroutines for per connection
-		MaxConcurrency int
+		// max coroutines for per connection, dv=8
+		Concurrency int
 
 		// recover onmessage event
 		Recovery bool
@@ -66,9 +62,6 @@ func (c *Upgrader) initialize() {
 			return true
 		}
 	}
-	if c.MessageChannelBufferSize <= 0 {
-		c.MessageChannelBufferSize = DefaultMessageChannelBufferSize
-	}
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = DefaultHandshakeTimeout
 	}
@@ -84,8 +77,8 @@ func (c *Upgrader) initialize() {
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = DefaultCompressLevel
 	}
-	if c.MaxConcurrency <= 0 {
-		c.MaxConcurrency = DefaultMaxConcurrency
+	if c.Concurrency <= 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -109,7 +102,7 @@ func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey st
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
+func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler Event) (*Conn, error) {
 	c.initialize()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}

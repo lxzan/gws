@@ -2,85 +2,50 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
-	"syscall"
 	"time"
 )
 
 func main() {
 	var upgrader = gws.Upgrader{CompressEnabled: true, MaxContentLength: 32 * 1024 * 1024}
-	var handler = new(WebSocketHandler)
-	ctx, cancel := context.WithCancel(context.Background())
+	var handler = new(WebSocket)
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Upgrade(ctx, writer, request)
-		if err != nil {
-			return
-		}
-		defer socket.Close()
-
-		handler.OnOpen(socket)
-		for {
-			select {
-			case <-ctx.Done():
-				handler.OnError(socket, gws.CloseServiceRestart)
-				return
-			case msg := <-socket.ReadMessage():
-				if err := msg.Err(); err != nil {
-					handler.OnError(socket, err)
-					return
-				}
-
-				switch msg.Typ() {
-				case gws.OpcodeText, gws.OpcodeBinary:
-					handler.OnMessage(socket, msg)
-				case gws.OpcodePing:
-					handler.OnPing(socket, msg)
-				case gws.OpcodePong:
-					handler.OnPong(socket, msg)
-				default:
-					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
-					return
-				}
-			}
-		}
+		_, _ = upgrader.Upgrade(context.Background(), writer, request, handler)
 	})
 
-	go http.ListenAndServe(":3000", nil)
-
-	quit := make(chan os.Signal)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	cancel()
-	time.Sleep(100 * time.Millisecond)
+	_ = http.ListenAndServe(":3000", nil)
 }
 
-type WebSocketHandler struct{}
+type WebSocket struct{}
 
-func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
+func (c *WebSocket) OnClose(socket *gws.Conn, message *gws.Message) {
+	fmt.Printf("onclose: code=%d, payload=%s\n", message.Code(), string(message.Bytes()))
+	_ = socket.Close()
+	_ = message.Close()
+}
+
+func (c *WebSocket) OnError(socket *gws.Conn, err error) {
+	fmt.Printf("onerror: err=%s\n", err.Error())
+	_ = socket.Close()
+}
+
+func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	println("connected")
 }
 
-func (c *WebSocketHandler) OnMessage(socket *gws.Conn, message *gws.Message) {
-	defer message.Close()
+func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	socket.WriteMessage(message.Typ(), message.Bytes())
+	_ = message.Close()
 }
 
-func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
-	println("error: ", err.Error())
-}
-
-func (c *WebSocketHandler) OnPing(socket *gws.Conn, message *gws.Message) {
+func (c *WebSocket) OnPing(socket *gws.Conn, message *gws.Message) {
+	fmt.Printf("onping: payload=%s\n", string(message.Bytes()))
 	socket.WritePong(message.Bytes())
 	socket.SetDeadline(time.Now().Add(30 * time.Second))
 	_ = message.Close()
 }
 
-func (c *WebSocketHandler) OnPong(socket *gws.Conn, message *gws.Message) {
-	_ = message.Close()
-}
+func (c *WebSocket) OnPong(socket *gws.Conn, message *gws.Message) {}

@@ -11,12 +11,11 @@ import (
 )
 
 type Conn struct {
-	// context
-	ctx context.Context
 	// store session information
 	Storage *internal.Map
-	// message channel
-	messageChan chan *Message
+
+	// context
+	ctx context.Context
 	// whether you use compression
 	compressEnabled bool
 	// tcp connection
@@ -46,15 +45,14 @@ type Conn struct {
 	mq *concurrency.WorkerQueue
 
 	// WebSocket EventHandler
-	handler EventHandler
+	handler Event
 }
 
-func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler EventHandler, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
 		Storage:         r.Storage,
 		configs:         u,
-		messageChan:     make(chan *Message, u.MessageChannelBufferSize),
 		compressEnabled: compressEnabled,
 		netConn:         netConn,
 		wbuf:            brw.Writer,
@@ -68,7 +66,7 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		c.decompressor = newDecompressor()
 	}
 
-	var options = []concurrency.Option{concurrency.WithContext(ctx), concurrency.WithConcurrency(int64(u.MaxConcurrency))}
+	var options = []concurrency.Option{concurrency.WithContext(ctx), concurrency.WithConcurrency(int64(u.Concurrency))}
 	if u.Recovery {
 		options = append(options, concurrency.WithRecovery())
 	}
