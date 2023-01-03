@@ -50,7 +50,7 @@ func (c *Message) valid() bool {
 	if c.dbuf.Len() == 0 {
 		return true
 	}
-	if !c.opcode.IsDataFrame() || c.opcode == OpcodeText {
+	if c.opcode == OpcodeCloseConnection || c.opcode == OpcodeText {
 		return utf8.Valid(c.dbuf.Bytes())
 	}
 	return true

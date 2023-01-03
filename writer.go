@@ -24,7 +24,13 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
+	c.once.Do(func() {
+		c.handlerError(err)
+		c.handler.OnError(c, err)
+	})
+}
 
+func (c *Conn) handlerError(err error) {
 	code := CloseNormalClosure
 	v, ok := err.(CloseCode)
 	if ok {

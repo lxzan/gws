@@ -146,10 +146,13 @@ func (c *Conn) readMessage() error {
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
 
+	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
+		c.continuationOpcode = opcode
+		c.continuationBuffer = internal.NewBuffer(make([]byte, 0, contentLength))
+	}
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if c.continuationBuffer == nil {
-			c.continuationOpcode = opcode
-			c.continuationBuffer = internal.NewBuffer(make([]byte, 0, contentLength))
+			return CloseProtocolError
 		}
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
@@ -157,21 +160,21 @@ func (c *Conn) readMessage() error {
 		if c.continuationBuffer.Len() > c.configs.MaxContentLength {
 			return CloseMessageTooLarge
 		}
-		if fin {
-			msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer, compressed: compressed}
-			c.continuationOpcode = 0
-			c.continuationBuffer = nil
-			return c.emitMessage(msg)
+		if !fin {
+			return nil
 		}
-		return nil
 	}
 
 	// Send unfragmented Text Message after Continuation Frame with FIN = false
-	if fin && c.continuationBuffer != nil && opcode != OpcodeContinuation {
+	if c.continuationBuffer != nil && opcode != OpcodeContinuation {
 		return CloseProtocolError
 	}
-
 	switch opcode {
+	case OpcodeContinuation:
+		msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer, compressed: compressed}
+		c.continuationOpcode = 0
+		c.continuationBuffer = nil
+		return c.emitMessage(msg)
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{opcode: opcode, dbuf: buf, compressed: compressed})
 	default:
@@ -204,7 +207,10 @@ func (c *Conn) emitMessage(msg *Message) error {
 			c.handler.OnMessage(c, msg)
 		}
 	case OpcodeCloseConnection:
-		c.handler.OnClose(c, msg)
+		c.once.Do(func() {
+			c.handlerError(msg.Code())
+			c.handler.OnClose(c, msg)
+		})
 	default:
 	}
 	return nil

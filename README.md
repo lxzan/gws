@@ -34,7 +34,6 @@ import (
 	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
-	"time"
 )
 
 func main() {
@@ -42,7 +41,7 @@ func main() {
 	var handler = new(WebSocket)
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = upgrader.Upgrade(context.Background(), writer, request, handler)
+		_ = upgrader.Upgrade(context.Background(), writer, request, handler)
 	})
 
 	_ = http.ListenAndServe(":3000", nil)
@@ -73,7 +72,6 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 func (c *WebSocket) OnPing(socket *gws.Conn, message *gws.Message) {
 	fmt.Printf("onping: payload=%s\n", string(message.Bytes()))
 	socket.WritePong(message.Bytes())
-	socket.SetDeadline(time.Now().Add(30 * time.Second))
 	message.Close()
 }
 

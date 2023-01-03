@@ -11,7 +11,7 @@ import (
 
 type Conn struct {
 	// store session information
-	*internal.Map
+	*Storage
 	// context
 	ctx context.Context
 	// whether you use compression
@@ -20,6 +20,8 @@ type Conn struct {
 	conn net.Conn
 	// server configs
 	configs *Upgrader
+	// call onclose/onerror once
+	once *sync.Once
 
 	// read buffer
 	rbuf *bufio.Reader
@@ -43,13 +45,14 @@ type Conn struct {
 	handler Event
 }
 
-func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) {
 	c := &Conn{
 		ctx:             ctx,
-		Map:             r.Map,
+		Storage:         r.Storage,
 		configs:         u,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
+		once:            &sync.Once{},
 		wbuf:            brw.Writer,
 		wmu:             sync.Mutex{},
 		rbuf:            brw.Reader,
@@ -63,20 +66,16 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 
 	c.handler.OnOpen(c)
 
-	go func() {
-		for {
-			if err := c.readMessage(); err != nil {
-				c.emitError(err)
-				return
-			}
-			if err := c.conn.SetReadDeadline(time.Time{}); err != nil {
-				c.emitError(err)
-				return
-			}
+	for {
+		if err := c.readMessage(); err != nil {
+			c.emitError(err)
+			return
 		}
-	}()
-
-	return c
+		if err := c.conn.SetReadDeadline(time.Time{}); err != nil {
+			c.emitError(err)
+			return
+		}
+	}
 }
 
 func (c *Conn) isCanceled() bool {
