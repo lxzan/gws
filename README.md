@@ -2,8 +2,9 @@
 ### minimal websocket server
 
 #### Highlight
-- No dependency
-- Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
+- no dependency
+- concurrent write
+- fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention
 - It's designed for api server, do not write big message

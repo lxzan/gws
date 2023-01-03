@@ -24,33 +24,34 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	go func() {
-		code := CloseNormalClosure
-		v, ok := err.(CloseCode)
-		if ok {
-			closeCode := v.Uint16()
-			if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
+
+	code := CloseNormalClosure
+	v, ok := err.(CloseCode)
+	if ok {
+		closeCode := v.Uint16()
+		if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
+			code = CloseProtocolError
+		} else {
+			switch closeCode {
+			case 1004, 1005, 1006, 1014:
 				code = CloseProtocolError
-			} else {
-				switch closeCode {
-				case 1004, 1005, 1006, 1014:
-					code = CloseProtocolError
-				default:
-					code = v
-				}
+			default:
+				code = v
 			}
 		}
-		var content = code.Bytes()
-		content = append(content, err.Error()...)
-		if len(content) > math.MaxInt8 {
-			content = content[:math.MaxInt8]
-		}
-		_ = c.writeFrame(OpcodeCloseConnection, content, false, true)
+	}
+	var content = code.Bytes()
+	content = append(content, err.Error()...)
+	if len(content) > math.MaxInt8 {
+		content = content[:math.MaxInt8]
+	}
+	go func() {
+		_ = c.writeMessage(OpcodeCloseConnection, content, true)
 		c.messageChan <- &Message{err: err}
 	}()
 }
 
-// WriteClose send close frame
+// WriteClose write close frame
 // 发送关闭帧
 func (c *Conn) WriteClose(code CloseCode, reason []byte) {
 	var content = code.Bytes()
@@ -59,20 +60,23 @@ func (c *Conn) WriteClose(code CloseCode, reason []byte) {
 	} else {
 		content = append(content, code.Error()...)
 	}
-	c.emitError(c.writeFrame(OpcodeCloseConnection, content, false, true))
+	if len(content) > math.MaxInt8 {
+		content = content[:math.MaxInt8]
+	}
+	c.WriteMessage(OpcodeCloseConnection, content)
 }
 
 // WritePing write ping frame
 func (c *Conn) WritePing(payload []byte) {
-	c.emitError(c.writeFrame(OpcodePing, payload, false, true))
+	c.WriteMessage(OpcodePing, payload)
 }
 
 // WritePong write pong frame
 func (c *Conn) WritePong(payload []byte) {
-	c.emitError(c.writeFrame(OpcodePong, payload, false, true))
+	c.WriteMessage(OpcodePong, payload)
 }
 
-// WriteMessage  send message
+// WriteMessage write message
 // 发送消息
 func (c *Conn) WriteMessage(messageType Opcode, content []byte) {
 	c.emitError(c.writeMessage(messageType, content, true))

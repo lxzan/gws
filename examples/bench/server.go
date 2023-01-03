@@ -49,9 +49,9 @@ func main() {
 				case gws.OpcodeText, gws.OpcodeBinary:
 					handler.OnMessage(socket, msg)
 				case gws.OpcodePing:
-					handler.OnPing(socket, msg.Bytes())
+					handler.OnPing(socket, msg)
 				case gws.OpcodePong:
-					handler.OnPong(socket, msg.Bytes())
+					handler.OnPong(socket, msg)
 				default:
 					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
 					return

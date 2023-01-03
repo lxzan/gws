@@ -21,12 +21,15 @@ func (c *Conn) ReadMessage() <-chan *Message {
 }
 
 func (c *Conn) readN(data []byte, n int) error {
+	if n == 0 {
+		return nil
+	}
 	num, err := io.ReadFull(c.rbuf, data)
 	if err != nil {
 		return err
 	}
 	if num != n {
-		return CloseGoingAway
+		return CloseNormalClosure
 	}
 	return nil
 }
@@ -110,7 +113,7 @@ func (c *Conn) readMessage() error {
 	// read control frame
 	var opcode = c.fh.GetOpcode()
 	var compressed = c.compressEnabled && c.fh.GetRSV1()
-	if opcode.IsDataFrame() {
+	if !opcode.IsDataFrame() {
 		return c.readControl()
 	}
 

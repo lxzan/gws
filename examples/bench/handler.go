@@ -13,7 +13,7 @@ func NewWebSocketHandler() *WebSocketHandler {
 type WebSocketHandler struct{}
 
 func (c *WebSocketHandler) OnOpen(socket *gws.Conn) {
-
+	println("connected")
 }
 
 func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
@@ -51,12 +51,14 @@ func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {
 	println(err.Error())
 }
 
-func (c *WebSocketHandler) OnPing(socket *gws.Conn, m []byte) {
+func (c *WebSocketHandler) OnPing(socket *gws.Conn, m *gws.Message) {
 	socket.WritePong(nil)
+	_ = m.Close()
 }
 
-func (c *WebSocketHandler) OnPong(socket *gws.Conn, m []byte) {
+func (c *WebSocketHandler) OnPong(socket *gws.Conn, m *gws.Message) {
 	println("onpong")
+	_ = m.Close()
 }
 
 func (c *WebSocketHandler) OnTest(socket *gws.Conn) {
