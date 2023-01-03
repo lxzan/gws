@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
@@ -8,6 +9,10 @@ import (
 
 func NewWebSocketHandler() *WebSocketHandler {
 	return &WebSocketHandler{}
+}
+
+func (c *WebSocketHandler) OnClose(socket *gws.Conn, message *gws.Message) {
+	fmt.Printf("onclose: code=%d, payload=%s", message.Code(), string(message.Bytes()))
 }
 
 type WebSocketHandler struct{}
@@ -42,9 +47,6 @@ func (c *WebSocketHandler) OnMessage(socket *gws.Conn, m *gws.Message) {
 	default:
 		socket.Storage.Delete(key)
 	}
-}
-
-func (c *WebSocketHandler) OnClose(socket *gws.Conn, code gws.CloseCode, reason []byte) {
 }
 
 func (c *WebSocketHandler) OnError(socket *gws.Conn, err error) {

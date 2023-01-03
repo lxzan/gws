@@ -17,6 +17,7 @@ const (
 	DefaultReadTimeout              = 30 * time.Second
 	DefaultWriteTimeout             = 30 * time.Second
 	DefaultCompressLevel            = flate.BestSpeed
+	DefaultMaxConcurrency           = 8
 	DefaultMaxContentLength         = 1 * 1024 * 1024 // 1MiB
 )
 
@@ -42,6 +43,12 @@ type (
 
 		// write frame timeout, dv=5s
 		WriteTimeout time.Duration
+
+		// max coroutines for per connection
+		MaxConcurrency int
+
+		// recover onmessage event
+		Recovery bool
 
 		// filter user request
 		CheckOrigin func(r *Request) bool
@@ -77,6 +84,9 @@ func (c *Upgrader) initialize() {
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = DefaultCompressLevel
 	}
+	if c.MaxConcurrency <= 0 {
+		c.MaxConcurrency = DefaultMaxConcurrency
+	}
 }
 
 func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey string) error {
@@ -99,7 +109,7 @@ func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey st
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request) (*Conn, error) {
+func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler EventHandler) (*Conn, error) {
 	c.initialize()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}
@@ -156,5 +166,5 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(ctx, c, request, netConn, brw, compressEnabled), nil
+	return serveWebSocket(ctx, c, request, netConn, brw, handler, compressEnabled), nil
 }

@@ -3,11 +3,13 @@ package gws
 import (
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
+	"unicode/utf8"
 )
 
 type Message struct {
 	err        error            // 错误
-	opcode     Opcode           // 状态码
+	closeCode  CloseCode        // 关闭状态码
+	opcode     Opcode           // 帧状态码
 	compressed bool             // 是否压缩了数据
 	dbuf       *internal.Buffer // 数据缓冲
 	cbuf       *internal.Buffer // 解码器缓冲
@@ -37,13 +39,30 @@ func (c *Message) Err() error {
 	return c.err
 }
 
+// Code get close code
+// only close frame has the code
+func (c *Message) Code() CloseCode {
+	return c.closeCode
+}
+
 // Typ get opcode type
 func (c *Message) Typ() Opcode {
 	return c.opcode
 }
 
+// Bytes get message content
 func (c *Message) Bytes() []byte {
 	return c.dbuf.Bytes()
+}
+
+func (c *Message) valid() bool {
+	if c.dbuf.Len() == 0 {
+		return true
+	}
+	if !c.opcode.IsDataFrame() || c.opcode == OpcodeText {
+		return utf8.Valid(c.dbuf.Bytes())
+	}
+	return true
 }
 
 func maskXOR(b []byte, key []byte) {

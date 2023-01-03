@@ -45,10 +45,8 @@ func (c *Conn) emitError(err error) {
 	if len(content) > math.MaxInt8 {
 		content = content[:math.MaxInt8]
 	}
-	go func() {
-		_ = c.writeMessage(OpcodeCloseConnection, content, true)
-		c.messageChan <- &Message{err: err}
-	}()
+	_ = c.writeMessage(OpcodeCloseConnection, content, true)
+	c.handler.OnError(c, err)
 }
 
 // WriteClose write close frame

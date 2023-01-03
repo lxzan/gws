@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"github.com/lxzan/gws"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 )
@@ -27,37 +25,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Upgrade(ctx, writer, request)
-		if err != nil {
-			return
-		}
-		defer socket.Close()
-
-		handler.OnOpen(socket)
-		for {
-			select {
-			case <-ctx.Done():
-				handler.OnError(socket, gws.CloseServiceRestart)
-				return
-			case msg := <-socket.ReadMessage():
-				if err := msg.Err(); err != nil {
-					handler.OnError(socket, err)
-					return
-				}
-
-				switch msg.Typ() {
-				case gws.OpcodeText, gws.OpcodeBinary:
-					handler.OnMessage(socket, msg)
-				case gws.OpcodePing:
-					handler.OnPing(socket, msg)
-				case gws.OpcodePong:
-					handler.OnPong(socket, msg)
-				default:
-					handler.OnError(socket, errors.New("unexpected opcode: "+strconv.Itoa(int(msg.Typ()))))
-					return
-				}
-			}
-		}
+		_, _ = upgrader.Upgrade(ctx, writer, request, handler)
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {

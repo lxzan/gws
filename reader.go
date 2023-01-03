@@ -3,11 +3,11 @@ package gws
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/lxzan/concurrency"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strconv"
 	"time"
-	"unicode/utf8"
 )
 
 var _pool *internal.BufferPool
@@ -73,18 +73,10 @@ func (c *Conn) readControl() error {
 	case OpcodePong:
 		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: payload})
 	case OpcodeCloseConnection:
-		switch n {
-		case 0:
-			return CloseNormalClosure
-		case 1:
+		if n == 1 {
 			return CloseProtocolError
-		default:
-			var data = payload.Bytes()
-			if !utf8.Valid(data[2:]) {
-				return CloseUnsupportedData
-			}
-			return CloseCode(binary.BigEndian.Uint16(data[:2]))
 		}
+		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, dbuf: payload})
 	default:
 		return CloseProtocolError
 	}
@@ -192,25 +184,50 @@ func (c *Conn) readMessage() error {
 	}
 }
 
+type messageWrapper struct {
+	Socket  *Conn
+	Message *Message
+}
+
+func (c *Conn) do(args interface{}) error {
+	var options = args.(messageWrapper)
+	switch options.Message.opcode {
+	case OpcodePing:
+		c.handler.OnPing(options.Socket, options.Message)
+	case OpcodePong:
+		c.handler.OnPong(options.Socket, options.Message)
+	default:
+		c.handler.OnMessage(options.Socket, options.Message)
+	}
+	return nil
+}
+
 func (c *Conn) emitMessage(msg *Message) error {
 	if c.isCanceled() {
 		return nil
 	}
 
-	if !c.compressEnabled || msg.opcode == OpcodePing || msg.opcode == OpcodePong {
-		if msg.opcode == OpcodeText && !utf8.Valid(msg.Bytes()) {
-			return CloseUnsupportedData
+	if msg.compressed {
+		if err := c.decompressor.Decompress(msg); err != nil {
+			return CloseInternalServerErr
 		}
-		c.messageChan <- msg
-		return nil
 	}
-
-	if err := c.decompressor.Decompress(msg); err != nil {
-		return CloseInternalServerErr
+	if msg.opcode == OpcodeCloseConnection && msg.dbuf.Len() >= 2 {
+		var s0 [2]byte
+		_, _ = msg.dbuf.Read(s0[0:])
+		msg.closeCode = CloseCode(binary.BigEndian.Uint16(s0[0:]))
 	}
-	if msg.opcode == OpcodeText && !utf8.Valid(msg.Bytes()) {
+	if !msg.valid() {
 		return CloseUnsupportedData
 	}
-	c.messageChan <- msg
+
+	switch msg.opcode {
+	case OpcodePing, OpcodePong, OpcodeText, OpcodeBinary:
+		job := concurrency.Job{Args: messageWrapper{Socket: c, Message: msg}, Do: c.do}
+		c.mq.AddJob(job)
+	case OpcodeCloseConnection:
+		c.handler.OnClose(c, msg)
+	default:
+	}
 	return nil
 }

@@ -3,6 +3,7 @@ package gws
 import (
 	"bufio"
 	"context"
+	"github.com/lxzan/concurrency"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
@@ -40,9 +41,15 @@ type Conn struct {
 	compressor *compressor
 	// write buffer
 	wbuf *bufio.Writer
+
+	// message queue
+	mq *concurrency.WorkerQueue
+
+	// WebSocket EventHandler
+	handler EventHandler
 }
 
-func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler EventHandler, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
 		Storage:         r.Storage,
@@ -54,11 +61,20 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		wmu:             sync.Mutex{},
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
+		handler:         handler,
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor(u.CompressLevel)
 		c.decompressor = newDecompressor()
 	}
+
+	var options = []concurrency.Option{concurrency.WithContext(ctx), concurrency.WithConcurrency(int64(u.MaxConcurrency))}
+	if u.Recovery {
+		options = append(options, concurrency.WithRecovery())
+	}
+	c.mq = concurrency.NewWorkerQueue(options...)
+
+	c.handler.OnOpen(c)
 
 	go func() {
 		for {
