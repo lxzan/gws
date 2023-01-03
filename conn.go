@@ -29,6 +29,8 @@ type Conn struct {
 	decompressor *decompressor
 	// opcode for fragment frame
 	continuationOpcode Opcode
+	// continuation is compressed
+	continuationCompressed bool
 	// continuation frame
 	continuationBuffer *internal.Buffer
 	// frame header for read

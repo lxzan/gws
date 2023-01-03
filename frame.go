@@ -7,11 +7,9 @@ import (
 )
 
 type Message struct {
-	closeCode  CloseCode        // 关闭状态码
-	opcode     Opcode           // 帧状态码
-	compressed bool             // 是否压缩了数据
-	dbuf       *internal.Buffer // 数据缓冲
-	cbuf       *internal.Buffer // 解码器缓冲
+	closeCode CloseCode        // 关闭状态码
+	opcode    Opcode           // 帧状态码
+	dbuf      *internal.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
@@ -20,14 +18,8 @@ func (c *Message) Read(p []byte) (n int, err error) {
 
 // Close recycle buffer
 func (c *Message) Close() {
-	if c.dbuf != nil {
-		_pool.Put(c.dbuf)
-		c.dbuf = nil
-	}
-	if c.cbuf != nil {
-		_pool.Put(c.cbuf)
-		c.cbuf = nil
-	}
+	_pool.Put(c.dbuf)
+	c.dbuf = nil
 }
 
 // Code get close code
@@ -46,12 +38,12 @@ func (c *Message) Bytes() []byte {
 	return c.dbuf.Bytes()
 }
 
-func (c *Message) valid() bool {
-	if c.dbuf.Len() == 0 {
+func payloadValid(opcode Opcode, buf *internal.Buffer) bool {
+	if buf.Len() == 0 {
 		return true
 	}
-	if c.opcode == OpcodeCloseConnection || c.opcode == OpcodeText {
-		return utf8.Valid(c.dbuf.Bytes())
+	if opcode == OpcodeCloseConnection || opcode == OpcodeText {
+		return utf8.Valid(buf.Bytes())
 	}
 	return true
 }

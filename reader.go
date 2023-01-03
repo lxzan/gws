@@ -64,14 +64,14 @@ func (c *Conn) readControl() error {
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
-		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: payload})
+		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: payload}, false)
 	case OpcodePong:
-		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: payload})
+		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: payload}, false)
 	case OpcodeCloseConnection:
 		if n == 1 {
 			return CloseProtocolError
 		}
-		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, dbuf: payload})
+		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, dbuf: payload}, false)
 	default:
 		return CloseProtocolError
 	}
@@ -147,9 +147,11 @@ func (c *Conn) readMessage() error {
 	maskXOR(buf.Bytes(), c.fh[10:14])
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
+		c.continuationCompressed = compressed
 		c.continuationOpcode = opcode
 		c.continuationBuffer = internal.NewBuffer(make([]byte, 0, contentLength))
 	}
+
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if c.continuationBuffer == nil {
 			return CloseProtocolError
@@ -171,30 +173,36 @@ func (c *Conn) readMessage() error {
 	}
 	switch opcode {
 	case OpcodeContinuation:
-		msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer, compressed: compressed}
+		compressed = c.continuationCompressed
+		msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer}
+		c.continuationCompressed = false
 		c.continuationOpcode = 0
 		c.continuationBuffer = nil
-		return c.emitMessage(msg)
+		return c.emitMessage(msg, compressed)
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{opcode: opcode, dbuf: buf, compressed: compressed})
+		return c.emitMessage(&Message{opcode: opcode, dbuf: buf}, compressed)
 	default:
 		return errors.New("unexpected opcode: " + strconv.Itoa(int(opcode)))
 	}
 }
 
-func (c *Conn) emitMessage(msg *Message) error {
-	if msg.compressed {
-		if err := c.decompressor.Decompress(msg); err != nil {
+func (c *Conn) emitMessage(msg *Message, compressed bool) error {
+	if compressed {
+		data, err := c.decompressor.Decompress(msg.dbuf)
+		if err != nil {
 			return CloseInternalServerErr
 		}
+		msg.dbuf = data
 	}
+
+	if !payloadValid(msg.opcode, msg.dbuf) {
+		return CloseUnsupportedData
+	}
+
 	if msg.opcode == OpcodeCloseConnection && msg.dbuf.Len() >= 2 {
 		var s0 [2]byte
 		_, _ = msg.dbuf.Read(s0[0:])
 		msg.closeCode = CloseCode(binary.BigEndian.Uint16(s0[0:]))
-	}
-	if !msg.valid() {
-		return CloseUnsupportedData
 	}
 
 	switch msg.opcode {

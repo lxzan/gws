@@ -60,15 +60,15 @@ type decompressor struct {
 }
 
 // Decompress 解压
-func (c *decompressor) Decompress(msg *Message) error {
-	msg.cbuf = msg.dbuf
-	_, _ = msg.dbuf.Write(internal.FlateTail)
+func (c *decompressor) Decompress(payload *internal.Buffer) (*internal.Buffer, error) {
+	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
-	if err := resetter.Reset(msg.dbuf, nil); err != nil {
-		return err
+	if err := resetter.Reset(payload, nil); err != nil {
+		return nil, err
 	}
 
-	msg.dbuf = _pool.Get(msg.dbuf.Len())
-	_, err := io.Copy(msg.dbuf, c.fr)
-	return err
+	var buf = _pool.Get(payload.Len())
+	_, err := io.Copy(buf, c.fr)
+	_pool.Put(payload)
+	return buf, err
 }

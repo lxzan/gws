@@ -52,7 +52,6 @@ func (c *Conn) handlerError(err error) {
 		content = content[:math.MaxInt8]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content, true)
-	c.handler.OnError(c, err)
 }
 
 // WriteClose write close frame
@@ -101,15 +100,14 @@ func (c *Conn) FlushWriter() {
 
 func (c *Conn) writeMessage(opcode Opcode, content []byte, flush bool) error {
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame()
-	if !enableCompress {
-		return c.writeFrame(opcode, content, enableCompress, flush)
+	if enableCompress {
+		compressedContent, err := c.compressor.Compress(content)
+		if err != nil {
+			return CloseInternalServerErr
+		}
+		content = compressedContent
 	}
-
-	compressedContent, err := c.compressor.Compress(content)
-	if err != nil {
-		return CloseInternalServerErr
-	}
-	return c.writeFrame(opcode, compressedContent, enableCompress, flush)
+	return c.writeFrame(opcode, content, enableCompress, flush)
 }
 
 // 加锁是为了防止frame header和payload并发写入后乱序
