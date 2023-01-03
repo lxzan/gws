@@ -16,7 +16,6 @@ const (
 	DefaultReadTimeout      = 30 * time.Second
 	DefaultWriteTimeout     = 30 * time.Second
 	DefaultCompressLevel    = flate.BestSpeed
-	DefaultConcurrency      = 8
 	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
 )
 
@@ -40,19 +39,13 @@ type (
 		// write frame timeout, dv=5s
 		WriteTimeout time.Duration
 
-		// max coroutines for per connection, dv=8
-		Concurrency int
-
-		// recover onmessage event
-		Recovery bool
-
 		// filter user request
 		CheckOrigin func(r *Request) bool
 	}
 
 	Request struct {
-		*http.Request               // http request
-		Storage       *internal.Map // store user session
+		*http.Request // http request
+		*internal.Map // store user session
 	}
 )
 
@@ -76,9 +69,6 @@ func (c *Upgrader) initialize() {
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = DefaultCompressLevel
-	}
-	if c.Concurrency <= 0 {
-		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -105,7 +95,7 @@ func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey st
 func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler Event) (*Conn, error) {
 	c.initialize()
 
-	var request = &Request{Request: r, Storage: internal.NewMap()}
+	var request = &Request{Request: r, Map: internal.NewMap()}
 	var headers = http.Header{}
 
 	var compressEnabled = false

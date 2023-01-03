@@ -5,6 +5,7 @@ import (
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
+	"time"
 )
 
 func NewWebSocket() *WebSocket {
@@ -22,13 +23,9 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 }
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
-	body := m.Bytes()
 	defer m.Close()
 
-	var key string
-	if len(key) <= 10 {
-		key = string(body)
-	}
+	var key = string(m.Bytes())
 	switch key {
 	case "test":
 		c.OnTest(socket)
@@ -45,7 +42,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
 		socket.WriteClose(gws.CloseGoingAway, []byte("goodbye"))
 		socket.Close()
 	default:
-		socket.Storage.Delete(key)
+		socket.Delete(key)
 	}
 }
 
@@ -68,20 +65,20 @@ func (c *WebSocket) OnTest(socket *gws.Conn) {
 	for i := 0; i < count; i++ {
 		var size = internal.AlphabetNumeric.Intn(8 * 1024)
 		var k = internal.AlphabetNumeric.Generate(size)
-		socket.Storage.Put(string(k), 1)
+		socket.Put(string(k), 1)
 		socket.WriteMessage(gws.OpcodeText, k)
 	}
 }
 
 func (c *WebSocket) OnVerify(socket *gws.Conn) {
-	if socket.Storage.Len() != 0 {
+	if socket.Len() != 0 {
 		socket.WriteMessage(gws.OpcodeText, []byte("failed"))
 	}
-
 	socket.WriteMessage(gws.OpcodeText, []byte("ok"))
 }
 
 func (c *WebSocket) OnBench(socket *gws.Conn) {
+	var t0 = time.Now()
 	const count = 1000000
 	for i := 0; i < count; i++ {
 		var size = 10 + rand.Intn(1024)
@@ -89,4 +86,5 @@ func (c *WebSocket) OnBench(socket *gws.Conn) {
 		socket.WriteMessage(gws.OpcodeText, k)
 		//socket.WriteMessage(gws.OpcodeText, []byte("Hello"))
 	}
+	println(time.Since(t0).String())
 }

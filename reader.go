@@ -3,7 +3,6 @@ package gws
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/lxzan/concurrency"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strconv"
@@ -94,7 +93,7 @@ func (c *Conn) readMessage() error {
 		return CloseProtocolError
 	}
 
-	if err := c.netConn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
+	if err := c.conn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
 		return err
 	}
 
@@ -180,29 +179,7 @@ func (c *Conn) readMessage() error {
 	}
 }
 
-type messageWrapper struct {
-	Socket  *Conn
-	Message *Message
-}
-
-func (c *Conn) do(args interface{}) error {
-	var options = args.(messageWrapper)
-	switch options.Message.opcode {
-	case OpcodePing:
-		c.handler.OnPing(options.Socket, options.Message)
-	case OpcodePong:
-		c.handler.OnPong(options.Socket, options.Message)
-	default:
-		c.handler.OnMessage(options.Socket, options.Message)
-	}
-	return nil
-}
-
 func (c *Conn) emitMessage(msg *Message) error {
-	if c.isCanceled() {
-		return nil
-	}
-
 	if msg.compressed {
 		if err := c.decompressor.Decompress(msg); err != nil {
 			return CloseInternalServerErr
@@ -218,9 +195,14 @@ func (c *Conn) emitMessage(msg *Message) error {
 	}
 
 	switch msg.opcode {
-	case OpcodePing, OpcodePong, OpcodeText, OpcodeBinary:
-		job := concurrency.Job{Args: messageWrapper{Socket: c, Message: msg}, Do: c.do}
-		c.mq.AddJob(job)
+	case OpcodePing:
+		c.handler.OnPing(c, msg)
+	case OpcodePong:
+		c.handler.OnPong(c, msg)
+	case OpcodeText, OpcodeBinary:
+		if !c.isCanceled() {
+			c.handler.OnMessage(c, msg)
+		}
 	case OpcodeCloseConnection:
 		c.handler.OnClose(c, msg)
 	default:

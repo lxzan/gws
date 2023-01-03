@@ -3,7 +3,6 @@ package gws
 import (
 	"bufio"
 	"context"
-	"github.com/lxzan/concurrency"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
@@ -12,14 +11,13 @@ import (
 
 type Conn struct {
 	// store session information
-	Storage *internal.Map
-
+	*internal.Map
 	// context
 	ctx context.Context
 	// whether you use compression
 	compressEnabled bool
 	// tcp connection
-	netConn net.Conn
+	conn net.Conn
 	// server configs
 	configs *Upgrader
 
@@ -41,20 +39,17 @@ type Conn struct {
 	// write buffer
 	wbuf *bufio.Writer
 
-	// message queue
-	mq *concurrency.WorkerQueue
-
-	// WebSocket EventHandler
+	// WebSocket Event Handler
 	handler Event
 }
 
 func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
-		Storage:         r.Storage,
+		Map:             r.Map,
 		configs:         u,
 		compressEnabled: compressEnabled,
-		netConn:         netConn,
+		conn:            netConn,
 		wbuf:            brw.Writer,
 		wmu:             sync.Mutex{},
 		rbuf:            brw.Reader,
@@ -66,12 +61,6 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		c.decompressor = newDecompressor()
 	}
 
-	var options = []concurrency.Option{concurrency.WithContext(ctx), concurrency.WithConcurrency(int64(u.Concurrency))}
-	if u.Recovery {
-		options = append(options, concurrency.WithRecovery())
-	}
-	c.mq = concurrency.NewWorkerQueue(options...)
-
 	c.handler.OnOpen(c)
 
 	go func() {
@@ -80,7 +69,7 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 				c.emitError(err)
 				return
 			}
-			if err := c.netConn.SetReadDeadline(time.Time{}); err != nil {
+			if err := c.conn.SetReadDeadline(time.Time{}); err != nil {
 				c.emitError(err)
 				return
 			}
@@ -101,18 +90,28 @@ func (c *Conn) isCanceled() bool {
 
 // Close
 func (c *Conn) Close() error {
-	return c.netConn.Close()
+	return c.conn.Close()
 }
 
-// set connection deadline
+// SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) {
-	c.emitError(c.netConn.SetDeadline(t))
+	c.emitError(c.conn.SetDeadline(t))
+}
+
+// SetReadDeadline sets read deadline
+func (c *Conn) SetReadDeadline(t time.Time) {
+	c.emitError(c.conn.SetReadDeadline(t))
+}
+
+// SetWriteDeadline sets write deadline
+func (c *Conn) SetWriteDeadline(t time.Time) {
+	c.emitError(c.conn.SetWriteDeadline(t))
 }
 
 func (c *Conn) LocalAddr() net.Addr {
-	return c.netConn.LocalAddr()
+	return c.conn.LocalAddr()
 }
 
 func (c *Conn) RemoteAddr() net.Addr {
-	return c.netConn.RemoteAddr()
+	return c.conn.RemoteAddr()
 }

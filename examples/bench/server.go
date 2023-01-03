@@ -19,7 +19,7 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var upgrader = gws.Upgrader{MaxConcurrency: 1}
+	var upgrader = gws.Upgrader{}
 
 	var handler = NewWebSocket()
 	ctx, cancel := context.WithCancel(context.Background())

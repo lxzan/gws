@@ -115,7 +115,7 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool, fl
 	var header = frameHeader{}
 	var n = len(payload)
 	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
-	if err := c.netConn.SetWriteDeadline(time.Now().Add(c.configs.WriteTimeout)); err != nil {
+	if err := c.conn.SetWriteDeadline(time.Now().Add(c.configs.WriteTimeout)); err != nil {
 		return err
 	}
 
@@ -130,5 +130,5 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool, fl
 			return err
 		}
 	}
-	return c.netConn.SetWriteDeadline(time.Time{})
+	return c.conn.SetWriteDeadline(time.Time{})
 }

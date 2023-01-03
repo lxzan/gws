@@ -6,12 +6,12 @@
 - no dependency
 - concurrent write
 - write in batch and flush 
-- managed goroutines
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention
 - It's designed for api server, do not write big message
 - It's recommended not to enable data compression in the intranet
+- WebSocket Events are emitted synchronously, managed goroutines yourself
 
 #### Interface
 ```go
