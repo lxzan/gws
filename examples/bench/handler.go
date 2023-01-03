@@ -52,12 +52,12 @@ func (c *WebSocket) OnError(socket *gws.Conn, err error) {
 
 func (c *WebSocket) OnPing(socket *gws.Conn, m *gws.Message) {
 	socket.WritePong(nil)
-	_ = m.Close()
+	m.Close()
 }
 
 func (c *WebSocket) OnPong(socket *gws.Conn, m *gws.Message) {
 	println("onpong")
-	_ = m.Close()
+	m.Close()
 }
 
 func (c *WebSocket) OnTest(socket *gws.Conn) {

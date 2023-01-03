@@ -19,7 +19,7 @@ func (c *Message) Read(p []byte) (n int, err error) {
 }
 
 // Close recycle buffer
-func (c *Message) Close() error {
+func (c *Message) Close() {
 	if c.dbuf != nil {
 		_pool.Put(c.dbuf)
 		c.dbuf = nil
@@ -28,7 +28,6 @@ func (c *Message) Close() error {
 		_pool.Put(c.cbuf)
 		c.cbuf = nil
 	}
-	return nil
 }
 
 // Code get close code
