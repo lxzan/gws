@@ -7,6 +7,9 @@ import (
 )
 
 func writeN(writer io.Writer, content []byte, n int) error {
+	if n == 0 {
+		return nil
+	}
 	num, err := writer.Write(content)
 	if err != nil {
 		return err
@@ -89,7 +92,7 @@ func (c *Conn) FlushWriter() {
 }
 
 func (c *Conn) writeMessage(opcode Opcode, content []byte, flush bool) error {
-	var enableCompress = c.compressEnabled && isDataFrame(opcode)
+	var enableCompress = c.compressEnabled && opcode.IsDataFrame()
 	if !enableCompress {
 		return c.writeFrame(opcode, content, enableCompress, flush)
 	}
@@ -117,10 +120,8 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool, fl
 	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
-	if n > 0 {
-		if err := writeN(c.wbuf, payload, n); err != nil {
-			return err
-		}
+	if err := writeN(c.wbuf, payload, n); err != nil {
+		return err
 	}
 	if flush {
 		if err := c.wbuf.Flush(); err != nil {

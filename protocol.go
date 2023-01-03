@@ -13,6 +13,10 @@ const (
 	OpcodePong            Opcode = 0xA
 )
 
+func (c Opcode) IsDataFrame() bool {
+	return c <= OpcodeBinary
+}
+
 type EventHandler interface {
 	OnOpen(socket *Conn)
 	OnMessage(socket *Conn, m *Message)

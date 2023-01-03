@@ -110,7 +110,7 @@ func (c *Conn) readMessage() error {
 	// read control frame
 	var opcode = c.fh.GetOpcode()
 	var compressed = c.compressEnabled && c.fh.GetRSV1()
-	if !isDataFrame(opcode) {
+	if opcode.IsDataFrame() {
 		return c.readControl()
 	}
 

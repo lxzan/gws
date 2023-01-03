@@ -8,8 +8,8 @@ import (
 	"math"
 )
 
-func newCompressor() *compressor {
-	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
+func newCompressor(level int) *compressor {
+	fw, _ := flate.NewWriter(nil, level)
 	return &compressor{
 		writeBuffer: internal.NewBuffer(nil),
 		fw:          fw,

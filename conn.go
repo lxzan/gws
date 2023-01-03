@@ -56,7 +56,7 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		fh:              frameHeader{},
 	}
 	if c.compressEnabled {
-		c.compressor = newCompressor()
+		c.compressor = newCompressor(u.CompressLevel)
 		c.decompressor = newDecompressor()
 	}
 

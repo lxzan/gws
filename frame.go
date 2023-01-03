@@ -6,9 +6,9 @@ import (
 )
 
 type Message struct {
-	err        error
-	opcode     Opcode
-	compressed bool
+	err        error            // 错误
+	opcode     Opcode           // 状态码
+	compressed bool             // 是否压缩了数据
 	dbuf       *internal.Buffer // 数据缓冲
 	cbuf       *internal.Buffer // 解码器缓冲
 }
@@ -17,6 +17,7 @@ func (c *Message) Read(p []byte) (n int, err error) {
 	return c.dbuf.Read(p)
 }
 
+// Close recycle buffer
 func (c *Message) Close() error {
 	if c.dbuf != nil {
 		_pool.Put(c.dbuf)
@@ -29,20 +30,20 @@ func (c *Message) Close() error {
 	return nil
 }
 
+// Err get error
+// 获取WebSocket错误
+// 为了方便服务端处理退出逻辑, 关闭帧和读写错误都会向channel写入error
 func (c *Message) Err() error {
 	return c.err
 }
 
+// Typ get opcode type
 func (c *Message) Typ() Opcode {
 	return c.opcode
 }
 
 func (c *Message) Bytes() []byte {
 	return c.dbuf.Bytes()
-}
-
-func isDataFrame(code Opcode) bool {
-	return code <= OpcodeBinary
 }
 
 func maskXOR(b []byte, key []byte) {
