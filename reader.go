@@ -195,14 +195,14 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		msg.dbuf = data
 	}
 
-	if !payloadValid(msg.opcode, msg.dbuf) {
-		return CloseUnsupportedData
-	}
-
 	if msg.opcode == OpcodeCloseConnection && msg.dbuf.Len() >= 2 {
 		var s0 [2]byte
 		_, _ = msg.dbuf.Read(s0[0:])
 		msg.closeCode = CloseCode(binary.BigEndian.Uint16(s0[0:]))
+	}
+
+	if !payloadValid(msg.opcode, msg.dbuf) {
+		return CloseUnsupportedData
 	}
 
 	switch msg.opcode {
