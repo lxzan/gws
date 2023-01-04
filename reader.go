@@ -7,7 +7,6 @@ import (
 	"io"
 	"strconv"
 	"sync/atomic"
-	"time"
 )
 
 var _pool *internal.BufferPool
@@ -92,10 +91,6 @@ func (c *Conn) readMessage() error {
 	//      Connection_.
 	if !c.compressEnabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
 		return CloseProtocolError
-	}
-
-	if err := c.conn.SetReadDeadline(time.Now().Add(c.configs.ReadTimeout)); err != nil {
-		return err
 	}
 
 	// read control frame

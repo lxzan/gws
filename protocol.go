@@ -20,10 +20,10 @@ func (c Opcode) IsDataFrame() bool {
 type Event interface {
 	OnOpen(socket *Conn)
 	OnError(socket *Conn, err error)
-	OnClose(socket *Conn, message *Message)
+	OnClose(socket *Conn, reason []byte)
+	OnPing(socket *Conn, payload []byte)
+	OnPong(socket *Conn, payload []byte)
 	OnMessage(socket *Conn, message *Message)
-	OnPing(socket *Conn, message *Message)
-	OnPong(socket *Conn, message *Message)
 }
 
 var closeErrorMap = map[CloseCode]string{

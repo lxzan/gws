@@ -12,32 +12,22 @@ import (
 )
 
 const (
-	DefaultHandshakeTimeout = 5 * time.Second
-	DefaultReadTimeout      = 30 * time.Second
-	DefaultWriteTimeout     = 30 * time.Second
 	DefaultCompressLevel    = flate.BestSpeed
 	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
 )
 
 type (
-	Upgrader struct {
+	Config struct {
 		// whether to compress data, dv = false
 		CompressEnabled bool
 
 		// compress level eg: flate.BestSpeed
 		CompressLevel int
 
-		// websocket  handshake timeout, dv=3s
-		HandshakeTimeout time.Duration
-
 		// max message size, dv=1024*1024 (1MiB)
 		MaxContentLength int
 
-		// read frame timeout, dv=5s
-		ReadTimeout time.Duration
-
-		// write frame timeout, dv=5s
-		WriteTimeout time.Duration
+		CheckTextEncoding bool
 
 		// filter user request
 		CheckOrigin func(r *Request) bool
@@ -51,30 +41,21 @@ type (
 	}
 )
 
-func (c *Upgrader) initialize() {
+func (c *Config) initialize() {
 	if c.CheckOrigin == nil {
 		c.CheckOrigin = func(r *Request) bool {
 			return true
 		}
 	}
-	if c.HandshakeTimeout <= 0 {
-		c.HandshakeTimeout = DefaultHandshakeTimeout
-	}
 	if c.MaxContentLength <= 0 {
 		c.MaxContentLength = DefaultMaxContentLength
-	}
-	if c.ReadTimeout <= 0 {
-		c.ReadTimeout = DefaultReadTimeout
-	}
-	if c.WriteTimeout <= 0 {
-		c.WriteTimeout = DefaultWriteTimeout
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = DefaultCompressLevel
 	}
 }
 
-func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey string) error {
+func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -94,8 +75,8 @@ func (c *Upgrader) handshake(conn net.Conn, headers http.Header, websocketKey st
 }
 
 // http protocol upgrade to websocket
-func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.Request, handler Event) (*Conn, error) {
-	c.initialize()
+func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, handler Event, config *Config) (*Conn, error) {
+	config.initialize()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}
 	var headers = http.Header{}
@@ -114,7 +95,7 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
 		return nil, ErrHandshake
 	}
-	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
+	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && config.CompressEnabled {
 		headers.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
@@ -127,16 +108,12 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return nil, err
 	}
-	if !c.CheckOrigin(request) {
+	if !config.CheckOrigin(request) {
 		return nil, ErrCheckOrigin
 	}
 
-	// handshake with timeout control
-	if err := netConn.SetDeadline(time.Now().Add(c.HandshakeTimeout)); err != nil {
-		return nil, err
-	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := c.handshake(netConn, headers, websocketKey); err != nil {
+	if err := handshake(netConn, headers, websocketKey); err != nil {
 		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
@@ -151,5 +128,5 @@ func (c *Upgrader) Upgrade(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(ctx, c, request, netConn, brw, handler, compressEnabled), nil
+	return serveWebSocket(ctx, config, request, netConn, brw, handler, compressEnabled), nil
 }

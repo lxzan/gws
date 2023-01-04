@@ -18,7 +18,7 @@ type Conn struct {
 	// tcp connection
 	conn net.Conn
 	// server configs
-	configs *Upgrader
+	configs *Config
 	// read buffer
 	rbuf *bufio.Reader
 	// flate decompressor
@@ -47,7 +47,7 @@ type Conn struct {
 	wmu *sync.Mutex
 }
 
-func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, u *Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
 		Storage:         r.Storage,
@@ -74,10 +74,6 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 func (c *Conn) Listen() {
 	for {
 		if err := c.readMessage(); err != nil {
-			c.emitError(err)
-			return
-		}
-		if err := c.conn.SetReadDeadline(time.Time{}); err != nil {
 			c.emitError(err)
 			return
 		}
@@ -119,8 +115,9 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	if len(content) > internal.Lv1 {
 		content = content[:internal.Lv1]
 	}
-	_ = c.writeMessage(OpcodeCloseConnection, content, true)
+	_ = c.writeMessage(OpcodeCloseConnection, content)
 	_ = c.conn.SetDeadline(time.Now())
+	_ = c.conn.Close()
 }
 
 func (c *Conn) isCanceled() bool {
@@ -130,12 +127,6 @@ func (c *Conn) isCanceled() bool {
 	default:
 		return false
 	}
-}
-
-// Close
-// 关闭TCP连接
-func (c *Conn) Close() {
-	_ = c.conn.Close()
 }
 
 // SetDeadline sets deadline
