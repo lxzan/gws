@@ -50,7 +50,7 @@ func NewWebSocket() *WebSocket {
 }
 
 func (c *WebSocket) OnClose(socket *gws.Conn, message *gws.Message) {
-	fmt.Printf("onclose: code=%d, payload=%s", message.Code(), string(message.Bytes()))
+	fmt.Printf("onclose: code=%d, payload=%s\n", message.Code(), string(message.Bytes()))
 }
 
 type WebSocket struct{}

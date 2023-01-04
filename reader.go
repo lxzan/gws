@@ -189,7 +189,7 @@ func (c *Conn) readMessage() error {
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
-		return nil
+		return CloseNormalClosure
 	}
 	if c.isCanceled() {
 		return CloseServiceRestart
@@ -222,8 +222,10 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		c.handler.OnMessage(c, msg)
 	case OpcodeCloseConnection:
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+			code := msg.Code()
 			c.handlerError(msg.Code(), msg.buf)
 			c.handler.OnClose(c, msg)
+			return code
 		}
 	}
 	return nil

@@ -3,7 +3,6 @@ package gws
 import (
 	"github.com/lxzan/gws/internal"
 	"io"
-	"sync/atomic"
 	"time"
 )
 
@@ -19,45 +18,6 @@ func writeN(writer io.Writer, content []byte, n int) error {
 		return CloseGoingAway
 	}
 	return nil
-}
-
-func (c *Conn) emitError(err error) {
-	if err == nil {
-		return
-	}
-	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.handlerError(err, nil)
-		c.handler.OnError(c, err)
-	}
-}
-
-func (c *Conn) handlerError(err error, buf *internal.Buffer) {
-	code := CloseNormalClosure
-	v, ok := err.(CloseCode)
-	if ok {
-		closeCode := v.Uint16()
-		if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
-			code = CloseProtocolError
-		} else {
-			switch closeCode {
-			case 1004, 1005, 1006, 1014:
-				code = CloseProtocolError
-			default:
-				code = v
-			}
-		}
-	}
-	var content = code.Bytes()
-	if buf != nil {
-		content = append(content, buf.Bytes()...)
-	} else {
-		content = append(content, err.Error()...)
-	}
-	if len(content) > internal.Lv1 {
-		content = content[:internal.Lv1]
-	}
-	_ = c.writeMessage(OpcodeCloseConnection, content, true)
-	_ = c.conn.SetDeadline(time.Now())
 }
 
 // WriteClose write close frame
