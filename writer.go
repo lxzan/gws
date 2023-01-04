@@ -3,6 +3,7 @@ package gws
 import (
 	"io"
 	"math"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,10 +25,10 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	c.once.Do(func() {
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		c.handlerError(err)
 		c.handler.OnError(c, err)
-	})
+	}
 }
 
 func (c *Conn) handlerError(err error) {

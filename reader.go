@@ -6,6 +6,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -187,6 +188,13 @@ func (c *Conn) readMessage() error {
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return nil
+	}
+	if c.isCanceled() {
+		return CloseServiceRestart
+	}
+
 	if compressed {
 		data, err := c.decompressor.Decompress(msg.dbuf)
 		if err != nil {
@@ -196,9 +204,9 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	}
 
 	if msg.opcode == OpcodeCloseConnection && msg.dbuf.Len() >= 2 {
-		var s0 [2]byte
-		_, _ = msg.dbuf.Read(s0[0:])
-		msg.closeCode = CloseCode(binary.BigEndian.Uint16(s0[0:]))
+		var b = make([]byte, 2, 2)
+		_, _ = msg.dbuf.Read(b)
+		msg.closeCode = CloseCode(binary.BigEndian.Uint16(b))
 	}
 
 	if !payloadValid(msg.opcode, msg.dbuf) {
@@ -211,15 +219,12 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	case OpcodePong:
 		c.handler.OnPong(c, msg)
 	case OpcodeText, OpcodeBinary:
-		if !c.isCanceled() {
-			c.handler.OnMessage(c, msg)
-		}
+		c.handler.OnMessage(c, msg)
 	case OpcodeCloseConnection:
-		c.once.Do(func() {
+		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 			c.handlerError(msg.Code())
 			c.handler.OnClose(c, msg)
-		})
-	default:
+		}
 	}
 	return nil
 }

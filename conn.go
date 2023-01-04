@@ -20,8 +20,8 @@ type Conn struct {
 	conn net.Conn
 	// server configs
 	configs *Upgrader
-	// call onclose/onerror once
-	once *sync.Once
+	// whether server is closed
+	closed uint32
 
 	// read buffer
 	rbuf *bufio.Reader
@@ -54,7 +54,7 @@ func serveWebSocket(ctx context.Context, u *Upgrader, r *Request, netConn net.Co
 		configs:         u,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
-		once:            &sync.Once{},
+		closed:          0,
 		wbuf:            brw.Writer,
 		wmu:             sync.Mutex{},
 		rbuf:            brw.Reader,
