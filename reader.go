@@ -222,7 +222,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		c.handler.OnMessage(c, msg)
 	case OpcodeCloseConnection:
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-			c.handlerError(msg.Code())
+			c.handlerError(msg.Code(), msg.buf)
 			c.handler.OnClose(c, msg)
 		}
 	}

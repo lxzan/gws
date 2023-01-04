@@ -58,7 +58,7 @@
     }
 
     function onClose() {
-        ws.send("close");
+        ws.close(1000,"goodbye");
     }
 
     function onBench() {

@@ -1,8 +1,8 @@
 package gws
 
 import (
+	"github.com/lxzan/gws/internal"
 	"io"
-	"math"
 	"sync/atomic"
 	"time"
 )
@@ -26,12 +26,12 @@ func (c *Conn) emitError(err error) {
 		return
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.handlerError(err)
+		c.handlerError(err, nil)
 		c.handler.OnError(c, err)
 	}
 }
 
-func (c *Conn) handlerError(err error) {
+func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	code := CloseNormalClosure
 	v, ok := err.(CloseCode)
 	if ok {
@@ -48,9 +48,13 @@ func (c *Conn) handlerError(err error) {
 		}
 	}
 	var content = code.Bytes()
-	content = append(content, err.Error()...)
-	if len(content) > math.MaxInt8 {
-		content = content[:math.MaxInt8]
+	if buf != nil {
+		content = append(content, buf.Bytes()...)
+	} else {
+		content = append(content, err.Error()...)
+	}
+	if len(content) > internal.Lv1 {
+		content = content[:internal.Lv1]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content, true)
 	_ = c.conn.SetDeadline(time.Now())
@@ -65,8 +69,8 @@ func (c *Conn) WriteClose(code CloseCode, reason []byte) {
 	} else {
 		content = append(content, code.Error()...)
 	}
-	if len(content) > math.MaxInt8 {
-		content = content[:math.MaxInt8]
+	if len(content) > internal.Lv1 {
+		content = content[:internal.Lv1]
 	}
 	c.WriteMessage(OpcodeCloseConnection, content)
 }
