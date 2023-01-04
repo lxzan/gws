@@ -65,14 +65,14 @@ func (c *Conn) readControl() error {
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
-		return c.emitMessage(&Message{opcode: OpcodePing, dbuf: payload}, false)
+		return c.emitMessage(&Message{opcode: OpcodePing, buf: payload}, false)
 	case OpcodePong:
-		return c.emitMessage(&Message{opcode: OpcodePong, dbuf: payload}, false)
+		return c.emitMessage(&Message{opcode: OpcodePong, buf: payload}, false)
 	case OpcodeCloseConnection:
 		if n == 1 {
 			return CloseProtocolError
 		}
-		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, dbuf: payload}, false)
+		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, buf: payload}, false)
 	default:
 		return CloseProtocolError
 	}
@@ -175,13 +175,13 @@ func (c *Conn) readMessage() error {
 	switch opcode {
 	case OpcodeContinuation:
 		compressed = c.continuationCompressed
-		msg := &Message{opcode: c.continuationOpcode, dbuf: c.continuationBuffer}
+		msg := &Message{opcode: c.continuationOpcode, buf: c.continuationBuffer}
 		c.continuationCompressed = false
 		c.continuationOpcode = 0
 		c.continuationBuffer = nil
 		return c.emitMessage(msg, compressed)
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{opcode: opcode, dbuf: buf}, compressed)
+		return c.emitMessage(&Message{opcode: opcode, buf: buf}, compressed)
 	default:
 		return errors.New("unexpected opcode: " + strconv.Itoa(int(opcode)))
 	}
@@ -196,20 +196,20 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	}
 
 	if compressed {
-		data, err := c.decompressor.Decompress(msg.dbuf)
+		data, err := c.decompressor.Decompress(msg.buf)
 		if err != nil {
 			return CloseInternalServerErr
 		}
-		msg.dbuf = data
+		msg.buf = data
 	}
 
-	if msg.opcode == OpcodeCloseConnection && msg.dbuf.Len() >= 2 {
+	if msg.opcode == OpcodeCloseConnection && msg.buf.Len() >= 2 {
 		var b = make([]byte, 2, 2)
-		_, _ = msg.dbuf.Read(b)
+		_, _ = msg.buf.Read(b)
 		msg.closeCode = CloseCode(binary.BigEndian.Uint16(b))
 	}
 
-	if !payloadValid(msg.opcode, msg.dbuf) {
+	if !payloadValid(msg.opcode, msg.buf) {
 		return CloseUnsupportedData
 	}
 

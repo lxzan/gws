@@ -53,6 +53,7 @@ func (c *Conn) handlerError(err error) {
 		content = content[:math.MaxInt8]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content, true)
+	_ = c.conn.SetDeadline(time.Now())
 }
 
 // WriteClose write close frame
@@ -80,16 +81,17 @@ func (c *Conn) WritePong(payload []byte) {
 	c.WriteMessage(OpcodePong, payload)
 }
 
-// WriteMessage write message
-// 发送消息
-func (c *Conn) WriteMessage(messageType Opcode, content []byte) {
-	c.emitError(c.writeMessage(messageType, content, true))
+// WriteMessage write text/binary message
+// text message must be utf8 encoding
+// 发送文本/二进制消息, 文本消息必须是utf8编码
+func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
+	c.emitError(c.writeMessage(opcode, payload, true))
 }
 
 // WriteBatch write message in batch, call FlushWriter in the end
 // 批量写入消息，最后一次写入后需要调用FlushWriter
-func (c *Conn) WriteBatch(messageType Opcode, content []byte) {
-	c.emitError(c.writeMessage(messageType, content, false))
+func (c *Conn) WriteBatch(opcode Opcode, payload []byte) {
+	c.emitError(c.writeMessage(opcode, payload, false))
 }
 
 // FlushWriter
@@ -99,16 +101,16 @@ func (c *Conn) FlushWriter() {
 	c.emitError(c.wbuf.Flush())
 }
 
-func (c *Conn) writeMessage(opcode Opcode, content []byte, flush bool) error {
+func (c *Conn) writeMessage(opcode Opcode, payload []byte, flush bool) error {
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame()
 	if enableCompress {
-		compressedContent, err := c.compressor.Compress(content)
+		compressedContent, err := c.compressor.Compress(payload)
 		if err != nil {
 			return CloseInternalServerErr
 		}
-		content = compressedContent
+		payload = compressedContent
 	}
-	return c.writeFrame(opcode, content, enableCompress, flush)
+	return c.writeFrame(opcode, payload, enableCompress, flush)
 }
 
 // 加锁是为了防止frame header和payload并发写入后乱序

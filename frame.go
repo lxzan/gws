@@ -9,17 +9,17 @@ import (
 type Message struct {
 	closeCode CloseCode        // 关闭状态码
 	opcode    Opcode           // 帧状态码
-	dbuf      *internal.Buffer // 数据缓冲
+	buf       *internal.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
-	return c.dbuf.Read(p)
+	return c.buf.Read(p)
 }
 
 // Close recycle buffer
 func (c *Message) Close() {
-	_pool.Put(c.dbuf)
-	c.dbuf = nil
+	_pool.Put(c.buf)
+	c.buf = nil
 }
 
 // Code get close code
@@ -28,14 +28,14 @@ func (c *Message) Code() CloseCode {
 	return c.closeCode
 }
 
-// Typ get opcode type
+// Typ get message type
 func (c *Message) Typ() Opcode {
 	return c.opcode
 }
 
 // Bytes get message content
 func (c *Message) Bytes() []byte {
-	return c.dbuf.Bytes()
+	return c.buf.Bytes()
 }
 
 func payloadValid(opcode Opcode, buf *internal.Buffer) bool {

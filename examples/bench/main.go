@@ -1,12 +1,49 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"path/filepath"
 	"time"
 )
+
+var directory string
+
+func main() {
+	flag.StringVar(&directory, "d", "./", "directory")
+	flag.Parse()
+
+	var upgrader = gws.Upgrader{}
+	var handler = NewWebSocket()
+	var ctx = context.Background()
+
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(ctx, writer, request, handler)
+		if err != nil {
+			return
+		}
+
+		defer socket.Close()
+		socket.Listen()
+	})
+
+	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writer.WriteHeader(http.StatusOK)
+		d, _ := filepath.Abs(directory)
+		content, _ := os.ReadFile(d + "/index.html")
+		writer.Write(content)
+	})
+
+	http.ListenAndServe(":3000", nil)
+}
 
 func NewWebSocket() *WebSocket {
 	return &WebSocket{}

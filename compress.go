@@ -37,11 +37,9 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	contentLength := c.writeBuffer.Len()
 	compressedContent := c.writeBuffer.Bytes()
 	if n := c.writeBuffer.Len(); n >= 4 {
 		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			contentLength -= 4
 			compressedContent = compressedContent[:n-4]
 		}
 	}
