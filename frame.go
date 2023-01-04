@@ -39,10 +39,10 @@ func (c *Message) Bytes() []byte {
 }
 
 func payloadValid(opcode Opcode, buf *internal.Buffer) bool {
-	if buf.Len() == 0 && !(opcode == OpcodeCloseConnection || opcode == OpcodeText) {
-		return true
+	if buf.Len() > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
+		return utf8.Valid(buf.Bytes())
 	}
-	return utf8.Valid(buf.Bytes())
+	return true
 }
 
 func maskXOR(b []byte, key []byte) {
