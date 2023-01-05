@@ -214,7 +214,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 			return internal.CloseUnsupportedData
 		}
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-			c.handlerError(code, msg.buf)
+			c.handlerClose(code, msg.buf)
 			c.handler.OnClose(c, code.Uint16(), msg.Bytes())
 		}
 		return code

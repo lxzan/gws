@@ -95,17 +95,7 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	code := internal.CloseNormalClosure
 	v, ok := err.(internal.StatusCode)
 	if ok {
-		closeCode := v.Uint16()
-		if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
-			code = internal.CloseProtocolError
-		} else {
-			switch closeCode {
-			case 1004, 1005, 1006, 1014:
-				code = internal.CloseProtocolError
-			default:
-				code = v
-			}
-		}
+		code = v
 	}
 	var content = code.Bytes()
 	if buf != nil {
@@ -115,6 +105,18 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	}
 	if len(content) > internal.Lv1 {
 		content = content[:internal.Lv1]
+	}
+	_ = c.writeMessage(OpcodeCloseConnection, content)
+	_ = c.conn.SetDeadline(time.Now())
+}
+
+func (c *Conn) handlerClose(code internal.StatusCode, buf *internal.Buffer) {
+	if !(code == 1000 || (code >= 3000 && code < 5000)) {
+		code = internal.CloseNormalClosure
+	}
+	var content = code.Bytes()
+	if buf != nil {
+		content = append(content, buf.Bytes()...)
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content)
 	_ = c.conn.SetDeadline(time.Now())
