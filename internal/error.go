@@ -82,3 +82,10 @@ func (c StatusCode) Bytes() []byte {
 func (c StatusCode) Error() string {
 	return "gws: " + closeErrorMap[c]
 }
+
+const (
+	CONNECTING = 0
+	OPEN       = 1
+	CLOSING    = 2
+	CLOSED     = 3
+)
