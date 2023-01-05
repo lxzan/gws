@@ -24,7 +24,7 @@ func main() {
 	var ctx = context.Background()
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{})
+		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{CheckTextEncoding: true})
 		if err != nil {
 			return
 		}

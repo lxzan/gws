@@ -72,6 +72,7 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 // Listen listening to websocket messages through a dead loop
 // 通过死循环监听websocket消息
 func (c *Conn) Listen() {
+	defer c.conn.Close()
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
@@ -116,7 +117,7 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 		content = content[:internal.Lv1]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content)
-	_ = c.conn.Close()
+	_ = c.conn.SetDeadline(time.Now())
 }
 
 func (c *Conn) isCanceled() bool {
