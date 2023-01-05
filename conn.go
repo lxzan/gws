@@ -40,17 +40,17 @@ type Conn struct {
 
 	// Concurrent Variable
 	// store session information
-	*Storage
+	*internal.SessionStorage
 	// whether server is closed
 	closed uint32
 	// write lock
 	wmu *sync.Mutex
 }
 
-func serveWebSocket(ctx context.Context, config Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, config Config, r *internal.Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
-		Storage:         r.Storage,
+		SessionStorage:  r.SessionStorage,
 		config:          config,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
@@ -91,16 +91,16 @@ func (c *Conn) emitError(err error) {
 }
 
 func (c *Conn) handlerError(err error, buf *internal.Buffer) {
-	code := CloseNormalClosure
-	v, ok := err.(StatusCode)
+	code := internal.CloseNormalClosure
+	v, ok := err.(internal.StatusCode)
 	if ok {
 		closeCode := v.Uint16()
 		if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
-			code = CloseProtocolError
+			code = internal.CloseProtocolError
 		} else {
 			switch closeCode {
 			case 1004, 1005, 1006, 1014:
-				code = CloseProtocolError
+				code = internal.CloseProtocolError
 			default:
 				code = v
 			}

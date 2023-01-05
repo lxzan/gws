@@ -1,6 +1,18 @@
 package internal
 
-import "sync"
+import (
+	"net/http"
+	"sync"
+)
+
+type (
+	SessionStorage = Map
+
+	Request struct {
+		*http.Request   // http request
+		*SessionStorage // store user session
+	}
+)
 
 type Map struct {
 	mu   sync.RWMutex

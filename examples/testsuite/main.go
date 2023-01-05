@@ -24,7 +24,7 @@ func main() {
 
 type WebSocket struct{}
 
-func (c *WebSocket) OnClose(socket *gws.Conn, code gws.StatusCode, reason []byte) {
+func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
 	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 

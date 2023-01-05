@@ -20,12 +20,11 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var config = gws.Config{}
 	var handler = NewWebSocket()
 	var ctx = context.Background()
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(ctx, writer, request, handler, config)
+		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{})
 		if err != nil {
 			return
 		}
@@ -47,7 +46,7 @@ func NewWebSocket() *WebSocket {
 	return &WebSocket{}
 }
 
-func (c *WebSocket) OnClose(socket *gws.Conn, code gws.StatusCode, reason []byte) {
+func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
 	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 
@@ -74,7 +73,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
 	case "pong":
 		socket.WriteMessage(gws.OpcodePong, nil)
 	case "close":
-		socket.WriteClose(gws.CloseGoingAway, []byte("goodbye"))
+		socket.WriteClose(1001, []byte("goodbye"))
 	default:
 		socket.Delete(key)
 	}

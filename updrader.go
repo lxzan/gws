@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	DefaultCompressLevel    = flate.BestSpeed
-	DefaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
+	defaultCompressLevel    = flate.BestSpeed
+	defaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
 )
 
 type (
@@ -31,28 +31,21 @@ type (
 		CheckTextEncoding bool
 
 		// filter user request, set session
-		CheckOrigin func(r *Request) bool
-	}
-
-	Storage = internal.Map
-
-	Request struct {
-		*http.Request // http request
-		*Storage      // store user session
+		CheckOrigin func(r *internal.Request) bool
 	}
 )
 
 func (c *Config) initialize() {
 	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *Request) bool {
+		c.CheckOrigin = func(r *internal.Request) bool {
 			return true
 		}
 	}
 	if c.MaxContentLength <= 0 {
-		c.MaxContentLength = DefaultMaxContentLength
+		c.MaxContentLength = defaultMaxContentLength
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
-		c.CompressLevel = DefaultCompressLevel
+		c.CompressLevel = defaultCompressLevel
 	}
 }
 
@@ -79,7 +72,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 
-	var request = &Request{Request: r, Storage: internal.NewMap()}
+	var request = &internal.Request{Request: r, SessionStorage: internal.NewMap()}
 	var headers = http.Header{}
 
 	var compressEnabled = false
@@ -91,10 +84,10 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 		return nil, errors.New(msg)
 	}
 	if val := r.Header.Get(internal.Connection); strings.ToLower(val) != strings.ToLower(internal.Connection_Value) {
-		return nil, ErrHandshake
+		return nil, internal.ErrHandshake
 	}
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
-		return nil, ErrHandshake
+		return nil, internal.ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && config.CompressEnabled {
 		headers.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
@@ -103,14 +96,14 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 
 	hj, ok := w.(http.Hijacker)
 	if !ok {
-		return nil, CloseInternalServerErr
+		return nil, internal.CloseInternalServerErr
 	}
 	netConn, brw, err := hj.Hijack()
 	if err != nil {
 		return nil, err
 	}
 	if !config.CheckOrigin(request) {
-		return nil, ErrCheckOrigin
+		return nil, internal.ErrCheckOrigin
 	}
 
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)

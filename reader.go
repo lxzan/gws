@@ -24,7 +24,7 @@ func (c *Conn) readN(data []byte, n int) error {
 		return err
 	}
 	if num != n {
-		return CloseNormalClosure
+		return internal.CloseNormalClosure
 	}
 	return nil
 }
@@ -33,18 +33,18 @@ func (c *Conn) readN(data []byte, n int) error {
 func (c *Conn) readControl() error {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
 	if !c.fh.GetMask() {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 
 	//RFC6455:  Control frames themselves MUST NOT be fragmented.
 	if !c.fh.GetFIN() {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 
 	var n = c.fh.GetLengthCode()
 	// RFC6455: All control frames MUST have a payload length of 125 bytes or fewer and MUST NOT be fragmented.
 	if n > internal.Lv1 {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 
 	var maskOn = c.fh.GetMask()
@@ -69,11 +69,11 @@ func (c *Conn) readControl() error {
 		return c.emitMessage(&Message{opcode: OpcodePong, buf: payload}, false)
 	case OpcodeCloseConnection:
 		if n == 1 {
-			return CloseProtocolError
+			return internal.CloseProtocolError
 		}
 		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, buf: payload}, false)
 	default:
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 }
 
@@ -90,7 +90,7 @@ func (c *Conn) readMessage() error {
 	//      value, the receiving endpoint MUST _Fail the WebSocket
 	//      Connection_.
 	if !c.compressEnabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 
 	// read control frame
@@ -126,12 +126,12 @@ func (c *Conn) readMessage() error {
 	}
 
 	if contentLength > c.config.MaxContentLength {
-		return CloseMessageTooLarge
+		return internal.CloseMessageTooLarge
 	}
 
 	// RFC6455: All frames sent from client to server have this bit set to 1.
 	if !maskOn {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 
 	if err := c.readN(c.fh[10:14], 4); err != nil {
@@ -150,13 +150,13 @@ func (c *Conn) readMessage() error {
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
 		if c.continuationBuffer == nil {
-			return CloseProtocolError
+			return internal.CloseProtocolError
 		}
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
 		}
 		if c.continuationBuffer.Len() > c.config.MaxContentLength {
-			return CloseMessageTooLarge
+			return internal.CloseMessageTooLarge
 		}
 		if !fin {
 			return nil
@@ -165,7 +165,7 @@ func (c *Conn) readMessage() error {
 
 	// Send unfragmented Text Message after Continuation Frame with FIN = false
 	if c.continuationBuffer != nil && opcode != OpcodeContinuation {
-		return CloseProtocolError
+		return internal.CloseProtocolError
 	}
 	switch opcode {
 	case OpcodeContinuation:
@@ -184,16 +184,16 @@ func (c *Conn) readMessage() error {
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
-		return CloseNormalClosure
+		return internal.CloseNormalClosure
 	}
 	if c.isCanceled() {
-		return CloseServiceRestart
+		return internal.CloseServiceRestart
 	}
 
 	if compressed {
 		data, err := c.decompressor.Decompress(msg.buf)
 		if err != nil {
-			return CloseInternalServerErr
+			return internal.CloseInternalServerErr
 		}
 		msg.buf = data
 	}
@@ -204,23 +204,23 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	case OpcodePong:
 		c.handler.OnPong(c, msg.Bytes())
 	case OpcodeCloseConnection:
-		var code = CloseNormalClosure
+		var code = internal.CloseNormalClosure
 		if msg.buf.Len() >= 2 {
 			var b = make([]byte, 2, 2)
 			_, _ = msg.buf.Read(b)
-			code = StatusCode(binary.BigEndian.Uint16(b))
+			code = internal.StatusCode(binary.BigEndian.Uint16(b))
 		}
 		if c.config.CheckTextEncoding && !msg.valid() {
-			return CloseUnsupportedData
+			return internal.CloseUnsupportedData
 		}
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 			c.handlerError(code, msg.buf)
-			c.handler.OnClose(c, code, msg.Bytes())
+			c.handler.OnClose(c, code.Uint16(), msg.Bytes())
 		}
 		return code
 	case OpcodeText, OpcodeBinary:
 		if c.config.CheckTextEncoding && !msg.valid() {
-			return CloseUnsupportedData
+			return internal.CloseUnsupportedData
 		}
 		c.handler.OnMessage(c, msg)
 	}

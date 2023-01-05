@@ -14,19 +14,18 @@ func writeN(writer io.Writer, content []byte, n int) error {
 		return err
 	}
 	if num != n {
-		return CloseGoingAway
+		return internal.CloseGoingAway
 	}
 	return nil
 }
 
 // WriteClose write close frame
 // 发送关闭帧
-func (c *Conn) WriteClose(code StatusCode, reason []byte) {
-	var content = code.Bytes()
-	if len(content) > 0 {
+func (c *Conn) WriteClose(code uint16, reason []byte) {
+	var statusCode = internal.StatusCode(code)
+	var content = statusCode.Bytes()
+	if len(reason) > 0 {
 		content = append(content, reason...)
-	} else {
-		content = append(content, code.Error()...)
 	}
 	if len(content) > internal.Lv1 {
 		content = content[:internal.Lv1]
@@ -56,7 +55,7 @@ func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
 	if enableCompress {
 		compressedContent, err := c.compressor.Compress(payload)
 		if err != nil {
-			return CloseInternalServerErr
+			return internal.CloseInternalServerErr
 		}
 		payload = compressedContent
 	}
