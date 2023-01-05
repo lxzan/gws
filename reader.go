@@ -48,7 +48,7 @@ func (c *Conn) readControl() error {
 	}
 
 	var maskOn = c.fh.GetMask()
-	var payload = _pool.Get(internal.Lv1)
+	var payload = internal.NewBufferWithCap(n)
 	if maskOn {
 		if err := c.readN(c.fh[10:14], 4); err != nil {
 			return err
@@ -71,7 +71,7 @@ func (c *Conn) readControl() error {
 		if n == 1 {
 			return CloseProtocolError
 		}
-		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, closeCode: CloseNormalClosure, buf: payload}, false)
+		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, buf: payload}, false)
 	default:
 		return CloseProtocolError
 	}
@@ -198,30 +198,31 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		msg.buf = data
 	}
 
-	if msg.opcode == OpcodeCloseConnection && msg.buf.Len() >= 2 {
-		var b = make([]byte, 2, 2)
-		_, _ = msg.buf.Read(b)
-		msg.closeCode = StatusCode(binary.BigEndian.Uint16(b))
-	}
-
-	if !payloadValid(msg.opcode, msg.buf) {
-		return CloseUnsupportedData
-	}
-
 	switch msg.opcode {
 	case OpcodePing:
-		c.handler.OnPing(c, msg)
+		c.handler.OnPing(c, msg.Bytes())
 	case OpcodePong:
-		c.handler.OnPong(c, msg)
-	case OpcodeText, OpcodeBinary:
-		c.handler.OnMessage(c, msg)
 	case OpcodeCloseConnection:
+		var code = CloseNormalClosure
+		if msg.buf.Len() >= 2 {
+			var b = make([]byte, 2, 2)
+			_, _ = msg.buf.Read(b)
+			code = StatusCode(binary.BigEndian.Uint16(b))
+		}
+		if !msg.valid() {
+			return CloseUnsupportedData
+		}
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-			code := msg.Code()
-			c.handlerError(msg.Code(), msg.buf)
-			c.handler.OnClose(c, msg)
+			c.handlerError(code, msg.buf)
+			c.handler.OnClose(c, code, msg.Bytes())
 			return code
 		}
+		c.handler.OnPong(c, msg.Bytes())
+	case OpcodeText, OpcodeBinary:
+		if !msg.valid() {
+			return CloseUnsupportedData
+		}
+		c.handler.OnMessage(c, msg)
 	}
 	return nil
 }

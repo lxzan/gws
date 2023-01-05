@@ -14,6 +14,14 @@ func NewBuffer(b []byte) *Buffer {
 	return &Buffer{b: b}
 }
 
+func NewBufferWithCap(n uint8) *Buffer {
+	var buf = &Buffer{}
+	if n > 0 {
+		buf.b = make([]byte, 0, n)
+	}
+	return buf
+}
+
 type Buffer struct {
 	offset int
 	b      []byte

@@ -7,9 +7,8 @@ import (
 )
 
 type Message struct {
-	closeCode CloseCode        // 关闭状态码
-	opcode    Opcode           // 帧状态码
-	buf       *internal.Buffer // 数据缓冲
+	opcode Opcode           // 帧状态码
+	buf    *internal.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
@@ -22,12 +21,6 @@ func (c *Message) Close() {
 	c.buf = nil
 }
 
-// Code get close code
-// only close frame has the code
-func (c *Message) Code() CloseCode {
-	return c.closeCode
-}
-
 // Typ get message type
 func (c *Message) Typ() Opcode {
 	return c.opcode
@@ -38,9 +31,9 @@ func (c *Message) Bytes() []byte {
 	return c.buf.Bytes()
 }
 
-func payloadValid(opcode Opcode, buf *internal.Buffer) bool {
-	if buf.Len() > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
-		return utf8.Valid(buf.Bytes())
+func (c *Message) valid() bool {
+	if c.buf.Len() > 0 && (c.opcode == OpcodeCloseConnection || c.opcode == OpcodeText) {
+		return utf8.Valid(c.buf.Bytes())
 	}
 	return true
 }

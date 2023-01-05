@@ -92,7 +92,7 @@ func (c *Conn) emitError(err error) {
 
 func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	code := CloseNormalClosure
-	v, ok := err.(CloseCode)
+	v, ok := err.(StatusCode)
 	if ok {
 		closeCode := v.Uint16()
 		if closeCode < 1000 || (closeCode >= 1016 && closeCode < 3000) {
