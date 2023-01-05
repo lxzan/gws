@@ -21,7 +21,7 @@ func writeN(writer io.Writer, content []byte, n int) error {
 
 // WriteClose write close frame
 // 发送关闭帧
-func (c *Conn) WriteClose(code CloseCode, reason []byte) {
+func (c *Conn) WriteClose(code StatusCode, reason []byte) {
 	var content = code.Bytes()
 	if len(content) > 0 {
 		content = append(content, reason...)
@@ -71,7 +71,7 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 
 	var header = frameHeader{}
 	var n = len(payload)
-	var headerLength = header.GenerateServerHeader(opcode, enableCompress, n)
+	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)
 	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}

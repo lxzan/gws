@@ -112,19 +112,7 @@ func (c *frameHeader) GetLengthCode() uint8 {
 	return (*c)[1] << 1 >> 1
 }
 
-func (c *frameHeader) SetFIN() {
-	(*c)[0] |= internal.Bv7
-}
-
-func (c *frameHeader) SetRSV1() {
-	(*c)[0] |= internal.Bv6
-}
-
-func (c *frameHeader) SetOpcode(opcode Opcode) {
-	(*c)[0] += uint8(opcode)
-}
-
-func (c *frameHeader) SetMaskOn() {
+func (c *frameHeader) SetMask() {
 	(*c)[1] |= internal.Bv7
 }
 
@@ -149,13 +137,17 @@ func (c *frameHeader) SetMaskKey(offset int, key uint32) {
 
 // generate server side frame header for writing
 // do not use mask
-func (c *frameHeader) GenerateServerHeader(opcode Opcode, enableCompress bool, length int) int {
+func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcode, length int) int {
 	var headerLength = 2
-	c.SetFIN()
-	if enableCompress {
-		c.SetRSV1()
+	var b0 = uint8(opcode)
+	if fin {
+		b0 += 128
 	}
-	c.SetOpcode(opcode)
+	if compress {
+		b0 += 64
+	}
+	(*c)[0] = b0
+
 	headerLength += c.SetLength(uint64(length))
 	return headerLength
 }

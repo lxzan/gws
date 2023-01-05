@@ -201,7 +201,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if msg.opcode == OpcodeCloseConnection && msg.buf.Len() >= 2 {
 		var b = make([]byte, 2, 2)
 		_, _ = msg.buf.Read(b)
-		msg.closeCode = CloseCode(binary.BigEndian.Uint16(b))
+		msg.closeCode = StatusCode(binary.BigEndian.Uint16(b))
 	}
 
 	if !payloadValid(msg.opcode, msg.buf) {
