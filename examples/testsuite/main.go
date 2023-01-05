@@ -8,16 +8,14 @@ import (
 )
 
 func main() {
-	var upgrader = gws.Upgrader{CompressEnabled: true, MaxContentLength: 32 * 1024 * 1024}
+	var config = gws.Config{CompressEnabled: true, MaxContentLength: 32 * 1024 * 1024}
 	var handler = new(WebSocket)
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Upgrade(context.Background(), writer, request, handler)
+		socket, err := gws.Accept(context.Background(), writer, request, handler, config)
 		if err != nil {
 			return
 		}
-
-		defer socket.Close()
 		socket.Listen()
 	})
 
@@ -26,9 +24,8 @@ func main() {
 
 type WebSocket struct{}
 
-func (c *WebSocket) OnClose(socket *gws.Conn, message *gws.Message) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", message.Code(), string(message.Bytes()))
-	message.Close()
+func (c *WebSocket) OnClose(socket *gws.Conn, code gws.StatusCode, reason []byte) {
+	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 
 func (c *WebSocket) OnError(socket *gws.Conn, err error) {
@@ -39,15 +36,14 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	println("connected")
 }
 
+func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
+	fmt.Printf("onping: payload=%s\n", string(payload))
+	socket.WritePong(payload)
+}
+
+func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
+
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	socket.WriteMessage(message.Typ(), message.Bytes())
 	message.Close()
 }
-
-func (c *WebSocket) OnPing(socket *gws.Conn, message *gws.Message) {
-	fmt.Printf("onping: payload=%s\n", string(message.Bytes()))
-	socket.WritePong(message.Bytes())
-	message.Close()
-}
-
-func (c *WebSocket) OnPong(socket *gws.Conn, message *gws.Message) {}

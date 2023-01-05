@@ -18,18 +18,19 @@ const (
 
 type (
 	Config struct {
-		// whether to compress data, dv = false
+		// whether to compress data
 		CompressEnabled bool
 
 		// compress level eg: flate.BestSpeed
 		CompressLevel int
 
-		// max message size, dv=1024*1024 (1MiB)
+		// max message size
 		MaxContentLength int
 
+		// whether to check utf8 encoding
 		CheckTextEncoding bool
 
-		// filter user request
+		// filter user request, set session
 		CheckOrigin func(r *Request) bool
 	}
 
@@ -75,7 +76,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 }
 
 // http protocol upgrade to websocket
-func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, handler Event, config *Config) (*Conn, error) {
+func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 
 	var request = &Request{Request: r, Storage: internal.NewMap()}
@@ -128,5 +129,5 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, handler
 	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(ctx, config, request, netConn, brw, handler, compressEnabled), nil
+	return serveWebSocket(ctx, config, request, netConn, brw, eventHandler, compressEnabled), nil
 }

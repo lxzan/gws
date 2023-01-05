@@ -18,7 +18,7 @@ type Conn struct {
 	// tcp connection
 	conn net.Conn
 	// server configs
-	configs *Config
+	config Config
 	// read buffer
 	rbuf *bufio.Reader
 	// flate decompressor
@@ -47,11 +47,11 @@ type Conn struct {
 	wmu *sync.Mutex
 }
 
-func serveWebSocket(ctx context.Context, u *Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, config Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
 		Storage:         r.Storage,
-		configs:         u,
+		config:          config,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
 		closed:          0,
@@ -62,7 +62,7 @@ func serveWebSocket(ctx context.Context, u *Config, r *Request, netConn net.Conn
 		handler:         handler,
 	}
 	if c.compressEnabled {
-		c.compressor = newCompressor(u.CompressLevel)
+		c.compressor = newCompressor(config.CompressLevel)
 		c.decompressor = newDecompressor()
 	}
 	c.handler.OnOpen(c)
@@ -116,7 +116,6 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 		content = content[:internal.Lv1]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content)
-	_ = c.conn.SetDeadline(time.Now())
 	_ = c.conn.Close()
 }
 

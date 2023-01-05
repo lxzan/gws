@@ -20,17 +20,15 @@ func main() {
 	flag.StringVar(&directory, "d", "./", "directory")
 	flag.Parse()
 
-	var upgrader = gws.Upgrader{}
+	var config = gws.Config{}
 	var handler = NewWebSocket()
 	var ctx = context.Background()
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Upgrade(ctx, writer, request, handler)
+		socket, err := gws.Accept(ctx, writer, request, handler, config)
 		if err != nil {
 			return
 		}
-
-		defer socket.Close()
 		socket.Listen()
 	})
 
@@ -49,8 +47,8 @@ func NewWebSocket() *WebSocket {
 	return &WebSocket{}
 }
 
-func (c *WebSocket) OnClose(socket *gws.Conn, message *gws.Message) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", message.Code(), string(message.Bytes()))
+func (c *WebSocket) OnClose(socket *gws.Conn, code gws.StatusCode, reason []byte) {
+	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 
 type WebSocket struct{}
@@ -77,7 +75,6 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
 		socket.WriteMessage(gws.OpcodePong, nil)
 	case "close":
 		socket.WriteClose(gws.CloseGoingAway, []byte("goodbye"))
-		socket.Close()
 	default:
 		socket.Delete(key)
 	}
@@ -87,14 +84,12 @@ func (c *WebSocket) OnError(socket *gws.Conn, err error) {
 	println(err.Error())
 }
 
-func (c *WebSocket) OnPing(socket *gws.Conn, m *gws.Message) {
+func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 	socket.WritePong(nil)
-	m.Close()
 }
 
-func (c *WebSocket) OnPong(socket *gws.Conn, m *gws.Message) {
+func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {
 	println("onpong")
-	m.Close()
 }
 
 func (c *WebSocket) OnTest(socket *gws.Conn) {

@@ -125,7 +125,7 @@ func (c *Conn) readMessage() error {
 		buf = _pool.Get(int(lengthCode))
 	}
 
-	if contentLength > c.configs.MaxContentLength {
+	if contentLength > c.config.MaxContentLength {
 		return CloseMessageTooLarge
 	}
 
@@ -155,7 +155,7 @@ func (c *Conn) readMessage() error {
 		if err := writeN(c.continuationBuffer, buf.Bytes(), contentLength); err != nil {
 			return err
 		}
-		if c.continuationBuffer.Len() > c.configs.MaxContentLength {
+		if c.continuationBuffer.Len() > c.config.MaxContentLength {
 			return CloseMessageTooLarge
 		}
 		if !fin {
@@ -202,6 +202,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	case OpcodePing:
 		c.handler.OnPing(c, msg.Bytes())
 	case OpcodePong:
+		c.handler.OnPong(c, msg.Bytes())
 	case OpcodeCloseConnection:
 		var code = CloseNormalClosure
 		if msg.buf.Len() >= 2 {
@@ -209,17 +210,16 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 			_, _ = msg.buf.Read(b)
 			code = StatusCode(binary.BigEndian.Uint16(b))
 		}
-		if !msg.valid() {
+		if c.config.CheckTextEncoding && !msg.valid() {
 			return CloseUnsupportedData
 		}
 		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 			c.handlerError(code, msg.buf)
 			c.handler.OnClose(c, code, msg.Bytes())
-			return code
 		}
-		c.handler.OnPong(c, msg.Bytes())
+		return code
 	case OpcodeText, OpcodeBinary:
-		if !msg.valid() {
+		if c.config.CheckTextEncoding && !msg.valid() {
 			return CloseUnsupportedData
 		}
 		c.handler.OnMessage(c, msg)
