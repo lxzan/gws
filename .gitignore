@@ -18,3 +18,4 @@
 vendor/
 bin/
 examples/debug/
+examples/testsuite/reports

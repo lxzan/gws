@@ -77,3 +77,35 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	message.Close()
 }
 ```
+
+#### HeartBeat
+```go
+const PingInterval = 5*time.Second
+
+type WebSocket struct {}
+
+func (c *WebSocket) OnOpen(socket *gws.Conn) {
+	socket.SetDeadline(time.Now().Add(3*PingInterval))
+}
+
+func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
+	socket.WritePong(nil)
+	socket.SetDeadline(time.Now().Add(3*PingInterval))
+}
+```
+
+#### Test
+```bash
+// Terminal 1
+git clone https://github.com/lxzan/gws.git 
+cd gws
+go run github.com/lxzan/gws/examples/testsuite
+
+// Terminal 2
+cd examples/testsuite
+docker run -it --rm \
+    -v ${PWD}/config:/config \
+    -v ${PWD}/reports:/reports \
+    crossbario/autobahn-testsuite \
+    wstest -m fuzzingclient -s /config/fuzzingclient.json
+```
