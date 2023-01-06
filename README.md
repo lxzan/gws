@@ -2,10 +2,10 @@
 ### minimal websocket server
 
 #### Highlight
-- websocket event api
 - zero dependency
 - zero extra goroutine to control websocket
 - zero error to read/write message, errors have been handled appropriately
+- event driven
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention
@@ -13,7 +13,7 @@
 - It's recommended not to enable data compression in the intranet
 - WebSocket Events are emitted synchronously, manage goroutines yourself
 
-#### Interface
+#### Core Interface
 ```go
 type Event interface {
     OnOpen(socket *Conn)
@@ -23,6 +23,11 @@ type Event interface {
     OnPong(socket *Conn, payload []byte)
     OnMessage(socket *Conn, message *Message)
 }
+```
+
+#### Install
+```bash
+go get -v github.com/lxzan/gws@latest
 ```
 
 #### Quick Start
