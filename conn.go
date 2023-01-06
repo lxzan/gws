@@ -3,6 +3,7 @@ package gws
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
@@ -85,38 +86,50 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.handlerError(err, nil)
-		c.handler.OnError(c, err)
-	}
-}
-
-func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 	code := internal.CloseNormalClosure
 	v, ok := err.(internal.StatusCode)
 	if ok {
 		code = v
 	}
 	var content = code.Bytes()
-	if buf != nil {
-		content = append(content, buf.Bytes()...)
-	} else {
-		content = append(content, err.Error()...)
-	}
+	content = append(content, err.Error()...)
 	if len(content) > internal.Lv1 {
 		content = content[:internal.Lv1]
 	}
-	_ = c.writeMessage(OpcodeCloseConnection, content)
-	_ = c.conn.SetDeadline(time.Now())
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		_ = c.writeMessage(OpcodeCloseConnection, content)
+		_ = c.conn.SetDeadline(time.Now())
+		c.handler.OnError(c, err)
+	}
 }
 
-func (c *Conn) handlerClose(code internal.StatusCode, buf *internal.Buffer) {
-	var content = code.ToClientCode().Bytes()
-	if buf != nil {
-		content = append(content, buf.Bytes()...)
+func (c *Conn) emitClose(msg *Message) error {
+	var responseCode = internal.CloseNormalClosure
+	var realCode = internal.CloseNormalClosure.Uint16()
+	switch msg.buf.Len() {
+	case 0:
+		responseCode = 0
+		realCode = 0
+	case 1:
+		responseCode = internal.CloseNormalClosure
+		realCode = uint16(msg.buf.Bytes()[0])
+	default:
+		var b [2]byte
+		_, _ = msg.buf.Read(b[0:])
+		realCode = binary.BigEndian.Uint16(b[0:])
+		if c.config.CheckTextEncoding && !msg.valid() {
+			responseCode = internal.CloseNormalClosure
+		} else if !(realCode == 1000 || (realCode >= 3000 && realCode < 5000)) {
+			responseCode = internal.CloseNormalClosure
+		} else {
+			responseCode = internal.StatusCode(realCode)
+		}
 	}
-	_ = c.writeMessage(OpcodeCloseConnection, content)
-	_ = c.conn.SetDeadline(time.Now())
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		_ = c.writeMessage(OpcodeCloseConnection, responseCode.Bytes())
+		c.handler.OnClose(c, realCode, msg.Bytes())
+	}
+	return internal.CloseNormalClosure
 }
 
 func (c *Conn) isCanceled() bool {

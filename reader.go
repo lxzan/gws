@@ -68,10 +68,7 @@ func (c *Conn) readControl() error {
 	case OpcodePong:
 		return c.emitMessage(&Message{opcode: OpcodePong, buf: payload}, false)
 	case OpcodeCloseConnection:
-		if n == 1 {
-			return internal.CloseProtocolError
-		}
-		return c.emitMessage(&Message{opcode: OpcodeCloseConnection, buf: payload}, false)
+		return c.emitClose(&Message{opcode: OpcodeCloseConnection, buf: payload})
 	default:
 		return internal.CloseProtocolError
 	}
@@ -190,39 +187,25 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		return internal.CloseServiceRestart
 	}
 
-	if compressed {
-		data, err := c.decompressor.Decompress(msg.buf)
-		if err != nil {
-			return internal.CloseInternalServerErr
-		}
-		msg.buf = data
-	}
-
 	switch msg.opcode {
 	case OpcodePing:
 		c.handler.OnPing(c, msg.Bytes())
 	case OpcodePong:
 		c.handler.OnPong(c, msg.Bytes())
-	case OpcodeCloseConnection:
-		var code = internal.CloseNormalClosure
-		if msg.buf.Len() >= 2 {
-			var b = make([]byte, 2, 2)
-			_, _ = msg.buf.Read(b)
-			code = internal.StatusCode(binary.BigEndian.Uint16(b))
-		}
-		if c.config.CheckTextEncoding && !msg.valid() {
-			return internal.CloseUnsupportedData
-		}
-		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-			c.handlerClose(code, msg.buf)
-			c.handler.OnClose(c, code.Uint16(), msg.Bytes())
-		}
-		return code
 	case OpcodeText, OpcodeBinary:
+		if compressed {
+			data, err := c.decompressor.Decompress(msg.buf)
+			if err != nil {
+				return internal.CloseInternalServerErr
+			}
+			msg.buf = data
+		}
 		if c.config.CheckTextEncoding && !msg.valid() {
 			return internal.CloseUnsupportedData
 		}
 		c.handler.OnMessage(c, msg)
+	default:
+		return internal.CloseProtocolError
 	}
 	return nil
 }

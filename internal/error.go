@@ -76,6 +76,9 @@ func (c StatusCode) Uint16() uint16 {
 }
 
 func (c StatusCode) Bytes() []byte {
+	if c == 0 {
+		return []byte{}
+	}
 	return []byte{uint8(c >> 8), uint8(c << 8 >> 8)}
 }
 
