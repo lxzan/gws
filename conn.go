@@ -75,6 +75,9 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 func (c *Conn) Listen() {
 	defer c.conn.Close()
 	for {
+		if atomic.LoadUint32(&c.closed) == 1 {
+			return
+		}
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
 			return
@@ -111,18 +114,26 @@ func (c *Conn) emitClose(msg *Message) error {
 		responseCode = 0
 		realCode = 0
 	case 1:
-		responseCode = internal.CloseNormalClosure
+		responseCode = internal.CloseProtocolError
 		realCode = uint16(msg.buf.Bytes()[0])
 	default:
 		var b [2]byte
 		_, _ = msg.buf.Read(b[0:])
 		realCode = binary.BigEndian.Uint16(b[0:])
+		switch realCode {
+		case 1004, 1005, 1006, 1014, 1015:
+			responseCode = internal.CloseProtocolError
+		default:
+			if realCode < 1000 || realCode >= 5000 || (realCode >= 1016 && realCode < 3000) {
+				responseCode = internal.CloseProtocolError
+			} else if realCode < 1016 {
+				responseCode = internal.CloseNormalClosure
+			} else {
+				responseCode = internal.StatusCode(realCode)
+			}
+		}
 		if c.config.CheckTextEncoding && !msg.valid() {
-			responseCode = internal.CloseNormalClosure
-		} else if !(realCode == 1000 || (realCode >= 3000 && realCode < 5000)) {
-			responseCode = internal.CloseNormalClosure
-		} else {
-			responseCode = internal.StatusCode(realCode)
+			responseCode = internal.CloseUnsupportedData
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
