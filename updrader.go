@@ -69,6 +69,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 }
 
 // Accept http protocol upgrade to websocket
+// ctx done means server stopping
 func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 

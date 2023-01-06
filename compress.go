@@ -24,7 +24,7 @@ type compressor struct {
 
 // Compress 压缩
 func (c *compressor) Compress(content []byte) ([]byte, error) {
-	if c.writeBuffer.Cap() > internal.Lv3 {
+	if c.writeBuffer.Cap() > internal.Lv4 {
 		c.writeBuffer = internal.NewBuffer(nil)
 	}
 

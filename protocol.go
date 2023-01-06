@@ -15,6 +15,8 @@ func (c Opcode) IsDataFrame() bool {
 	return c <= OpcodeBinary
 }
 
+// WebSocket Event
+// OnError and OnClose will not both be called
 type Event interface {
 	OnOpen(socket *Conn)
 	OnError(socket *Conn, err error)
