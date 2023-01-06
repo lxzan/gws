@@ -75,9 +75,6 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 func (c *Conn) Listen() {
 	defer c.conn.Close()
 	for {
-		if atomic.LoadUint32(&c.closed) == 1 {
-			return
-		}
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
 			return

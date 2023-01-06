@@ -65,7 +65,7 @@ func (c *decompressor) Decompress(payload *internal.Buffer) (*internal.Buffer, e
 		return nil, err
 	}
 
-	var buf = _pool.Get(payload.Len())
+	var buf = _pool.Get(3 * payload.Len())
 	_, err := io.Copy(buf, c.fr)
 	_pool.Put(payload)
 	return buf, err

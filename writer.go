@@ -3,6 +3,7 @@ package gws
 import (
 	"github.com/lxzan/gws/internal"
 	"io"
+	"sync/atomic"
 )
 
 func writeN(writer io.Writer, content []byte, n int) error {
@@ -47,6 +48,9 @@ func (c *Conn) WritePong(payload []byte) {
 // text message must be utf8 encoding
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return
+	}
 	c.emitError(c.writeMessage(opcode, payload))
 }
 

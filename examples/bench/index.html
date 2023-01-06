@@ -70,7 +70,7 @@
 
     ws.onmessage = function (msg) {
         if (msg.data != "ok") {
-            // ws.send(msg.data);
+            ws.send(msg.data);
             count++;
         }
         if (count == 1000000) {

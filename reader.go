@@ -6,6 +6,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strconv"
+	"sync/atomic"
 )
 
 var _pool *internal.BufferPool
@@ -74,6 +75,9 @@ func (c *Conn) readControl() error {
 }
 
 func (c *Conn) readMessage() error {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return internal.CloseNormalClosure
+	}
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return err
 	}

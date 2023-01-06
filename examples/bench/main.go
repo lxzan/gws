@@ -24,7 +24,7 @@ func main() {
 	var ctx = context.Background()
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{CheckTextEncoding: true})
+		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{})
 		if err != nil {
 			return
 		}
@@ -104,6 +104,7 @@ func (c *WebSocket) OnTest(socket *gws.Conn) {
 func (c *WebSocket) OnVerify(socket *gws.Conn) {
 	if socket.Len() != 0 {
 		socket.WriteMessage(gws.OpcodeText, []byte("failed"))
+		return
 	}
 	socket.WriteMessage(gws.OpcodeText, []byte("ok"))
 }
