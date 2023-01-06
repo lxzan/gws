@@ -13,7 +13,7 @@ import (
 
 const (
 	defaultCompressLevel    = flate.BestSpeed
-	defaultMaxContentLength = 1 * 1024 * 1024 // 1MiB
+	defaultMaxContentLength = 16 * 1024 * 1024 // 16MiB
 )
 
 type (
@@ -27,17 +27,17 @@ type (
 		// max message size
 		MaxContentLength int
 
-		// whether to check utf8 encoding
+		// whether to check utf8 encoding, disabled for better performance
 		CheckTextEncoding bool
 
-		// filter user request, set session
-		CheckOrigin func(r *internal.Request) bool
+		// client authentication
+		Authenticate func(r *internal.Request) bool
 	}
 )
 
 func (c *Config) initialize() {
-	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *internal.Request) bool {
+	if c.Authenticate == nil {
+		c.Authenticate = func(r *internal.Request) bool {
 			return true
 		}
 	}
@@ -68,7 +68,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 	return err
 }
 
-// http protocol upgrade to websocket
+// Accept http protocol upgrade to websocket
 func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 
@@ -102,7 +102,7 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 	if err != nil {
 		return nil, err
 	}
-	if !config.CheckOrigin(request) {
+	if !config.Authenticate(request) {
 		return nil, internal.ErrCheckOrigin
 	}
 

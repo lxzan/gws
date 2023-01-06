@@ -78,6 +78,9 @@ func (c *Conn) readMessage() error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.CloseNormalClosure
 	}
+	if c.isCanceled() {
+		return internal.CloseServiceRestart
+	}
 	if err := c.readN(c.fh[:2], 2); err != nil {
 		return err
 	}
@@ -183,10 +186,6 @@ func (c *Conn) readMessage() error {
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
-	if c.isCanceled() {
-		return internal.CloseServiceRestart
-	}
-
 	switch msg.opcode {
 	case OpcodePing:
 		c.handler.OnPing(c, msg.Bytes())

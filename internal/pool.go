@@ -28,7 +28,7 @@ func NewBufferPool() *BufferPool {
 		return NewBuffer(make([]byte, 0, Lv3))
 	}
 	p.p3.New = func() interface{} {
-		return NewBuffer(nil)
+		return NewBuffer(make([]byte, 0, Lv4))
 	}
 	return p
 }
@@ -38,7 +38,7 @@ func (p *BufferPool) Put(b *Buffer) {
 		return
 	}
 	n := b.Cap()
-	if n == 0 || n > Lv4 {
+	if n == 0 || n > Lv5 {
 		return
 	}
 
@@ -82,5 +82,5 @@ func (p *BufferPool) Get(n int) *Buffer {
 		buf.Reset()
 		return buf
 	}
-	return NewBuffer(make([]byte, 0, Lv4))
+	return NewBuffer(make([]byte, 0, Lv5))
 }
