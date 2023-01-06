@@ -83,9 +83,18 @@ func (c StatusCode) Error() string {
 	return "gws: " + closeErrorMap[c]
 }
 
-const (
-	CONNECTING = 0
-	OPEN       = 1
-	CLOSING    = 2
-	CLOSED     = 3
-)
+func (c StatusCode) ToClientCode() StatusCode {
+	if !(c == 1000 || (c >= 3000 && c < 5000)) {
+		if c < 1000 || (c >= 1016 && c < 3000) {
+			return CloseProtocolError
+		} else {
+			switch c {
+			case 1004, 1005, 1006, 1014:
+				return CloseProtocolError
+			default:
+				return 1000
+			}
+		}
+	}
+	return c
+}

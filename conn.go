@@ -41,8 +41,8 @@ type Conn struct {
 	// Concurrent Variable
 	// store session information
 	*internal.SessionStorage
-	// websocket conn status
-	readyState uint32
+	// whether server is closed
+	closed uint32
 	// write lock
 	wmu *sync.Mutex
 }
@@ -54,7 +54,7 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 		config:          config,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
-		readyState:      internal.OPEN,
+		closed:          0,
 		wbuf:            brw.Writer,
 		wmu:             &sync.Mutex{},
 		rbuf:            brw.Reader,
@@ -75,10 +75,8 @@ func (c *Conn) Listen() {
 	defer c.conn.Close()
 	for {
 		if err := c.readMessage(); err != nil {
-			if atomic.LoadUint32(&c.readyState) == internal.CLOSED {
-				return
-			}
 			c.emitError(err)
+			return
 		}
 	}
 }
@@ -87,7 +85,7 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	if atomic.CompareAndSwapUint32(&c.readyState, internal.OPEN, internal.CLOSING) {
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		c.handlerError(err, nil)
 		c.handler.OnError(c, err)
 	}
@@ -109,17 +107,11 @@ func (c *Conn) handlerError(err error, buf *internal.Buffer) {
 		content = content[:internal.Lv1]
 	}
 	_ = c.writeMessage(OpcodeCloseConnection, content)
-	time.AfterFunc(200*time.Millisecond, func() {
-		atomic.StoreUint32(&c.readyState, internal.CLOSED)
-		_ = c.conn.SetDeadline(time.Now())
-	})
+	_ = c.conn.SetDeadline(time.Now())
 }
 
 func (c *Conn) handlerClose(code internal.StatusCode, buf *internal.Buffer) {
-	if !(code == 1000 || (code >= 3000 && code < 5000)) {
-		code = internal.CloseNormalClosure
-	}
-	var content = code.Bytes()
+	var content = code.ToClientCode().Bytes()
 	if buf != nil {
 		content = append(content, buf.Bytes()...)
 	}

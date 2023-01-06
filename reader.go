@@ -183,9 +183,7 @@ func (c *Conn) readMessage() error {
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
-	readyState := atomic.LoadUint32(&c.readyState)
-	if readyState == internal.CLOSED || (readyState == internal.CLOSING && msg.opcode != OpcodeCloseConnection) {
-		atomic.StoreUint32(&c.readyState, internal.CLOSED)
+	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.CloseNormalClosure
 	}
 	if c.isCanceled() {
@@ -212,17 +210,14 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 			_, _ = msg.buf.Read(b)
 			code = internal.StatusCode(binary.BigEndian.Uint16(b))
 		}
-		if atomic.CompareAndSwapUint32(&c.readyState, internal.OPEN, internal.CLOSED) {
-			var responseCode = code
-			if c.config.CheckTextEncoding && !msg.valid() {
-				responseCode = internal.CloseUnsupportedData
-			}
-			c.handlerClose(responseCode, msg.buf)
-			c.handler.OnClose(c, code.Uint16(), msg.Bytes())
-		} else if atomic.CompareAndSwapUint32(&c.readyState, internal.CLOSING, internal.CLOSED) {
+		if c.config.CheckTextEncoding && !msg.valid() {
+			return internal.CloseUnsupportedData
+		}
+		if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+			c.handlerClose(code, msg.buf)
 			c.handler.OnClose(c, code.Uint16(), msg.Bytes())
 		}
-		return internal.CloseNormalClosure
+		return code
 	case OpcodeText, OpcodeBinary:
 		if c.config.CheckTextEncoding && !msg.valid() {
 			return internal.CloseUnsupportedData
