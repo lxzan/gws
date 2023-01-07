@@ -17,10 +17,6 @@ const (
 )
 
 type (
-	Logger interface {
-		Errorf(format string, v ...interface{})
-	}
-
 	Config struct {
 		// whether to compress data
 		CompressEnabled bool
@@ -33,12 +29,6 @@ type (
 
 		// whether to check utf8 encoding, disabled for better performance
 		CheckTextEncoding bool
-
-		// whether to display logs
-		LogEnabled bool
-
-		// display internal errors
-		Logger Logger
 
 		// client authentication
 		Authenticate func(r *internal.Request) bool
@@ -56,9 +46,6 @@ func (c *Config) initialize() {
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = defaultCompressLevel
-	}
-	if c.Logger == nil {
-		c.Logger = defaultLogger
 	}
 }
 
@@ -117,7 +104,7 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 		return nil, err
 	}
 	if !config.Authenticate(request) {
-		return nil, internal.ErrCheckOrigin
+		return nil, internal.ErrAuthenticate
 	}
 
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)

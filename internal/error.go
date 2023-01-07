@@ -3,8 +3,9 @@ package internal
 import "errors"
 
 var (
-	ErrCheckOrigin = errors.New("check origin error")
-	ErrHandshake   = errors.New("handshake error")
+	ErrAuthenticate = errors.New("authenticate error")
+	ErrHandshake    = errors.New("connecting handshake error")
+	ErrTextEncoding = errors.New("text frame payload must be utf8 encoding")
 )
 
 var closeErrorMap = map[StatusCode]string{
@@ -100,4 +101,17 @@ func (c StatusCode) ToClientCode() StatusCode {
 		}
 	}
 	return c
+}
+
+func NewError(code StatusCode, err error) *Error {
+	return &Error{Code: code, Err: err}
+}
+
+type Error struct {
+	Err  error
+	Code StatusCode
+}
+
+func (c *Error) Error() string {
+	return c.Err.Error()
 }

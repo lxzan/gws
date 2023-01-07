@@ -2,6 +2,8 @@ package gws
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"sync/atomic"
@@ -54,14 +56,13 @@ func (c *Conn) readControl() error {
 	case OpcodeCloseConnection:
 		return c.emitClose(&Message{opcode: OpcodeCloseConnection, buf: payload})
 	default:
-		c.errorf("gws: unexpected opcode: %d", opcode)
-		return internal.CloseProtocolError
+		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
+		return internal.NewError(internal.CloseProtocolError, err)
 	}
 }
 
 func (c *Conn) readMessage() error {
 	if atomic.LoadUint32(&c.closed) == 1 {
-		c.errorf("gws: connection is closed, cannot read message anymore")
 		return internal.CloseNormalClosure
 	}
 	if c.isCanceled() {
@@ -166,8 +167,8 @@ func (c *Conn) readMessage() error {
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{opcode: opcode, buf: buf}, compressed)
 	default:
-		c.errorf("unexpected opcode: %d", opcode)
-		return internal.CloseProtocolError
+		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
+		return internal.NewError(internal.CloseProtocolError, err)
 	}
 }
 
@@ -175,14 +176,12 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if compressed {
 		data, err := c.decompressor.Decompress(msg.buf)
 		if err != nil {
-			c.errorf("gws: flate decode error")
-			return internal.CloseInternalServerErr
+			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
 		msg.buf = data
 	}
 	if c.config.CheckTextEncoding && !msg.valid() {
-		c.errorf("gws: text frame payload must be utf8 encoding")
-		return internal.CloseUnsupportedData
+		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 	c.handler.OnMessage(c, msg)
 	return nil

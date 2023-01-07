@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	_pool         = internal.NewBufferPool()
-	defaultLogger = new(internal.Logger)
+	_pool = internal.NewBufferPool()
 )
 
 type Conn struct {
@@ -75,12 +74,6 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 	return c
 }
 
-func (c *Conn) errorf(format string, v ...interface{}) {
-	if c.config.LogEnabled {
-		c.config.Logger.Errorf(format, v...)
-	}
-}
-
 // Listen listening to websocket messages through a dead loop
 // 通过死循环监听websocket消息
 func (c *Conn) Listen() {
@@ -97,12 +90,20 @@ func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
 	}
-	code := internal.CloseNormalClosure
-	v, ok := err.(internal.StatusCode)
-	if ok {
-		code = v
+
+	var responseCode = internal.CloseNormalClosure
+	var responseErr error = internal.CloseNormalClosure
+	switch v := err.(type) {
+	case internal.StatusCode:
+		responseCode = v
+	case *internal.Error:
+		responseCode = v.Code
+		responseErr = v.Err
+	default:
+		responseErr = err
 	}
-	var content = code.Bytes()
+
+	var content = responseCode.Bytes()
 	content = append(content, err.Error()...)
 	if len(content) > internal.Lv1 {
 		content = content[:internal.Lv1]
@@ -110,7 +111,7 @@ func (c *Conn) emitError(err error) {
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.writeMessage(OpcodeCloseConnection, content)
 		_ = c.conn.SetDeadline(time.Now())
-		c.handler.OnError(c, err)
+		c.handler.OnError(c, responseErr)
 	}
 }
 
@@ -141,7 +142,6 @@ func (c *Conn) emitClose(msg *Message) error {
 			}
 		}
 		if c.config.CheckTextEncoding && !msg.valid() {
-			c.errorf("gws: text frame payload must be utf8 encoding")
 			responseCode = internal.CloseUnsupportedData
 		}
 	}
