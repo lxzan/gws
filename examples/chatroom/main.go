@@ -84,7 +84,7 @@ type Input struct {
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
 	if b := message.Bytes(); len(b) == 4 && string(b) == "ping" {
-		socket.WritePong(nil)
+		socket.WriteMessage(gws.OpcodeText, []byte("pong"))
 		socket.SetDeadline(time.Now().Add(3 * PingInterval))
 		return
 	}
