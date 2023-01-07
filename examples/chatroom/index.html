@@ -44,6 +44,9 @@
     function connect() {
         let from = document.getElementById("from").value;
         window.ws = new WebSocket(`ws://127.0.0.1:3000/connect?name=${from}`);
+        window.ws.onclose = function (event) {
+            console.log(event);
+        }
         if (window.interval !== undefined) {
             clearInterval(window.interval)
         }
