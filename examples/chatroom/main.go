@@ -82,7 +82,8 @@ func (c *WebSocket) DeleteSocket(socket *gws.Conn) {
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	name := c.GetName(socket)
 	if v, ok := c.sessions.Load(name); ok {
-		v.(*gws.Conn).Close()
+		var conn = v.(*gws.Conn)
+		conn.Close(1000, nil)
 	}
 	socket.SetDeadline(time.Now().Add(3 * PingInterval))
 	c.sessions.Store(name, socket)

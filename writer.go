@@ -4,6 +4,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"sync/atomic"
+	"time"
 )
 
 func writeN(writer io.Writer, content []byte, n int) error {
@@ -20,9 +21,9 @@ func writeN(writer io.Writer, content []byte, n int) error {
 	return nil
 }
 
-// WriteClose write close frame
-// 发送关闭帧
-func (c *Conn) WriteClose(code uint16, reason []byte) {
+// Close write closed frame
+// 发送关闭帧, 并将连接状态置为关闭
+func (c *Conn) Close(code uint16, reason []byte) {
 	var statusCode = internal.StatusCode(code)
 	var content = statusCode.Bytes()
 	if len(reason) > 0 {
@@ -32,6 +33,8 @@ func (c *Conn) WriteClose(code uint16, reason []byte) {
 		content = content[:internal.Lv1]
 	}
 	c.WriteMessage(OpcodeCloseConnection, content)
+	_ = c.conn.SetDeadline(time.Now())
+	atomic.StoreUint32(&c.closed, 1)
 }
 
 // WritePing write ping frame

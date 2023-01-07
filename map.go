@@ -2,13 +2,22 @@ package gws
 
 import "sync"
 
+// SessionStorage because sync.Map is not easy to debug, so I implemented my own map.
+// if you don't like it, you can also use sync.Map instead.
+type SessionStorage interface {
+	Load(key interface{}) (value interface{}, exist bool)
+	Delete(key interface{})
+	Store(key interface{}, value interface{})
+	Range(f func(key, value interface{}) bool)
+}
+
 func NewMap() *Map {
-	return &Map{mu: sync.RWMutex{}, d: make(map[string]interface{})}
+	return &Map{mu: sync.RWMutex{}, d: make(map[interface{}]interface{})}
 }
 
 type Map struct {
 	mu sync.RWMutex
-	d  map[string]interface{}
+	d  map[interface{}]interface{}
 }
 
 func (c *Map) Len() int {
@@ -18,7 +27,7 @@ func (c *Map) Len() int {
 	return n
 }
 
-func (c *Map) Load(key string) (value interface{}, exist bool) {
+func (c *Map) Load(key interface{}) (value interface{}, exist bool) {
 	c.mu.RLock()
 	value, exist = c.d[key]
 	c.mu.RUnlock()
@@ -26,14 +35,14 @@ func (c *Map) Load(key string) (value interface{}, exist bool) {
 }
 
 // Delete deletes the value for a key.
-func (c *Map) Delete(key string) {
+func (c *Map) Delete(key interface{}) {
 	c.mu.Lock()
 	delete(c.d, key)
 	c.mu.Unlock()
 }
 
 // Store sets the value for a key.
-func (c *Map) Store(key string, value interface{}) {
+func (c *Map) Store(key interface{}, value interface{}) {
 	c.mu.Lock()
 	c.d[key] = value
 	c.mu.Unlock()

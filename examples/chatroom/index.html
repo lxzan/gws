@@ -44,7 +44,10 @@
     function connect() {
         let from = document.getElementById("from").value;
         window.ws = new WebSocket(`ws://127.0.0.1:3000/connect?name=${from}`);
-        setInterval(function () {
+        if (window.interval !== undefined) {
+            clearInterval(window.interval)
+        }
+        window.interval = setInterval(function () {
             window.ws.send("ping");
         }, 15 * 1000)
     }

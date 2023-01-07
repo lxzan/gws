@@ -18,8 +18,8 @@ const (
 
 type (
 	Request struct {
-		*http.Request       // http request
-		SessionStorage *Map // store user session
+		*http.Request                 // http request
+		SessionStorage SessionStorage // store user session
 	}
 
 	Config struct {
