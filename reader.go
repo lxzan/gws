@@ -31,11 +31,6 @@ func (c *Conn) readN(data []byte, n int) error {
 
 // read control frame
 func (c *Conn) readControl() error {
-	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if !c.fh.GetMask() {
-		return internal.CloseProtocolError
-	}
-
 	//RFC6455:  Control frames themselves MUST NOT be fragmented.
 	if !c.fh.GetFIN() {
 		return internal.CloseProtocolError
@@ -47,20 +42,14 @@ func (c *Conn) readControl() error {
 		return internal.CloseProtocolError
 	}
 
-	var maskOn = c.fh.GetMask()
 	var payload = internal.NewBufferWithCap(n)
-	if maskOn {
-		if err := c.readN(c.fh[10:14], 4); err != nil {
-			return err
-		}
+	if err := c.readN(c.fh[10:14], 4); err != nil {
+		return err
 	}
 	if _, err := io.CopyN(payload, c.rbuf, int64(n)); err != nil {
 		return err
 	}
-
-	if maskOn {
-		maskXOR(payload.Bytes(), c.fh[10:14])
-	}
+	maskXOR(payload.Bytes(), c.fh[10:14])
 
 	switch c.fh.GetOpcode() {
 	case OpcodePing:
@@ -96,6 +85,11 @@ func (c *Conn) readMessage() error {
 		return internal.CloseProtocolError
 	}
 
+	// RFC6455: All frames sent from client to server have this bit set to 1.
+	if !c.fh.GetMask() {
+		return internal.CloseProtocolError
+	}
+
 	// read control frame
 	var opcode = c.fh.GetOpcode()
 	var compressed = c.compressEnabled && c.fh.GetRSV1()
@@ -104,7 +98,6 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var maskOn = c.fh.GetMask()
 	var lengthCode = c.fh.GetLengthCode()
 	var contentLength = int(lengthCode)
 
@@ -130,11 +123,6 @@ func (c *Conn) readMessage() error {
 
 	if contentLength > c.config.MaxContentLength {
 		return internal.CloseMessageTooLarge
-	}
-
-	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if !maskOn {
-		return internal.CloseProtocolError
 	}
 
 	if err := c.readN(c.fh[10:14], 4); err != nil {

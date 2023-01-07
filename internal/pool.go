@@ -19,7 +19,7 @@ func NewBufferPool() *BufferPool {
 		p3: sync.Pool{},
 	}
 	p.p0.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Lv1))
+		return NewBuffer(make([]byte, 0, 128))
 	}
 	p.p1.New = func() interface{} {
 		return NewBuffer(make([]byte, 0, Lv2))
