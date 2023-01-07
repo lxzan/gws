@@ -61,31 +61,11 @@ func BenchmarkMask(b *testing.B) {
 	}
 }
 
-func BenchmarkMap_Put(b *testing.B) {
-	var m = internal.NewMap()
-	for i := 0; i < b.N; i++ {
-		var key = string(internal.AlphabetNumeric.Generate(16))
-		m.Put(key, 1)
-	}
-}
-
 func BenchmarkSyncMap_Store(b *testing.B) {
 	var m = sync.Map{}
 	for i := 0; i < b.N; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(16))
 		m.Store(key, 1)
-	}
-}
-
-func BenchmarkMap_Get(b *testing.B) {
-	var m = internal.NewMap()
-	for i := 0; i < 10000; i++ {
-		var key = string(internal.AlphabetNumeric.Generate(4))
-		m.Put(key, 1)
-	}
-	for i := 0; i < b.N; i++ {
-		var key = string(internal.AlphabetNumeric.Generate(4))
-		m.Get(key)
 	}
 }
 
