@@ -32,9 +32,9 @@ func (c *Message) Bytes() []byte {
 	return c.buf.Bytes()
 }
 
-func (c *Message) valid() bool {
-	if c.buf.Len() > 0 && (c.opcode == OpcodeCloseConnection || c.opcode == OpcodeText) {
-		return utf8.Valid(c.buf.Bytes())
+func isTextValid(opcode Opcode, buf *internal.Buffer) bool {
+	if buf.Len() > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
+		return utf8.Valid(buf.Bytes())
 	}
 	return true
 }

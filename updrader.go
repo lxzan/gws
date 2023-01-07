@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,11 @@ const (
 )
 
 type (
+	Request struct {
+		*http.Request            // http request
+		SessionStorage *sync.Map // store user session
+	}
+
 	Config struct {
 		// whether to compress data
 		CompressEnabled bool
@@ -31,13 +37,13 @@ type (
 		CheckTextEncoding bool
 
 		// client authentication
-		Authenticate func(r *internal.Request) bool
+		Authenticate func(r *Request) bool
 	}
 )
 
 func (c *Config) initialize() {
 	if c.Authenticate == nil {
-		c.Authenticate = func(r *internal.Request) bool {
+		c.Authenticate = func(r *Request) bool {
 			return true
 		}
 	}
@@ -73,7 +79,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 
-	var request = &internal.Request{Request: r, SessionStorage: internal.NewMap()}
+	var request = &Request{Request: r, SessionStorage: &sync.Map{}}
 	var headers = http.Header{}
 
 	var compressEnabled = false

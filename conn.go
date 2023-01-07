@@ -45,14 +45,14 @@ type Conn struct {
 
 	// Concurrent Variable
 	// store session information
-	*internal.SessionStorage
+	SessionStorage *sync.Map
 	// whether server is closed
 	closed uint32
 	// write lock
 	wmu *sync.Mutex
 }
 
-func serveWebSocket(ctx context.Context, config Config, r *internal.Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(ctx context.Context, config Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		ctx:             ctx,
 		SessionStorage:  r.SessionStorage,
@@ -115,19 +115,19 @@ func (c *Conn) emitError(err error) {
 	}
 }
 
-func (c *Conn) emitClose(msg *Message) error {
+func (c *Conn) emitClose(buf *internal.Buffer) error {
 	var responseCode = internal.CloseNormalClosure
 	var realCode = internal.CloseNormalClosure.Uint16()
-	switch msg.buf.Len() {
+	switch buf.Len() {
 	case 0:
 		responseCode = 0
 		realCode = 0
 	case 1:
 		responseCode = internal.CloseProtocolError
-		realCode = uint16(msg.buf.Bytes()[0])
+		realCode = uint16(buf.Bytes()[0])
 	default:
 		var b [2]byte
-		_, _ = msg.buf.Read(b[0:])
+		_, _ = buf.Read(b[0:])
 		realCode = binary.BigEndian.Uint16(b[0:])
 		switch realCode {
 		case 1004, 1005, 1006, 1014, 1015:
@@ -141,13 +141,13 @@ func (c *Conn) emitClose(msg *Message) error {
 				responseCode = internal.StatusCode(realCode)
 			}
 		}
-		if c.config.CheckTextEncoding && !msg.valid() {
+		if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, buf) {
 			responseCode = internal.CloseUnsupportedData
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.writeMessage(OpcodeCloseConnection, responseCode.Bytes())
-		c.handler.OnClose(c, realCode, msg.Bytes())
+		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure
 }

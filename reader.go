@@ -36,25 +36,25 @@ func (c *Conn) readControl() error {
 		return internal.CloseProtocolError
 	}
 
-	var payload = internal.NewBufferWithCap(n)
+	var buf = internal.NewBufferWithCap(n)
 	if err := c.readN(c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if _, err := io.CopyN(payload, c.rbuf, int64(n)); err != nil {
+	if _, err := io.CopyN(buf, c.rbuf, int64(n)); err != nil {
 		return err
 	}
-	maskXOR(payload.Bytes(), c.fh[10:14])
+	maskXOR(buf.Bytes(), c.fh[10:14])
 
 	var opcode = c.fh.GetOpcode()
 	switch opcode {
 	case OpcodePing:
-		c.handler.OnPing(c, payload.Bytes())
+		c.handler.OnPing(c, buf.Bytes())
 		return nil
 	case OpcodePong:
-		c.handler.OnPong(c, payload.Bytes())
+		c.handler.OnPong(c, buf.Bytes())
 		return nil
 	case OpcodeCloseConnection:
-		return c.emitClose(&Message{opcode: OpcodeCloseConnection, buf: payload})
+		return c.emitClose(buf)
 	default:
 		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
 		return internal.NewError(internal.CloseProtocolError, err)
@@ -180,7 +180,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		}
 		msg.buf = data
 	}
-	if c.config.CheckTextEncoding && !msg.valid() {
+	if c.config.CheckTextEncoding && !isTextValid(msg.opcode, msg.buf) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 	c.handler.OnMessage(c, msg)

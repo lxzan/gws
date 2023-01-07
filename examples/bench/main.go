@@ -75,7 +75,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, m *gws.Message) {
 	case "close":
 		socket.WriteClose(1001, []byte("goodbye"))
 	default:
-		socket.Delete(key)
+		socket.SessionStorage.Delete(key)
 	}
 }
 
@@ -96,13 +96,18 @@ func (c *WebSocket) OnTest(socket *gws.Conn) {
 	for i := 0; i < count; i++ {
 		var size = internal.AlphabetNumeric.Intn(8 * 1024)
 		var k = internal.AlphabetNumeric.Generate(size)
-		socket.Put(string(k), 1)
+		socket.SessionStorage.Store(string(k), 1)
 		socket.WriteMessage(gws.OpcodeText, k)
 	}
 }
 
 func (c *WebSocket) OnVerify(socket *gws.Conn) {
-	if socket.Len() != 0 {
+	var length = 0
+	socket.SessionStorage.Range(func(key, value interface{}) bool {
+		length++
+		return false
+	})
+	if length != 0 {
 		socket.WriteMessage(gws.OpcodeText, []byte("failed"))
 		return
 	}
