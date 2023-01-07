@@ -1,5 +1,7 @@
 # gws
-### minimal websocket server
+### event-driven websocket server
+
+[![Build Status](https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/gws/actions?query=branch%3Amaster)
 
 #### Highlight
 - zero dependency
