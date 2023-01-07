@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+var (
+	_pool         = internal.NewBufferPool()
+	defaultLogger = new(internal.Logger)
+)
+
 type Conn struct {
 	// context
 	ctx context.Context
@@ -68,6 +73,12 @@ func serveWebSocket(ctx context.Context, config Config, r *internal.Request, net
 	}
 	c.handler.OnOpen(c)
 	return c
+}
+
+func (c *Conn) errorf(format string, v ...interface{}) {
+	if c.config.LogEnabled {
+		c.config.Logger.Errorf(format, v...)
+	}
 }
 
 // Listen listening to websocket messages through a dead loop
@@ -130,6 +141,7 @@ func (c *Conn) emitClose(msg *Message) error {
 			}
 		}
 		if c.config.CheckTextEncoding && !msg.valid() {
+			c.errorf("gws: text frame payload must be utf8 encoding")
 			responseCode = internal.CloseUnsupportedData
 		}
 	}

@@ -2,18 +2,10 @@ package gws
 
 import (
 	"encoding/binary"
-	"errors"
 	"github.com/lxzan/gws/internal"
 	"io"
-	"strconv"
 	"sync/atomic"
 )
-
-var _pool *internal.BufferPool
-
-func init() {
-	_pool = internal.NewBufferPool()
-}
 
 func (c *Conn) readN(data []byte, n int) error {
 	if n == 0 {
@@ -36,8 +28,8 @@ func (c *Conn) readControl() error {
 		return internal.CloseProtocolError
 	}
 
-	var n = c.fh.GetLengthCode()
 	// RFC6455: All control frames MUST have a payload length of 125 bytes or fewer and MUST NOT be fragmented.
+	var n = c.fh.GetLengthCode()
 	if n > internal.Lv1 {
 		return internal.CloseProtocolError
 	}
@@ -51,20 +43,25 @@ func (c *Conn) readControl() error {
 	}
 	maskXOR(payload.Bytes(), c.fh[10:14])
 
-	switch c.fh.GetOpcode() {
+	var opcode = c.fh.GetOpcode()
+	switch opcode {
 	case OpcodePing:
-		return c.emitMessage(&Message{opcode: OpcodePing, buf: payload}, false)
+		c.handler.OnPing(c, payload.Bytes())
+		return nil
 	case OpcodePong:
-		return c.emitMessage(&Message{opcode: OpcodePong, buf: payload}, false)
+		c.handler.OnPong(c, payload.Bytes())
+		return nil
 	case OpcodeCloseConnection:
 		return c.emitClose(&Message{opcode: OpcodeCloseConnection, buf: payload})
 	default:
+		c.errorf("gws: unexpected opcode: %d", opcode)
 		return internal.CloseProtocolError
 	}
 }
 
 func (c *Conn) readMessage() error {
 	if atomic.LoadUint32(&c.closed) == 1 {
+		c.errorf("gws: connection is closed, cannot read message anymore")
 		return internal.CloseNormalClosure
 	}
 	if c.isCanceled() {
@@ -169,30 +166,24 @@ func (c *Conn) readMessage() error {
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{opcode: opcode, buf: buf}, compressed)
 	default:
-		return errors.New("unexpected opcode: " + strconv.Itoa(int(opcode)))
+		c.errorf("unexpected opcode: %d", opcode)
+		return internal.CloseProtocolError
 	}
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
-	switch msg.opcode {
-	case OpcodePing:
-		c.handler.OnPing(c, msg.Bytes())
-	case OpcodePong:
-		c.handler.OnPong(c, msg.Bytes())
-	case OpcodeText, OpcodeBinary:
-		if compressed {
-			data, err := c.decompressor.Decompress(msg.buf)
-			if err != nil {
-				return internal.CloseInternalServerErr
-			}
-			msg.buf = data
+	if compressed {
+		data, err := c.decompressor.Decompress(msg.buf)
+		if err != nil {
+			c.errorf("gws: flate decode error")
+			return internal.CloseInternalServerErr
 		}
-		if c.config.CheckTextEncoding && !msg.valid() {
-			return internal.CloseUnsupportedData
-		}
-		c.handler.OnMessage(c, msg)
-	default:
-		return internal.CloseProtocolError
+		msg.buf = data
 	}
+	if c.config.CheckTextEncoding && !msg.valid() {
+		c.errorf("gws: text frame payload must be utf8 encoding")
+		return internal.CloseUnsupportedData
+	}
+	c.handler.OnMessage(c, msg)
 	return nil
 }

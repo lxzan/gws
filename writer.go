@@ -49,6 +49,7 @@ func (c *Conn) WritePong(payload []byte) {
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
 	if atomic.LoadUint32(&c.closed) == 1 {
+		c.errorf("gws: connection is closed, cannot write message anymore")
 		return
 	}
 	c.emitError(c.writeMessage(opcode, payload))
@@ -59,6 +60,7 @@ func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
 	if enableCompress {
 		compressedContent, err := c.compressor.Compress(payload)
 		if err != nil {
+			c.errorf("gws: flate encode error")
 			return internal.CloseInternalServerErr
 		}
 		payload = compressedContent

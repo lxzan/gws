@@ -17,6 +17,10 @@ const (
 )
 
 type (
+	Logger interface {
+		Errorf(format string, v ...interface{})
+	}
+
 	Config struct {
 		// whether to compress data
 		CompressEnabled bool
@@ -29,6 +33,12 @@ type (
 
 		// whether to check utf8 encoding, disabled for better performance
 		CheckTextEncoding bool
+
+		// whether to display logs
+		LogEnabled bool
+
+		// display internal errors
+		Logger Logger
 
 		// client authentication
 		Authenticate func(r *internal.Request) bool
@@ -46,6 +56,9 @@ func (c *Config) initialize() {
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = defaultCompressLevel
+	}
+	if c.Logger == nil {
+		c.Logger = defaultLogger
 	}
 }
 
