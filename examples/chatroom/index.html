@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ChatRoom</title>
+    <style>
+        #app {
+            width: 400px;
+            margin: 50px auto 0;
+        }
+
+        .form {
+            margin: 10px auto;
+        }
+
+        #app input {
+            width: 300px;
+            height: 20px;
+            float: right;
+        }
+
+        #app span {
+            height: 26px;
+            line-height: 26px;
+        }
+
+        textarea {
+            width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="form"><span>From</span> <input type="text" id="from"></div>
+    <div class="form"><span>To</span> <input type="text" id="to"></div>
+    <div><textarea id="text" cols="30" rows="10"></textarea></div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="send()">Send</button>
+</div>
+
+<script>
+
+    function connect() {
+        let from = document.getElementById("from").value;
+        window.ws = new WebSocket(`ws://127.0.0.1:3000/connect?name=${from}`);
+        setInterval(function () {
+            window.ws.send("ping");
+        }, 15 * 1000)
+    }
+
+    function send() {
+        let to = document.getElementById("to").value;
+        let text = document.getElementById("text").value;
+        ws.send(JSON.stringify({to, text}));
+    }
+</script>
+
+</body>
+</html>
