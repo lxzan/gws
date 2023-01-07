@@ -45,7 +45,7 @@ type Conn struct {
 
 	// Concurrent Variable
 	// store session information
-	SessionStorage *sync.Map
+	SessionStorage *Map
 	// whether server is closed
 	closed uint32
 	// write lock
@@ -84,6 +84,12 @@ func (c *Conn) Listen() {
 			return
 		}
 	}
+}
+
+// Close sets connection status and deadline
+func (c *Conn) Close() {
+	atomic.StoreUint32(&c.closed, 1)
+	_ = c.conn.SetDeadline(time.Now())
 }
 
 func (c *Conn) emitError(err error) {

@@ -2,24 +2,20 @@ package main
 
 import (
 	"context"
-	"flag"
+	_ "embed"
 	"fmt"
 	"github.com/lxzan/gws"
 	"github.com/lxzan/gws/internal"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
-	"path/filepath"
 	"time"
 )
 
-var directory string
+//go:embed index.html
+var html []byte
 
 func main() {
-	flag.StringVar(&directory, "d", "./", "directory")
-	flag.Parse()
-
 	var handler = NewWebSocket()
 	var ctx = context.Background()
 
@@ -34,9 +30,7 @@ func main() {
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		writer.WriteHeader(http.StatusOK)
-		d, _ := filepath.Abs(directory)
-		content, _ := os.ReadFile(d + "/index.html")
-		writer.Write(content)
+		writer.Write(html)
 	})
 
 	http.ListenAndServe(":3000", nil)

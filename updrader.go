@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -19,8 +18,8 @@ const (
 
 type (
 	Request struct {
-		*http.Request            // http request
-		SessionStorage *sync.Map // store user session
+		*http.Request       // http request
+		SessionStorage *Map // store user session
 	}
 
 	Config struct {
@@ -79,7 +78,7 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
 	config.initialize()
 
-	var request = &Request{Request: r, SessionStorage: &sync.Map{}}
+	var request = &Request{Request: r, SessionStorage: NewMap()}
 	var headers = http.Header{}
 
 	var compressEnabled = false

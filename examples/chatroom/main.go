@@ -7,7 +7,6 @@ import (
 	"github.com/lxzan/gws"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -25,6 +24,7 @@ func main() {
 			return false
 		}
 		r.SessionStorage.Store("name", name)
+		r.SessionStorage.Store("key", r.Header.Get("Sec-WebSocket-Key"))
 		return true
 	}}
 
@@ -43,17 +43,46 @@ func main() {
 }
 
 func NewWebSocket() *WebSocket {
-	return &WebSocket{sessions: &sync.Map{}}
+	return &WebSocket{sessions: gws.NewMap()}
 }
 
 type WebSocket struct {
-	sessions *sync.Map
+	sessions *gws.Map
+}
+
+func (c *WebSocket) GetName(socket *gws.Conn) string {
+	name, _ := socket.SessionStorage.Load("name")
+	return name.(string)
+}
+
+func (c *WebSocket) GetKey(socket *gws.Conn) string {
+	name, _ := socket.SessionStorage.Load("key")
+	return name.(string)
+}
+
+func (c *WebSocket) GetSocket(name string) (*gws.Conn, bool) {
+	if v0, ok0 := c.sessions.Load(name); ok0 {
+		if v1, ok1 := v0.(*gws.Conn); ok1 {
+			return v1, true
+		}
+	}
+	return nil, false
+}
+
+func (c *WebSocket) DeleteSocket(socket *gws.Conn) {
+	name := c.GetName(socket)
+	key := c.GetKey(socket)
+	if mSocket, ok := c.GetSocket(name); ok {
+		if mKey := c.GetKey(mSocket); mKey == key {
+			c.sessions.Delete(name)
+		}
+	}
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	name, _ := socket.SessionStorage.Load("name")
+	name := c.GetName(socket)
 	if v, ok := c.sessions.Load(name); ok {
-		v.(*gws.Conn).SetDeadline(time.Now())
+		v.(*gws.Conn).Close()
 	}
 	socket.SetDeadline(time.Now().Add(3 * PingInterval))
 	c.sessions.Store(name, socket)
@@ -61,14 +90,14 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 }
 
 func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-	name, _ := socket.SessionStorage.Load("name")
-	c.sessions.Delete(name)
+	name := c.GetName(socket)
+	c.DeleteSocket(socket)
 	log.Printf("onerror, name=%s, msg=%s\n", name, err.Error())
 }
 
 func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	name, _ := socket.SessionStorage.Load("name")
-	c.sessions.Delete(name)
+	name := c.GetName(socket)
+	c.DeleteSocket(socket)
 	log.Printf("onclose, name=%s, code=%d, msg=%s\n", name, code, string(reason))
 }
 
