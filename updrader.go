@@ -2,7 +2,7 @@ package gws
 
 import (
 	"compress/flate"
-	"context"
+	_ "embed"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
@@ -10,6 +10,18 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed VERSION
+var VERSION string
+
+var (
+	_pool         = internal.NewBufferPool()
+	defaultHeader = http.Header{}
+)
+
+func init() {
+	defaultHeader.Set("Server", "gws/"+VERSION)
+}
 
 const (
 	defaultCompressLevel    = flate.BestSpeed
@@ -36,13 +48,13 @@ type (
 		CheckTextEncoding bool
 
 		// client authentication
-		Authenticate func(r *Request) bool
+		CheckOrigin func(r *Request) bool
 	}
 )
 
 func (c *Config) initialize() {
-	if c.Authenticate == nil {
-		c.Authenticate = func(r *Request) bool {
+	if c.CheckOrigin == nil {
+		c.CheckOrigin = func(r *Request) bool {
 			return true
 		}
 	}
@@ -75,11 +87,19 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
-func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHandler Event, config Config) (*Conn, error) {
+func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config, header http.Header) (*Conn, error) {
+	if config == nil {
+		config = new(Config)
+	}
+	if header == nil {
+		header = internal.CloneHeader(defaultHeader)
+	}
 	config.initialize()
 
 	var request = &Request{Request: r, SessionStorage: NewMap()}
-	var headers = http.Header{}
+	if !config.CheckOrigin(request) {
+		return nil, internal.ErrCheckOrigin
+	}
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
@@ -96,7 +116,7 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 		return nil, internal.ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && config.CompressEnabled {
-		headers.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
+		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
 
@@ -108,12 +128,9 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 	if err != nil {
 		return nil, err
 	}
-	if !config.Authenticate(request) {
-		return nil, internal.ErrAuthenticate
-	}
 
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := handshake(netConn, headers, websocketKey); err != nil {
+	if err := handshake(netConn, header, websocketKey); err != nil {
 		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
@@ -128,5 +145,5 @@ func Accept(ctx context.Context, w http.ResponseWriter, r *http.Request, eventHa
 	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(ctx, config, request, netConn, brw, eventHandler, compressEnabled), nil
+	return serveWebSocket(config, request, netConn, brw, eventHandler, compressEnabled), nil
 }

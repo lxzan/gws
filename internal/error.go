@@ -3,7 +3,7 @@ package internal
 import "errors"
 
 var (
-	ErrAuthenticate = errors.New("authenticate error")
+	ErrCheckOrigin  = errors.New("check origin error")
 	ErrHandshake    = errors.New("connecting handshake error")
 	ErrTextEncoding = errors.New("text frame payload must be utf8 encoding")
 )

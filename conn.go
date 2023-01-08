@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bufio"
-	"context"
 	"encoding/binary"
 	"errors"
 	"github.com/lxzan/gws/internal"
@@ -12,19 +11,13 @@ import (
 	"time"
 )
 
-var (
-	_pool = internal.NewBufferPool()
-)
-
 type Conn struct {
-	// context
-	ctx context.Context
 	// whether you use compression
 	compressEnabled bool
 	// tcp connection
 	conn net.Conn
 	// server configs
-	config Config
+	config *Config
 	// read buffer
 	rbuf *bufio.Reader
 	// flate decompressor
@@ -53,9 +46,8 @@ type Conn struct {
 	wmu *sync.Mutex
 }
 
-func serveWebSocket(ctx context.Context, config Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(config *Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
-		ctx:             ctx,
 		SessionStorage:  r.SessionStorage,
 		config:          config,
 		compressEnabled: compressEnabled,
@@ -162,15 +154,6 @@ func (c *Conn) emitClose(buf *internal.Buffer) error {
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure
-}
-
-func (c *Conn) isCanceled() bool {
-	select {
-	case <-c.ctx.Done():
-		return true
-	default:
-		return false
-	}
 }
 
 // SetDeadline sets deadline

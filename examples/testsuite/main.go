@@ -1,18 +1,17 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
 )
 
 func main() {
-	var config = gws.Config{CompressEnabled: true, CheckTextEncoding: true, MaxContentLength: 32 * 1024 * 1024}
+	var config = &gws.Config{CompressEnabled: true, CheckTextEncoding: true, MaxContentLength: 32 * 1024 * 1024}
 	var handler = new(WebSocket)
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(context.Background(), writer, request, handler, config)
+		socket, err := gws.Accept(writer, request, handler, config, nil)
 		if err != nil {
 			return
 		}
