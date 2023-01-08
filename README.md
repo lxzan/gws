@@ -1,9 +1,11 @@
 # gws
+
 ### event-driven websocket server
 
 [![Build Status](https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/gws/actions?query=branch%3Amaster)
 
 #### Highlight
+
 - zero dependency
 - zero extra goroutine to control websocket
 - zero error to read/write message, errors have been handled appropriately
@@ -11,28 +13,32 @@
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention
+
 - It's designed for api server, do not write big message
 - It's recommended not to enable data compression in the intranet
 - WebSocket Events are emitted synchronously, manage goroutines yourself
 
 #### Core Interface
+
 ```go
 type Event interface {
-    OnOpen(socket *Conn)
-    OnError(socket *Conn, err error)
-    OnClose(socket *Conn, code uint16, reason []byte)
-    OnPing(socket *Conn, payload []byte)
-    OnPong(socket *Conn, payload []byte)
-    OnMessage(socket *Conn, message *Message)
+OnOpen(socket *Conn)
+OnError(socket *Conn, err error)
+OnClose(socket *Conn, code uint16, reason []byte)
+OnPing(socket *Conn, payload []byte)
+OnPong(socket *Conn, payload []byte)
+OnMessage(socket *Conn, message *Message)
 }
 ```
 
 #### Install
+
 ```bash
 go get -v github.com/lxzan/gws@latest
 ```
 
 #### Quick Start
+
 ```go
 package main
 
@@ -88,23 +94,8 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
-#### HeartBeat
-```go
-const PingInterval = 5*time.Second
-
-type WebSocket struct {}
-
-func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	socket.SetDeadline(time.Now().Add(3*PingInterval))
-}
-
-func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
-	socket.WritePong(nil)
-	socket.SetDeadline(time.Now().Add(3*PingInterval))
-}
-```
-
 #### Test
+
 ```bash
 // Terminal 1
 git clone https://github.com/lxzan/gws.git 
