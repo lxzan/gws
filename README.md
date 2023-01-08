@@ -110,3 +110,22 @@ docker run -it --rm \
     crossbario/autobahn-testsuite \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
+
+#### Benchmark
+```
+// machine: 2C4T Ubuntu VM
+// cmd: tcpkali -c 100 -r 20000 -f body.json -T 20s --ws 127.0.0.1:3000/connect
+// body.json size: 2.4KiB
+// max cost: cpu=240% memory=18MiB
+
+Destination: [127.0.0.1]:3000
+Interface lo address [127.0.0.1]:0
+Using interface lo to connect to [127.0.0.1]:3000
+Ramped up to 100 connections.
+Total data sent:     18199.2 MiB (19083295616 bytes)
+Total data received: 18230.1 MiB (19115689063 bytes)
+Bandwidth per channel: 152.724⇅ Mbps (19090.5 kBps)
+Aggregate bandwidth: 7642.664↓, 7629.713↑ Mbps
+Packet rate estimate: 688912.4↓, 666989.2↑ (8↓, 42↑ TCP MSS/op)
+Test duration: 20.0095 s.
+```
