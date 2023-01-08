@@ -11,17 +11,9 @@ import (
 	"time"
 )
 
-//go:embed VERSION
-var VERSION string
-
 var (
-	_pool         = internal.NewBufferPool()
-	defaultHeader = http.Header{}
+	_pool = internal.NewBufferPool()
 )
-
-func init() {
-	defaultHeader.Set("Server", "gws/"+VERSION)
-}
 
 const (
 	defaultCompressLevel    = flate.BestSpeed
@@ -87,12 +79,15 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
+// attention: client may not support custom response header, use nil instead
 func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config, header http.Header) (*Conn, error) {
 	if config == nil {
 		config = new(Config)
 	}
 	if header == nil {
-		header = internal.CloneHeader(defaultHeader)
+		header = http.Header{}
+	} else {
+		header = internal.CloneHeader(header)
 	}
 	config.initialize()
 

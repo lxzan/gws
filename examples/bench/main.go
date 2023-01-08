@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"github.com/lxzan/gws"
@@ -17,10 +16,8 @@ var html []byte
 
 func main() {
 	var handler = NewWebSocket()
-	var ctx = context.Background()
-
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(ctx, writer, request, handler, gws.Config{})
+		socket, err := gws.Accept(writer, request, handler, &gws.Config{}, nil)
 		if err != nil {
 			return
 		}

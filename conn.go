@@ -81,7 +81,7 @@ func (c *Conn) Listen() {
 
 // Close write closed frame
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
-// 发送关闭帧, 并将连接状态置为关闭
+// 主动关闭连接, 发送关闭帧, 并将连接状态置为关闭
 func (c *Conn) Close(code uint16, reason []byte) {
 	var err = internal.NewError(internal.StatusCode(code), errors.New(""))
 	if len(reason) > 0 {

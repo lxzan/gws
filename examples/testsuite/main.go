@@ -9,9 +9,9 @@ import (
 func main() {
 	var config = &gws.Config{CompressEnabled: true, CheckTextEncoding: true, MaxContentLength: 32 * 1024 * 1024}
 	var handler = new(WebSocket)
-
+	var header = http.Header{"Server": []string{"gws"}}
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(writer, request, handler, config, nil)
+		socket, err := gws.Accept(writer, request, handler, config, header)
 		if err != nil {
 			return
 		}

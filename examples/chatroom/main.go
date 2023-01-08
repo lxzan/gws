@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"encoding/json"
 	"github.com/lxzan/gws"
@@ -16,9 +15,8 @@ const PingInterval = 15 * time.Second
 var html []byte
 
 func main() {
-	var ctx = context.Background()
 	var handler = NewWebSocket()
-	var config = gws.Config{Authenticate: func(r *gws.Request) bool {
+	var config = &gws.Config{CheckOrigin: func(r *gws.Request) bool {
 		var name = r.URL.Query().Get("name")
 		if name == "" {
 			return false
@@ -31,7 +29,7 @@ func main() {
 	_ = http.ListenAndServe(":3000", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/connect":
-			socket, err := gws.Accept(ctx, w, r, handler, config)
+			socket, err := gws.Accept(w, r, handler, config, nil)
 			if err != nil {
 				return
 			}
