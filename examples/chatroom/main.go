@@ -16,20 +16,22 @@ var html []byte
 
 func main() {
 	var handler = NewWebSocket()
-	var config = &gws.Config{CheckOrigin: func(r *gws.Request) bool {
-		var name = r.URL.Query().Get("name")
-		if name == "" {
-			return false
-		}
-		r.SessionStorage.Store("name", name)
-		r.SessionStorage.Store("key", r.Header.Get("Sec-WebSocket-Key"))
-		return true
-	}}
+	var config = &gws.Config{
+		CompressEnabled: true,
+		CheckOrigin: func(r *gws.Request) bool {
+			var name = r.URL.Query().Get("name")
+			if name == "" {
+				return false
+			}
+			r.SessionStorage.Store("name", name)
+			r.SessionStorage.Store("key", r.Header.Get("Sec-WebSocket-Key"))
+			return true
+		}}
 
 	_ = http.ListenAndServe(":3000", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/connect":
-			socket, err := gws.Accept(w, r, handler, config, nil)
+			socket, err := gws.Accept(w, r, handler, config)
 			if err != nil {
 				return
 			}

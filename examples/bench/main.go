@@ -17,7 +17,7 @@ var html []byte
 func main() {
 	var handler = NewWebSocket()
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(writer, request, handler, &gws.Config{}, nil)
+		socket, err := gws.Accept(writer, request, handler, &gws.Config{})
 		if err != nil {
 			return
 		}

@@ -39,12 +39,19 @@ type (
 		// whether to check utf8 encoding, disabled for better performance
 		CheckTextEncoding bool
 
+		// https://www.rfc-editor.org/rfc/rfc6455.html#section-1.3
+		// attention: client may not support custom response header, use nil instead
+		ResponseHeader http.Header
+
 		// client authentication
 		CheckOrigin func(r *Request) bool
 	}
 )
 
 func (c *Config) initialize() {
+	if c.ResponseHeader == nil {
+		c.ResponseHeader = http.Header{}
+	}
 	if c.CheckOrigin == nil {
 		c.CheckOrigin = func(r *Request) bool {
 			return true
@@ -79,19 +86,14 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
-// attention: client may not support custom response header, use nil instead
-func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config, header http.Header) (*Conn, error) {
+func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config) (*Conn, error) {
 	if config == nil {
 		config = new(Config)
-	}
-	if header == nil {
-		header = http.Header{}
-	} else {
-		header = internal.CloneHeader(header)
 	}
 	config.initialize()
 
 	var request = &Request{Request: r, SessionStorage: NewMap()}
+	var header = internal.CloneHeader(config.ResponseHeader)
 	if !config.CheckOrigin(request) {
 		return nil, internal.ErrCheckOrigin
 	}
