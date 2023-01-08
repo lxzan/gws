@@ -6,10 +6,9 @@
 
 #### Highlight
 
-- zero dependency
-- zero extra goroutine to control websocket
-- zero error to read/write message, errors have been handled appropriately
-- event driven
+- zero dependency, no channel, event driven
+- zero extra goroutine to manage business logic
+- zero error to read/write operation, errors have been handled appropriately
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention

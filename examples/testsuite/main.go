@@ -8,8 +8,8 @@ import (
 
 func main() {
 	var config = &gws.Config{
-		//CompressEnabled:   true,
-		//CheckTextEncoding: true,
+		CompressEnabled:   true,
+		CheckTextEncoding: true,
 		MaxContentLength: 32 * 1024 * 1024,
 		ResponseHeader:   http.Header{"Server": []string{"gws"}},
 	}
