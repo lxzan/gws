@@ -2,6 +2,7 @@ package gws
 
 import (
 	"compress/flate"
+	"crypto/tls"
 	_ "embed"
 	"errors"
 	"github.com/lxzan/gws/internal"
@@ -84,6 +85,18 @@ func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
 	return err
 }
 
+// setNoDelay set tcp no delay
+func setNoDelay(conn net.Conn) error {
+	switch v := conn.(type) {
+	case *net.TCPConn:
+		return v.SetNoDelay(false)
+	case *tls.Conn:
+		return setNoDelay(v.NetConn())
+	default:
+		return nil
+	}
+}
+
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
 func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config) (*Conn, error) {
@@ -139,7 +152,7 @@ func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *
 	if err := netConn.SetWriteDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	if err := netConn.(*net.TCPConn).SetNoDelay(false); err != nil {
+	if err := setNoDelay(netConn); err != nil {
 		return nil, err
 	}
 	return serveWebSocket(config, request, netConn, brw, eventHandler, compressEnabled), nil

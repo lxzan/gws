@@ -101,6 +101,33 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
+#### TLS
+```go
+package main
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lxzan/gws"
+)
+
+func main() {
+	app := gin.New()
+	handler := new(WebSocket)
+	app.GET("/connect", func(ctx *gin.Context) {
+		socket, err := gws.Accept(ctx.Writer, ctx.Request, handler, nil)
+		if err != nil {
+			return
+		}
+		socket.Listen()
+	})
+	cert := "server.crt"
+	key := "server.key"
+	if err := app.RunTLS(":8443", cert, key); err != nil {
+		panic(err)
+	}
+}
+```
+
 #### Test
 
 ```bash
