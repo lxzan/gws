@@ -8,10 +8,10 @@ import (
 
 func main() {
 	var config = &gws.Config{
-		//CompressEnabled:   true,
-		//CheckTextEncoding: true,
-		MaxContentLength: 32 * 1024 * 1024,
-		ResponseHeader:   http.Header{"Server": []string{"gws"}},
+		CompressEnabled:   true,
+		CheckTextEncoding: true,
+		MaxContentLength:  32 * 1024 * 1024,
+		ResponseHeader:    http.Header{"Server": []string{"gws"}},
 	}
 	var handler = new(WebSocket)
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {

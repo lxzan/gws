@@ -98,6 +98,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 ```bash
 cd examples/testsuite
+mkdir reports
 docker run -it --rm \
     -v ${PWD}/config:/config \
     -v ${PWD}/reports:/reports \
