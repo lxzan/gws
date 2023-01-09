@@ -111,19 +111,38 @@ docker run -it --rm \
 ```
 
 #### Benchmark
+
 - machine: MacBook Pro M1
-- body.json size: 4.1KiB
+- body.json size: 2.34KiB
 - max cost: cpu=440% memory=90MiB
+- command: `tcpkali -c 200 -r 20000 -T 20s -f body.json --ws 127.0.0.1:3000/connect`
+
+##### lxzan/gws
+
 ```
-$ tcpkali -c 200 -r 20000 -T 20s -f body.json --ws 127.0.0.1:3000/connect
 Destination: [127.0.0.1]:3000
 Interface lo0 address [127.0.0.1]:0
 Using interface lo0 to connect to [127.0.0.1]:3000
 Ramped up to 200 connections.
-Total data sent:     26454.1 MiB (27739097284 bytes)
-Total data received: 26427.4 MiB (27711172703 bytes)
-Bandwidth per channel: 110.872⇅ Mbps (13859.0 kBps)
-Aggregate bandwidth: 11081.607↓, 11092.774↑ Mbps
-Packet rate estimate: 1029848.7↓, 1007365.3↑ (7↓, 14↑ TCP MSS/op)
-Test duration: 20.0052 s.
+Total data sent:     28864.1 MiB (30266158036 bytes)
+Total data received: 28812.3 MiB (30211911226 bytes)
+Bandwidth per channel: 120.909⇅ Mbps (15113.7 kBps)
+Aggregate bandwidth: 12080.082↓, 12101.773↑ Mbps
+Packet rate estimate: 1098496.2↓, 1105141.9↑ (8↓, 14↑ TCP MSS/op)
+Test duration: 20.0078 s.
+```
+
+##### gorilla/websocket
+
+```
+Destination: [127.0.0.1]:3000
+Interface lo0 address [127.0.0.1]:0
+Using interface lo0 to connect to [127.0.0.1]:3000
+Ramped up to 200 connections.
+Total data sent:     15043.6 MiB (15774402996 bytes)
+Total data received: 14990.0 MiB (15718181647 bytes)
+Bandwidth per channel: 62.972⇅ Mbps (7871.5 kBps)
+Aggregate bandwidth: 6285.944↓, 6308.428↑ Mbps
+Packet rate estimate: 589201.4↓, 579598.1↑ (5↓, 12↑ TCP MSS/op)
+Test duration: 20.0042 s.
 ```

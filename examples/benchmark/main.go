@@ -7,15 +7,9 @@ import (
 )
 
 func main() {
-	var config = &gws.Config{
-		//CompressEnabled:   true,
-		//CheckTextEncoding: true,
-		MaxContentLength: 32 * 1024 * 1024,
-		ResponseHeader:   http.Header{"Server": []string{"gws"}},
-	}
 	var handler = new(WebSocket)
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(writer, request, handler, config)
+		socket, err := gws.Accept(writer, request, handler, nil)
 		if err != nil {
 			return
 		}
@@ -39,10 +33,7 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	println("connected")
 }
 
-func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
-	fmt.Printf("onping: payload=%s\n", string(payload))
-	socket.WritePong(payload)
-}
+func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
