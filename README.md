@@ -5,10 +5,15 @@
 [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6]
 
 [1]: https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master
+
 [2]: https://github.com/lxzan/gws/actions?query=branch%3Amaster
+
 [3]: https://img.shields.io/badge/license-MIT-blue.svg
+
 [4]: LICENSE
+
 [5]: https://img.shields.io/badge/go-%3E%3D1.16-30dff3?style=flat-square&logo=go
+
 [6]: https://github.com/lxzan/gws
 
 #### Highlight
@@ -29,12 +34,12 @@
 
 ```go
 type Event interface {
-    OnOpen(socket *Conn)
-    OnError(socket *Conn, err error)
-    OnClose(socket *Conn, code uint16, reason []byte)
-    OnPing(socket *Conn, payload []byte)
-    OnPong(socket *Conn, payload []byte)
-    OnMessage(socket *Conn, message *Message)
+OnOpen(socket *Conn)
+OnError(socket *Conn, err error)
+OnClose(socket *Conn, code uint16, reason []byte)
+OnPing(socket *Conn, payload []byte)
+OnPong(socket *Conn, payload []byte)
+OnMessage(socket *Conn, message *Message)
 }
 ```
 
@@ -60,7 +65,6 @@ func main() {
 		CompressEnabled:   true,
 		CheckTextEncoding: true,
 		MaxContentLength:  32 * 1024 * 1024,
-		ResponseHeader:    http.Header{"Server": []string{"gws"}},
 	}
 	var handler = new(WebSocket)
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
@@ -102,6 +106,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 ```
 
 #### TLS
+
 ```go
 package main
 
