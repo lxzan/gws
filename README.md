@@ -6,8 +6,8 @@
 
 #### Highlight
 
-- zero dependency, no channel, event driven
-- zero extra goroutine to manage business logic
+- zero dependency, no channel but event driven
+- zero extra goroutine to manage connection
 - zero error to read/write operation, errors have been handled appropriately
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
@@ -111,20 +111,19 @@ docker run -it --rm \
 ```
 
 #### Benchmark
+- machine: MacBook Pro M1
+- body.json size: 4.1KiB
+- max cost: cpu=440% memory=90MiB
 ```
-// machine: 4C8T Ubuntu VM
-// cmd: tcpkali -c 200 -r 20000 -f body.json -T 30s --ws 127.0.0.1:3000/connect
-// body.json size: 2.4KiB
-// max cost: cpu=420% memory=24MiB
-
+$ tcpkali -c 200 -r 20000 -T 20s -f body.json --ws 127.0.0.1:3000/connect
 Destination: [127.0.0.1]:3000
-Interface lo address [127.0.0.1]:0
-Using interface lo to connect to [127.0.0.1]:3000
+Interface lo0 address [127.0.0.1]:0
+Using interface lo0 to connect to [127.0.0.1]:3000
 Ramped up to 200 connections.
-Total data sent:     36573.8 MiB (38350422218 bytes)
-Total data received: 36529.6 MiB (38304064401 bytes)
-Bandwidth per channel: 102.178⇅ Mbps (12772.2 kBps)
-Aggregate bandwidth: 10211.581↓, 10223.939↑ Mbps
-Packet rate estimate: 943099.1↓, 884811.7↑ (8↓, 43↑ TCP MSS/op)
-Test duration: 30.0083 s.
+Total data sent:     26454.1 MiB (27739097284 bytes)
+Total data received: 26427.4 MiB (27711172703 bytes)
+Bandwidth per channel: 110.872⇅ Mbps (13859.0 kBps)
+Aggregate bandwidth: 11081.607↓, 11092.774↑ Mbps
+Packet rate estimate: 1029848.7↓, 1007365.3↑ (7↓, 14↑ TCP MSS/op)
+Test duration: 20.0052 s.
 ```
