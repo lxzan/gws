@@ -96,12 +96,6 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 #### Test
 
 ```bash
-// Terminal 1
-git clone https://github.com/lxzan/gws.git 
-cd gws
-go run github.com/lxzan/gws/examples/testsuite
-
-// Terminal 2
 cd examples/testsuite
 docker run -it --rm \
     -v ${PWD}/config:/config \
