@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"math/rand"
 	"net/http"
+	"reflect"
 )
 
 func MaskByByte(content []byte, key []byte) {
@@ -34,4 +35,23 @@ func CloneHeader(h http.Header) http.Header {
 		header[k] = v
 	}
 	return header
+}
+
+func MethodExists(in interface{}, method string) (reflect.Value, bool) {
+	if method == "" {
+		return reflect.Value{}, false
+	}
+	p := reflect.TypeOf(in)
+	if p.Kind() == reflect.Ptr {
+		p = p.Elem()
+	}
+	if p.Kind() != reflect.Struct {
+		return reflect.Value{}, false
+	}
+	object := reflect.ValueOf(in)
+	newMethod := object.MethodByName(method)
+	if !newMethod.IsValid() {
+		return reflect.Value{}, false
+	}
+	return newMethod, true
 }

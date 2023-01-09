@@ -8,6 +8,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -91,7 +92,14 @@ func setNoDelay(conn net.Conn) error {
 	case *net.TCPConn:
 		return v.SetNoDelay(false)
 	case *tls.Conn:
-		return setNoDelay(v.NetConn())
+		if method, exist := internal.MethodExists(v, "NetConn"); exist {
+			if rets := method.Call([]reflect.Value{}); len(rets) > 0 {
+				if tcpConn, ok := rets[0].Interface().(*net.TCPConn); ok {
+					return tcpConn.SetNoDelay(false)
+				}
+			}
+		}
+		return nil
 	default:
 		return nil
 	}
