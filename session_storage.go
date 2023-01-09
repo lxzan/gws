@@ -63,6 +63,11 @@ func (c *Map) Range(f func(key, value interface{}) bool) {
 	c.mu.RUnlock()
 }
 
+/*
+ConcurrentMap
+used to store websocket connections in the IM server
+用来存储IM等服务的连接
+*/
 type (
 	ConcurrentMap struct {
 		segments uint64
@@ -161,6 +166,8 @@ func (c *ConcurrentMap) Store(key interface{}, value interface{}) {
 	b.Unlock()
 }
 
+// Range calls f sequentially for each key and value present in the map.
+// If f returns false, range stops the iteration.
 func (c *ConcurrentMap) Range(f func(key interface{}, value interface{}) bool) {
 	for _, b := range c.buckets {
 		b.RLock()

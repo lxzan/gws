@@ -9,6 +9,7 @@
 - zero dependency, no channel but event driven
 - zero extra goroutine to manage connection
 - zero error to read/write operation, errors have been handled appropriately
+- built-in concurrent_map implementation
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention

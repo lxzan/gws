@@ -43,11 +43,11 @@ func main() {
 }
 
 func NewWebSocket() *WebSocket {
-	return &WebSocket{sessions: gws.NewMap()}
+	return &WebSocket{sessions: gws.NewConcurrentMap(16)}
 }
 
 type WebSocket struct {
-	sessions *gws.Map
+	sessions *gws.ConcurrentMap
 }
 
 func (c *WebSocket) GetName(socket *gws.Conn) string {

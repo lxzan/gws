@@ -79,7 +79,7 @@ func (c *Conn) Listen() {
 	}
 }
 
-// Close write closed frame
+// Close proactively close the connection
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
 // 主动关闭连接, 发送关闭帧, 并将连接状态置为关闭
 func (c *Conn) Close(code uint16, reason []byte) {
