@@ -41,6 +41,9 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
 }
 
 func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame()
 	if enableCompress {
 		compressedContent, err := c.compressor.Compress(payload)
@@ -55,9 +58,6 @@ func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
 // 加锁是为了防止frame header和payload并发写入后乱序
 // write a websocket frame, content is prepared
 func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
-
 	var header = frameHeader{}
 	var n = len(payload)
 	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)

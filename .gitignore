@@ -18,4 +18,5 @@
 vendor/
 bin/
 examples/debug/
+examples/testsuite/config/*.json
 examples/testsuite/reports
