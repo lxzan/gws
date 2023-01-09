@@ -2,11 +2,13 @@ package internal
 
 import (
 	"bytes"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
 )
 
 func TestBytesBuffer_Write(t *testing.T) {
+	var as = assert.New(t)
 	for i := 0; i < 1000; i++ {
 		var s1 = AlphabetNumeric.Generate(AlphabetNumeric.Intn(1024))
 		var s2 = AlphabetNumeric.Generate(AlphabetNumeric.Intn(512))
@@ -15,9 +17,7 @@ func TestBytesBuffer_Write(t *testing.T) {
 		buf.Write(s1)
 		buf.Write(s2)
 		buf.Write(s3)
-		if string(s1)+string(s2)+string(s3) != string(buf.Bytes()) {
-			t.Fail()
-		}
+		as.Equal(string(s1)+string(s2)+string(s3), string(buf.Bytes()))
 	}
 }
 
