@@ -22,14 +22,17 @@ type compressor struct {
 	fw          *flate.Writer
 }
 
-// Compress 压缩
-func (c *compressor) Compress(content []byte) ([]byte, error) {
+func (c *compressor) reset() {
 	if c.writeBuffer.Cap() > internal.Lv4 {
 		c.writeBuffer = internal.NewBuffer(nil)
 	}
-
 	c.writeBuffer.Reset()
 	c.fw.Reset(c.writeBuffer)
+}
+
+// Compress 压缩
+func (c *compressor) Compress(content []byte) ([]byte, error) {
+	c.reset()
 	if err := writeN(c.fw, content, len(content)); err != nil {
 		return nil, err
 	}
