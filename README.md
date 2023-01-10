@@ -34,12 +34,12 @@
 
 ```go
 type Event interface {
-OnOpen(socket *Conn)
-OnError(socket *Conn, err error)
-OnClose(socket *Conn, code uint16, reason []byte)
-OnPing(socket *Conn, payload []byte)
-OnPong(socket *Conn, payload []byte)
-OnMessage(socket *Conn, message *Message)
+    OnOpen(socket *Conn)
+    OnError(socket *Conn, err error)
+    OnClose(socket *Conn, code uint16, reason []byte)
+    OnPing(socket *Conn, payload []byte)
+    OnPong(socket *Conn, payload []byte)
+    OnMessage(socket *Conn, message *Message)
 }
 ```
 
