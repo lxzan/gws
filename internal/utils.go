@@ -37,8 +37,10 @@ func CloneHeader(h http.Header) http.Header {
 	return header
 }
 
+// MethodExists
+// if nil return false
 func MethodExists(in interface{}, method string) (reflect.Value, bool) {
-	if method == "" {
+	if in == nil || method == "" {
 		return reflect.Value{}, false
 	}
 	p := reflect.TypeOf(in)

@@ -43,7 +43,7 @@ func (p *BufferPool) Put(b *Buffer) {
 	}
 
 	b.Reset()
-	if n <= Lv1 {
+	if n <= 128 {
 		p.p0.Put(b)
 		return
 	}

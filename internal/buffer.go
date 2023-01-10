@@ -10,6 +10,10 @@ type BufferInterface interface {
 	Len() int
 }
 
+/*
+NewBuffer
+io.CopyN会造成bytes.Buffer扩容, 所以我自己实现了Buffer
+*/
 func NewBuffer(b []byte) *Buffer {
 	return &Buffer{b: b}
 }
