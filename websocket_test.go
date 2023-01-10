@@ -1,15 +1,99 @@
 package gws
 
 import (
+	"bufio"
 	"bytes"
 	"compress/flate"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"io"
+	"net"
+	"net/http"
 	"sync"
 	"testing"
 	"unsafe"
 )
+
+type webSocketMocker struct {
+	onMessage func(socket *Conn, message *Message)
+	onPing    func(socket *Conn, payload []byte)
+	onPong    func(socket *Conn, payload []byte)
+	onClose   func(socket *Conn, code uint16, reason []byte)
+	onError   func(socket *Conn, err error)
+}
+
+func (c *webSocketMocker) OnOpen(socket *Conn) {
+}
+
+func (c *webSocketMocker) OnError(socket *Conn, err error) {
+	if c.onError != nil {
+		c.onError(socket, err)
+	}
+}
+
+func (c *webSocketMocker) OnClose(socket *Conn, code uint16, reason []byte) {
+	if c.onClose != nil {
+		c.onClose(socket, code, reason)
+	}
+}
+
+func (c *webSocketMocker) OnPing(socket *Conn, payload []byte) {
+	if c.onPing != nil {
+		c.onPing(socket, payload)
+	}
+}
+
+func (c *webSocketMocker) OnPong(socket *Conn, payload []byte) {
+	if c.onPong != nil {
+		c.onPong(socket, payload)
+	}
+}
+
+func (c *webSocketMocker) OnMessage(socket *Conn, message *Message) {
+	if c.onMessage != nil {
+		c.onMessage(socket, message)
+	}
+}
+
+func newHttpWriter() *httpWriter {
+	server, client := net.Pipe()
+	var r = bytes.NewBuffer(nil)
+	var w = bytes.NewBuffer(nil)
+	var brw = bufio.NewReadWriter(bufio.NewReader(r), bufio.NewWriter(w))
+
+	go func() {
+		for {
+			var p [1024]byte
+			if _, err := client.Read(p[0:]); err != nil {
+				return
+			}
+		}
+	}()
+
+	return &httpWriter{
+		conn: server,
+		brw:  brw,
+	}
+}
+
+type httpWriter struct {
+	conn net.Conn
+	brw  *bufio.ReadWriter
+}
+
+func (c *httpWriter) Header() http.Header {
+	return http.Header{}
+}
+
+func (c *httpWriter) Write(i []byte) (int, error) {
+	return 0, nil
+}
+
+func (c *httpWriter) WriteHeader(statusCode int) {}
+
+func (c *httpWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return c.conn, c.brw, nil
+}
 
 func BenchmarkNewBuffer(b *testing.B) {
 	var str = internal.AlphabetNumeric.Generate(1024)

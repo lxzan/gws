@@ -124,8 +124,8 @@ func (c *frameHeader) SetLength(n uint64) (offset int) {
 	}
 }
 
-func (c *frameHeader) SetMaskKey(offset int, key uint32) {
-	binary.BigEndian.PutUint32((*c)[offset+2:offset+6], key)
+func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
+	copy((*c)[offset:offset+4], key[0:])
 }
 
 // generate server side frame header for writing
