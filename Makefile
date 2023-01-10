@@ -9,3 +9,7 @@ build:
 
 run-testsuite-server:
 	go run github.com/lxzan/gws/examples/testsuite
+
+coverage:
+	go test -v $(go list ./... |grep -v /cmd |grep -v /vendor) -coverprofile=bin/coverage.out
+

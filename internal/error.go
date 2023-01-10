@@ -87,22 +87,6 @@ func (c StatusCode) Error() string {
 	return "gws: " + closeErrorMap[c]
 }
 
-func (c StatusCode) ToClientCode() StatusCode {
-	if !(c == 1000 || (c >= 3000 && c < 5000)) {
-		if c < 1000 || (c >= 1016 && c < 3000) {
-			return CloseProtocolError
-		} else {
-			switch c {
-			case 1004, 1005, 1006, 1014:
-				return CloseProtocolError
-			default:
-				return 1000
-			}
-		}
-	}
-	return c
-}
-
 func NewError(code StatusCode, err error) *Error {
 	return &Error{Code: code, Err: err}
 }
