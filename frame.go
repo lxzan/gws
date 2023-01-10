@@ -3,7 +3,6 @@ package gws
 import (
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
-	"math"
 	"unicode/utf8"
 )
 
@@ -107,14 +106,14 @@ func (c *frameHeader) GetLengthCode() uint8 {
 }
 
 func (c *frameHeader) SetMask() {
-	(*c)[1] |= internal.Bv7
+	(*c)[1] |= uint8(128)
 }
 
 func (c *frameHeader) SetLength(n uint64) (offset int) {
-	if n <= internal.Lv1 {
+	if n <= internal.ThresholdV1 {
 		(*c)[1] += uint8(n)
 		return 0
-	} else if n <= math.MaxUint16 {
+	} else if n <= internal.ThresholdV2 {
 		(*c)[1] += 126
 		binary.BigEndian.PutUint16((*c)[2:4], uint16(n))
 		return 2

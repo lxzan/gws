@@ -109,8 +109,8 @@ func (c *Conn) emitError(err error) {
 
 	var content = responseCode.Bytes()
 	content = append(content, err.Error()...)
-	if len(content) > internal.Lv1 {
-		content = content[:internal.Lv1]
+	if len(content) > internal.ThresholdV1 {
+		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.writeMessage(OpcodeCloseConnection, content)

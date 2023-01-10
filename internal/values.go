@@ -1,5 +1,11 @@
 package internal
 
+import "math"
+
+// Add four bytes as specified in RFC
+// Add final block to squelch unexpected EOF error from flate reader.
+var FlateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
+
 // websocket header keys
 const (
 	SecWebSocketVersion    = "Sec-WebSocket-Version"
@@ -22,23 +28,14 @@ const (
 )
 
 const (
-	Bv4  = 1 << 4
-	Bv5  = 1 << 5
-	Bv6  = 1 << 6
-	Bv7  = 1 << 7
-	Bv8  = 1 << 8
-	Bv10 = 1 << 10
-	Bv12 = 1 << 12
-	Bv16 = 1 << 16
+	ThresholdV1 = 125
+	ThresholdV2 = math.MaxUint16
+	ThresholdV3 = math.MaxUint64
 )
-
-// Add four bytes as specified in RFC
-// Add final block to squelch unexpected EOF error from flate reader.
-var FlateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 
 // buffer level
 const (
-	Lv1 = 125
+	Lv1 = 128
 	Lv2 = 1024
 	Lv3 = 4 * 1024
 	Lv4 = 16 * 1024
