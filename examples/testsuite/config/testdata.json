@@ -1,0 +1,190 @@
+[
+    {
+        "title": "empty string",
+        "fin": true,
+        "opcode": 1,
+        "length": 0,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
+        "title": "10 byte string",
+        "fin": true,
+        "opcode": 1,
+        "length": 10,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
+        "title": "125 byte string",
+        "fin": true,
+        "opcode": 1,
+        "length": 125,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
+        "title": "1000 byte string",
+        "fin": true,
+        "opcode": 1,
+        "length": 1000,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
+        "title": "131072 byte string",
+        "fin": true,
+        "opcode": 1,
+        "length": 131072,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
+        "title": "invalid utf8 string",
+        "fin": true,
+        "opcode": 1,
+        "length": 0,
+        "payload": "cebae1bdb9cf83cebcceb5eda080656469746564",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
+        "title": "First OpcodeContinuation frame",
+        "fin": true,
+        "opcode": 0,
+        "length": 6,
+        "payload": "",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
+        "title": "First OpcodeContinuation frame",
+        "fin": false,
+        "opcode": 0,
+        "length": 6,
+        "payload": "",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
+        "title": "invalid opcode",
+        "fin": true,
+        "opcode": 3,
+        "length": 6,
+        "payload": "",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
+        "title": "ping",
+        "fin": true,
+        "opcode": 9,
+        "length": 0,
+        "payload": "",
+        "expected": {
+            "event": "onPing"
+        }
+    },
+    {
+        "title": "ping with payload",
+        "fin": true,
+        "opcode": 9,
+        "length": 10,
+        "payload": "",
+        "expected": {
+            "event": "onPing"
+        }
+    },
+    {
+        "title": "pong",
+        "fin": true,
+        "opcode": 10,
+        "length": 0,
+        "payload": "",
+        "expected": {
+            "event": "onPong"
+        }
+    },
+    {
+        "title": "pong with payload",
+        "fin": true,
+        "opcode": 10,
+        "length": 16,
+        "payload": "",
+        "expected": {
+            "event": "onPong"
+        }
+    },
+    {
+        "title": "close",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "03e8",
+        "expected": {
+            "event": "onClose",
+            "code": 1000
+        }
+    },
+    {
+        "title": "close",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "03ea",
+        "expected": {
+            "event": "onClose",
+            "code": 1002
+        }
+    },
+    {
+        "title": "close",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "0a",
+        "expected": {
+            "event": "onClose",
+            "code": 10,
+            "reason": ""
+        }
+    },
+    {
+        "title": "close with valid payload",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "03e868656c6c6f",
+        "expected": {
+            "event": "onClose",
+            "code": 1000,
+            "reason": "68656c6c6f"
+        }
+    },
+    {
+        "title": "close with invalid payload",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "03efcebae1bdb9cf83cebcceb5eda080656469746564",
+        "expected": {
+            "event": "onClose",
+            "code": 1007,
+            "reason": "cebae1bdb9cf83cebcceb5eda080656469746564"
+        }
+    }
+]

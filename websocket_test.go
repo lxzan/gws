@@ -55,6 +55,39 @@ func (c *webSocketMocker) OnMessage(socket *Conn, message *Message) {
 	}
 }
 
+func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, opcode Opcode, payload []byte) error {
+	var copiedText = make([]byte, len(payload))
+	copy(copiedText, payload)
+
+	var compressEnabled = conn.compressEnabled && opcode.IsDataFrame()
+	compressedText, err := conn.compressor.Compress(copiedText)
+	if err != nil {
+		return err
+	}
+
+	var n = len(copiedText)
+	if compressEnabled {
+		n = len(compressedText)
+	}
+
+	var fh = frameHeader{}
+	var key = internal.NewMaskKey()
+	var offset = fh.GenerateServerHeader(true, compressEnabled, opcode, n)
+	fh.SetMask()
+	fh.SetMaskKey(offset, key)
+	reader.Write(fh[:offset+4])
+
+	if compressEnabled {
+		maskXOR(compressedText, key[0:])
+		reader.Write(compressedText)
+	} else {
+		maskXOR(copiedText, key[0:])
+		reader.Write(copiedText)
+	}
+
+	return nil
+}
+
 func newHttpWriter() *httpWriter {
 	server, client := net.Pipe()
 	var r = bytes.NewBuffer(nil)

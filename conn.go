@@ -129,6 +129,7 @@ func (c *Conn) emitClose(buf *internal.Buffer) error {
 	case 1:
 		responseCode = internal.CloseProtocolError
 		realCode = uint16(buf.Bytes()[0])
+		buf.Reset()
 	default:
 		var b [2]byte
 		_, _ = buf.Read(b[0:])
