@@ -2,7 +2,7 @@
 
 ### event-driven websocket server
 
-[![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8]
+[![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
 
 [1]: https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master
 
@@ -18,7 +18,11 @@
 
 [7]: https://codecov.io/github/lxzan/gws/branch/master/graph/badge.svg?token=DJU7YXWN05
 
-[8]: https://codecov.io/github/lxzan/gws
+[8]: https://app.codecov.io/gh/lxzan/gws
+
+[9]: https://goreportcard.com/badge/github.com/lxzan/gws
+
+[10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 #### Highlight
 
@@ -38,12 +42,12 @@
 
 ```go
 type Event interface {
-    OnOpen(socket *Conn)
-    OnError(socket *Conn, err error)
-    OnClose(socket *Conn, code uint16, reason []byte)
-    OnPing(socket *Conn, payload []byte)
-    OnPong(socket *Conn, payload []byte)
-    OnMessage(socket *Conn, message *Message)
+OnOpen(socket *Conn)
+OnError(socket *Conn, err error)
+OnClose(socket *Conn, code uint16, reason []byte)
+OnPing(socket *Conn, payload []byte)
+OnPong(socket *Conn, payload []byte)
+OnMessage(socket *Conn, message *Message)
 }
 ```
 
