@@ -55,10 +55,11 @@ func (c *webSocketMocker) OnMessage(socket *Conn, message *Message) {
 	}
 }
 
-func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, opcode Opcode, payload []byte) error {
+func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, row testRow, payload []byte) error {
 	var copiedText = make([]byte, len(payload))
 	copy(copiedText, payload)
 
+	var opcode = Opcode(row.Opcode)
 	var compressEnabled = conn.compressEnabled && opcode.IsDataFrame()
 	compressedText, err := conn.compressor.Compress(copiedText)
 	if err != nil {
@@ -72,7 +73,10 @@ func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, opcode
 
 	var fh = frameHeader{}
 	var key = internal.NewMaskKey()
-	var offset = fh.GenerateServerHeader(true, compressEnabled, opcode, n)
+	var offset = fh.GenerateServerHeader(row.Fin, compressEnabled, opcode, n)
+	if row.RSV2 {
+		fh[0] += 32
+	}
 	fh.SetMask()
 	fh.SetMaskKey(offset, key)
 	reader.Write(fh[:offset+4])

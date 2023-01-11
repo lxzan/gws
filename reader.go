@@ -163,10 +163,8 @@ func (c *Conn) readMessage() error {
 		return c.emitMessage(msg, compressed)
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{opcode: opcode, buf: buf}, compressed)
-	default:
-		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
-		return internal.NewError(internal.CloseProtocolError, err)
 	}
+	return internal.CloseNormalClosure
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {

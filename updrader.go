@@ -3,7 +3,6 @@ package gws
 import (
 	"compress/flate"
 	"crypto/tls"
-	_ "embed"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"

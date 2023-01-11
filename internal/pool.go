@@ -1,6 +1,7 @@
 package internal
 
 import (
+	_ "embed"
 	"sync"
 )
 

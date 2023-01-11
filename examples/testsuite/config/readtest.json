@@ -50,6 +50,16 @@
         }
     },
     {
+        "title": "long data",
+        "fin": true,
+        "opcode": 1,
+        "length": 2000000,
+        "payload": "",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
         "title": "invalid utf8 string",
         "fin": true,
         "opcode": 1,
@@ -90,13 +100,23 @@
         }
     },
     {
-        "title": "ping",
+        "title": "valid ping",
         "fin": true,
         "opcode": 9,
         "length": 0,
         "payload": "",
         "expected": {
             "event": "onPing"
+        }
+    },
+    {
+        "title": "ping not fin",
+        "fin": false,
+        "opcode": 9,
+        "length": 0,
+        "payload": "",
+        "expected": {
+            "event": "onError"
         }
     },
     {
