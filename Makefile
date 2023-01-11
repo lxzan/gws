@@ -11,5 +11,5 @@ run-testsuite-server:
 	go run github.com/lxzan/gws/examples/testsuite
 
 coverage:
-	go test -v $(go list ./... |grep -v /cmd |grep -v /vendor) -coverprofile=bin/coverage.out
+	go test -mod=readonly -covermode=count -coverprofile=./bin/coverprofile.cov -run="^Test" -coverpkg=$(go list -mod=vendor ./... | grep -v "/test" | tr '\n' ',') ./...
 

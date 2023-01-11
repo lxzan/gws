@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -218,4 +219,22 @@ func TestMask(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestConn(t *testing.T) {
+	conn, _ := net.Pipe()
+	socket := &Conn{
+		conn:    conn,
+		handler: new(webSocketMocker),
+		wmu:     &sync.Mutex{},
+		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
+	}
+	socket.SetDeadline(time.Time{})
+	socket.SetReadDeadline(time.Time{})
+	socket.SetWriteDeadline(time.Time{})
+	socket.LocalAddr()
+	socket.RemoteAddr()
+	socket.Close(1000, []byte("goodbye"))
+	socket.Listen()
+	return
 }

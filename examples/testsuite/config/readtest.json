@@ -196,6 +196,30 @@
         }
     },
     {
+        "title": "close with invalid code",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "03f6",
+        "expected": {
+            "event": "onClose",
+            "code": 1014,
+            "reason": ""
+        }
+    },
+    {
+        "title": "close with code 0",
+        "fin": true,
+        "opcode": 8,
+        "length": 0,
+        "payload": "",
+        "expected": {
+            "event": "onClose",
+            "code": 0,
+            "reason": ""
+        }
+    },
+    {
         "title": "close with invalid payload",
         "fin": true,
         "opcode": 8,
