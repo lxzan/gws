@@ -21,7 +21,7 @@ func TestConn_WriteMessage(t *testing.T) {
 
 	t.Run("text-v1", func(t *testing.T) {
 		writer.Reset()
-		socket.WriteMessage(OpcodeText, []byte("hello"))
+		socket.WriteText("hello")
 		var p = make([]byte, 7)
 		_, _ = writer.Read(p)
 		as.Equal("hello", string(p[2:]))
