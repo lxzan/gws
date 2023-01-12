@@ -26,7 +26,7 @@
 
 #### Highlight
 
-- zero dependency, no channel but event driven
+- zero dependency, not use channel but event driven
 - zero extra goroutine to manage connection
 - zero error to read/write operation, errors have been handled appropriately
 - built-in concurrent_map implementation
@@ -42,12 +42,12 @@
 
 ```go
 type Event interface {
-OnOpen(socket *Conn)
-OnError(socket *Conn, err error)
-OnClose(socket *Conn, code uint16, reason []byte)
-OnPing(socket *Conn, payload []byte)
-OnPong(socket *Conn, payload []byte)
-OnMessage(socket *Conn, message *Message)
+	OnOpen(socket *Conn)
+	OnError(socket *Conn, err error)
+	OnClose(socket *Conn, code uint16, reason []byte)
+	OnPing(socket *Conn, payload []byte)
+	OnPong(socket *Conn, payload []byte)
+	OnMessage(socket *Conn, message *Message)
 }
 ```
 
@@ -155,20 +155,20 @@ docker run -it --rm \
 
 #### Benchmark
 
-- machine: MacBook Pro M1
+- machine: Ubuntu 20.04LTS VM (4C8T)
 - client: tcpkali
 
 
-| Server  | Connection | Send Speed(msg/s) | Payload size | Download Bandwidth(Mbps) | Upload Bandwidth(Mbps) |
-| ------- | ---------- | ----------------- | ------------ | ------------------------ | ---------------------- |
-| gws     | 200        | 20000             | 2.34KiB      | 12080.082↓               | 12101.773↑             |
-| gorilla | 200        | 20000             | 2.34KiB      | 6285.944↓                | 6308.428↑              |
-| gws     | 2000       | 100               | 2.34KiB      | 3950.930↓                | 3957.692↑              |
-| gorilla | 2000       | 100               | 2.34KiB      | 3953.384↓                | 3960.681↑              |
-| gws     | 5000       | 40                | 2.34KiB      | 2534.289↓                | 2559.629↑              |
-| gorilla | 5000       | 40                | 2.34KiB      | -                        | -                      |
-| gws     | 10000      | 4                 | 2.34KiB      | 789.898↓                 | 791.224↑               |
-| gorilla | 10000      | 4                 | 2.34KiB      | 785.721↓                 | 787.274↑               |
-| gws     | 10000      | 8                 | 2.34KiB      | 1578.890↓                | 1581.459↑              |
-| gorilla | 10000      | 8                 | 2.34KiB      | -                        | -                      |
+| Server  | Connection | Send Speed(msg/s) | Payload size | Download / Upload Bandwidth(Mbps) |
+| ------- | ---------- | ----------------- | ------------ | --------------------------------- |
+| gws     | 200        | 20000             | 2.34KiB      | 11614.442↓ 11556.101↑             |
+| gorilla | 200        | 20000             | 2.34KiB      | 4244.398↓  4188.711↑              |
+| gws     | 2000       | 500               | 2.34KiB      | 7906.156↓  7914.797↑              |
+| gorilla | 2000       | 500               | 2.34KiB      | 4263.545↓  4260.077↑              |
+| gws     | 5000       | 50                | 2.34KiB      | 4941.188↓  4943.667↑              |
+| gorilla | 5000       | 50                | 2.34KiB      | -                                 |
+| gws     | 10000      | 10                | 2.34KiB      | 1980.124↓  1977.561↑              |
+| gorilla | 10000      | 10                | 2.34KiB      | 1972.556↓  1979.981↑              |
+| gws     | 10000      | 20                | 2.34KiB      | 3952.788↓  3959.341↑              |
+| gorilla | 10000      | 20                | 2.34KiB      | -                                 |
 > `-` means exception

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
 )
@@ -22,15 +21,12 @@ func main() {
 type WebSocket struct{}
 
 func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 
 func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-	fmt.Printf("onerror: err=%s\n", err.Error())
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	println("connected")
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {}
