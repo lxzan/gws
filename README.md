@@ -156,36 +156,19 @@ docker run -it --rm \
 #### Benchmark
 
 - machine: MacBook Pro M1
-- body.json size: 2.34KiB
-- max cost: cpu=440% memory=90MiB
-- command: `tcpkali -c 200 -r 20000 -T 20s -f body.json --ws 127.0.0.1:3000/connect`
+- client: tcpkali
 
-##### lxzan/gws
 
-```
-Destination: [127.0.0.1]:3000
-Interface lo0 address [127.0.0.1]:0
-Using interface lo0 to connect to [127.0.0.1]:3000
-Ramped up to 200 connections.
-Total data sent:     28864.1 MiB (30266158036 bytes)
-Total data received: 28812.3 MiB (30211911226 bytes)
-Bandwidth per channel: 120.909⇅ Mbps (15113.7 kBps)
-Aggregate bandwidth: 12080.082↓, 12101.773↑ Mbps
-Packet rate estimate: 1098496.2↓, 1105141.9↑ (8↓, 14↑ TCP MSS/op)
-Test duration: 20.0078 s.
-```
-
-##### gorilla/websocket
-
-```
-Destination: [127.0.0.1]:3000
-Interface lo0 address [127.0.0.1]:0
-Using interface lo0 to connect to [127.0.0.1]:3000
-Ramped up to 200 connections.
-Total data sent:     15043.6 MiB (15774402996 bytes)
-Total data received: 14990.0 MiB (15718181647 bytes)
-Bandwidth per channel: 62.972⇅ Mbps (7871.5 kBps)
-Aggregate bandwidth: 6285.944↓, 6308.428↑ Mbps
-Packet rate estimate: 589201.4↓, 579598.1↑ (5↓, 12↑ TCP MSS/op)
-Test duration: 20.0042 s.
-```
+| Server  | Connection | Send Speed(msg/s) | Payload size | Download Bandwidth(Mbps) | Upload Bandwidth(Mbps) |
+| ------- | ---------- | ----------------- | ------------ | ------------------------ | ---------------------- |
+| gws     | 200        | 20000             | 2.34KiB      | 12080.082↓               | 12101.773↑             |
+| gorilla | 200        | 20000             | 2.34KiB      | 6285.944↓                | 6308.428↑              |
+| gws     | 2000       | 100               | 2.34KiB      | 3950.930↓                | 3957.692↑              |
+| gorilla | 2000       | 100               | 2.34KiB      | 3953.384↓                | 3960.681↑              |
+| gws     | 5000       | 40                | 2.34KiB      | 2534.289↓                | 2559.629↑              |
+| gorilla | 5000       | 40                | 2.34KiB      | -                        | -                      |
+| gws     | 10000      | 4                 | 2.34KiB      | 789.898↓                 | 791.224↑               |
+| gorilla | 10000      | 4                 | 2.34KiB      | 785.721↓                 | 787.274↑               |
+| gws     | 10000      | 8                 | 2.34KiB      | 1578.890↓                | 1581.459↑              |
+| gorilla | 10000      | 8                 | 2.34KiB      | -                        | -                      |
+> `-` means exception
