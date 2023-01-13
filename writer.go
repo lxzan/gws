@@ -65,21 +65,21 @@ func (c *Conn) WriteBinary(payload []byte) {
 
 // WriteText write text frame
 func (c *Conn) WriteText(payload string) {
-	c.emitError(c.writeMessage(OpcodeText, internal.StringToBytes(payload)))
+	c.WriteMessage(OpcodeText, internal.StringToBytes(payload))
 }
 
 // WriteMessage write text/binary message
 // text message must be utf8 encoding
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return
+	}
 	c.emitError(c.writeMessage(opcode, payload))
 }
 
+// writeMessage 关闭状态置为1后还能写, 以便发送关闭帧
 func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
-	if atomic.LoadUint32(&c.closed) == 1 {
-		return nil
-	}
-
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 

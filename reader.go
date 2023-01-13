@@ -125,7 +125,7 @@ func (c *Conn) readMessage() error {
 		if c.continuationBuffer == nil {
 			return internal.CloseProtocolError
 		}
-		if err := copyN(c.continuationBuffer, buf, int64(buf.Len())); err != nil {
+		if err := writeN(c.continuationBuffer, buf.Bytes(), buf.Len()); err != nil {
 			return err
 		}
 		if c.continuationBuffer.Len() > c.config.MaxContentLength {
