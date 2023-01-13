@@ -31,9 +31,9 @@ func (c *compressor) reset() {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content []byte) ([]byte, error) {
+func (c *compressor) Compress(reader internal.ReadLener) ([]byte, error) {
 	c.reset()
-	if err := writeN(c.fw, content, len(content)); err != nil {
+	if err := copyN(c.fw, reader); err != nil {
 		return nil, err
 	}
 	if err := c.fw.Flush(); err != nil {
@@ -46,7 +46,6 @@ func (c *compressor) Compress(content []byte) ([]byte, error) {
 			compressedContent = compressedContent[:n-4]
 		}
 	}
-
 	return compressedContent, nil
 }
 

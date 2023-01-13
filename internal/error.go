@@ -3,9 +3,10 @@ package internal
 import "errors"
 
 var (
-	ErrCheckOrigin  = errors.New("check origin error")
-	ErrHandshake    = errors.New("connecting handshake error")
-	ErrTextEncoding = errors.New("text frame payload must be utf8 encoding")
+	ErrCheckOrigin       = errors.New("check origin error")
+	ErrHandshake         = errors.New("connecting handshake error")
+	ErrTextEncoding      = errors.New("text frame payload must be utf8 encoding")
+	ErrUnexpectedWriting = errors.New("unexpected writing")
 )
 
 var closeErrorMap = map[StatusCode]string{

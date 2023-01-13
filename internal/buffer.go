@@ -2,11 +2,8 @@ package internal
 
 import "io"
 
-type BufferInterface interface {
-	io.ReadWriter
-	Reset()
-	Bytes() []byte
-	Cap() int
+type ReadLener interface {
+	io.Reader
 	Len() int
 }
 

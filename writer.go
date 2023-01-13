@@ -3,10 +3,12 @@ package gws
 import (
 	"github.com/lxzan/gws/internal"
 	"io"
+	"strings"
 	"sync/atomic"
 )
 
-func writeN(writer io.Writer, content []byte, n int) error {
+func writeN(writer io.Writer, content []byte) error {
+	var n = len(content)
 	if n == 0 {
 		return nil
 	}
@@ -15,19 +17,24 @@ func writeN(writer io.Writer, content []byte, n int) error {
 		return err
 	}
 	if num != n {
-		return internal.CloseGoingAway
+		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedWriting)
 	}
 	return nil
 }
 
-// WriteText write text frame
-func (c *Conn) WriteText(payload string) {
-	c.WriteMessage(OpcodeText, []byte(payload))
-}
-
-// WriteBinary write binary frame
-func (c *Conn) WriteBinary(payload []byte) {
-	c.WriteMessage(OpcodeBinary, payload)
+func copyN(writer io.Writer, reader internal.ReadLener) error {
+	var n = int64(reader.Len())
+	if n == 0 {
+		return nil
+	}
+	num, err := io.CopyN(writer, reader, n)
+	if err != nil {
+		return err
+	}
+	if num != n {
+		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedWriting)
+	}
+	return nil
 }
 
 // WritePing write ping frame
@@ -40,17 +47,28 @@ func (c *Conn) WritePong(payload []byte) {
 	c.WriteMessage(OpcodePong, payload)
 }
 
+// WriteBinary write binary frame
+func (c *Conn) WriteBinary(payload []byte) {
+	c.WriteMessage(OpcodeBinary, payload)
+}
+
+// WriteText write text frame
+func (c *Conn) WriteText(payload string) {
+	c.emitError(c.writeMessage(OpcodeText, strings.NewReader(payload)))
+}
+
 // WriteMessage write text/binary message
 // text message must be utf8 encoding
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
-	if atomic.LoadUint32(&c.closed) == 1 {
-		return
-	}
-	c.emitError(c.writeMessage(opcode, payload))
+	c.emitError(c.writeMessage(opcode, internal.NewBuffer(payload)))
 }
 
-func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
+func (c *Conn) writeMessage(opcode Opcode, payload internal.ReadLener) error {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return nil
+	}
+
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
@@ -60,21 +78,21 @@ func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		payload = compressedContent
+		payload = internal.NewBuffer(compressedContent)
 	}
 	return c.writeFrame(opcode, payload, enableCompress)
 }
 
 // 加锁是为了防止frame header和payload并发写入后乱序
 // write a websocket frame, content is prepared
-func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) error {
+func (c *Conn) writeFrame(opcode Opcode, reader internal.ReadLener, enableCompress bool) error {
 	var header = frameHeader{}
-	var n = len(payload)
+	var n = reader.Len()
 	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)
-	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
+	if err := writeN(c.wbuf, header[:headerLength]); err != nil {
 		return err
 	}
-	if err := writeN(c.wbuf, payload, n); err != nil {
+	if err := copyN(c.wbuf, reader); err != nil {
 		return err
 	}
 	return c.wbuf.Flush()
