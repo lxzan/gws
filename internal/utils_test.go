@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -69,16 +70,16 @@ func TestMethodExists(t *testing.T) {
 
 func BenchmarkStringToBytes(b *testing.B) {
 	var s = string(AlphabetNumeric.Generate(1024))
-	var buffer = NewBuffer(nil)
+	var buffer = bytes.NewBuffer(make([]byte, 1024))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = io.Copy(buffer, NewBuffer(StringToBytes(s)))
+		_, _ = io.Copy(buffer, bytes.NewBuffer(StringToBytes(s)))
 	}
 }
 
 func BenchmarkStringReader(b *testing.B) {
 	var s = string(AlphabetNumeric.Generate(1024))
-	var buffer = NewBuffer(nil)
+	var buffer = bytes.NewBuffer(make([]byte, 1024))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = io.Copy(buffer, strings.NewReader(s))
