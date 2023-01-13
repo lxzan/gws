@@ -10,20 +10,6 @@ import (
 	"sync/atomic"
 )
 
-func (c *Conn) readN(data []byte, n int) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := io.ReadFull(c.rbuf, data)
-	if err != nil {
-		return err
-	}
-	if num != n {
-		return internal.CloseNormalClosure
-	}
-	return nil
-}
-
 // read control frame
 func (c *Conn) readControl() error {
 	//RFC6455:  Control frames themselves MUST NOT be fragmented.
@@ -124,7 +110,7 @@ func (c *Conn) readMessage() error {
 	if err := c.readN(c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if _, err := io.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
+	if err := copyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
@@ -139,7 +125,7 @@ func (c *Conn) readMessage() error {
 		if c.continuationBuffer == nil {
 			return internal.CloseProtocolError
 		}
-		if err := copyN(c.continuationBuffer, buf); err != nil {
+		if err := copyN(c.continuationBuffer, buf, int64(buf.Len())); err != nil {
 			return err
 		}
 		if c.continuationBuffer.Len() > c.config.MaxContentLength {

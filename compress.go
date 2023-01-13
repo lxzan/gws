@@ -32,9 +32,9 @@ func (c *compressor) reset() {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(reader internal.ReadLener) ([]byte, error) {
+func (c *compressor) Compress(content []byte) ([]byte, error) {
 	c.reset()
-	if err := copyN(c.fw, reader); err != nil {
+	if err := writeN(c.fw, content, len(content)); err != nil {
 		return nil, err
 	}
 	if err := c.fw.Flush(); err != nil {
