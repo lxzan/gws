@@ -233,8 +233,10 @@ func TestConn(t *testing.T) {
 	socket.SetReadDeadline(time.Time{})
 	socket.SetWriteDeadline(time.Time{})
 	socket.LocalAddr()
+	socket.NetConn()
 	socket.RemoteAddr()
 	socket.Close(1000, []byte("goodbye"))
 	socket.Listen()
+	new(internal.Buffer).ReadFrom()
 	return
 }

@@ -180,3 +180,8 @@ func (c *Conn) LocalAddr() net.Addr {
 func (c *Conn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
+
+// NetConn get tcp/tls/... conn
+func (c *Conn) NetConn() net.Conn {
+	return c.conn
+}

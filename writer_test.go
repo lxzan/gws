@@ -21,7 +21,7 @@ func TestConn_WriteMessage(t *testing.T) {
 
 	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
-		socket.WriteText("hello")
+		socket.WriteString("hello")
 		var p = make([]byte, 7)
 		_, _ = writer.Read(p)
 		as.Equal("hello", string(p[2:]))
@@ -40,7 +40,7 @@ func TestConn_WriteMessage(t *testing.T) {
 		writer.Reset()
 		var contentLength = 500
 		var text = internal.AlphabetNumeric.Generate(contentLength)
-		socket.WriteBinary(text)
+		socket.WriteMessage(OpcodeBinary, text)
 		var p = make([]byte, contentLength+4)
 		_, _ = writer.Read(p)
 		as.Equal(string(text), string(p[4:]))

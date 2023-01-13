@@ -58,14 +58,9 @@ func (c *Conn) WritePong(payload []byte) {
 	c.WriteMessage(OpcodePong, payload)
 }
 
-// WriteBinary write binary frame
-func (c *Conn) WriteBinary(payload []byte) {
-	c.WriteMessage(OpcodeBinary, payload)
-}
-
-// WriteText write text frame
-func (c *Conn) WriteText(payload string) {
-	c.WriteMessage(OpcodeText, internal.StringToBytes(payload))
+// WriteString write text frame
+func (c *Conn) WriteString(s string) {
+	c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
 // WriteMessage write text/binary message
