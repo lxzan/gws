@@ -194,4 +194,29 @@ func TestSegments(t *testing.T) {
 		}
 		wg.Wait()
 	})
+
+	t.Run("illegal rsv", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		reader.Write([]byte{127, 0})
+		as.Error(socket.readMessage())
+	})
+
+	t.Run("no mask", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		reader.Write([]byte{128, 0})
+		as.Error(socket.readMessage())
+	})
+
+	t.Run("eof", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		as.Error(socket.readMessage())
+
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		reader.Write([]byte{127})
+		as.Error(socket.readMessage())
+	})
 }

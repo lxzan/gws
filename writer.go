@@ -12,10 +12,10 @@ func (c *Conn) readN(data []byte, n int) error {
 	}
 	num, err := io.ReadFull(c.rbuf, data)
 	if err != nil {
-		return err
+		return internal.NewError(internal.CloseInternalServerErr, err)
 	}
 	if num != n {
-		return internal.CloseNormalClosure
+		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
 	}
 	return nil
 }
@@ -26,10 +26,10 @@ func writeN(writer io.Writer, content []byte, n int) error {
 	}
 	num, err := writer.Write(content)
 	if err != nil {
-		return err
+		return internal.NewError(internal.CloseInternalServerErr, err)
 	}
 	if num != n {
-		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedWriting)
+		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
 	}
 	return nil
 }
@@ -40,10 +40,10 @@ func copyN(dst io.Writer, src io.Reader, n int64) error {
 	}
 	num, err := io.CopyN(dst, src, n)
 	if err != nil {
-		return err
+		return internal.NewError(internal.CloseInternalServerErr, err)
 	}
 	if num != n {
-		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedWriting)
+		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
 	}
 	return nil
 }

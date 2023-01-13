@@ -19,7 +19,7 @@ func TestConn_WriteMessage(t *testing.T) {
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, false)
 
-	t.Run("text-v1", func(t *testing.T) {
+	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
 		socket.WriteText("hello")
 		var p = make([]byte, 7)
@@ -36,17 +36,17 @@ func TestConn_WriteMessage(t *testing.T) {
 		as.Equal(uint8(5), fh.GetLengthCode())
 	})
 
-	t.Run("text-v2", func(t *testing.T) {
+	t.Run("binary v2", func(t *testing.T) {
 		writer.Reset()
 		var contentLength = 500
 		var text = internal.AlphabetNumeric.Generate(contentLength)
-		socket.WriteMessage(OpcodeText, text)
+		socket.WriteBinary(text)
 		var p = make([]byte, contentLength+4)
 		_, _ = writer.Read(p)
 		as.Equal(string(text), string(p[4:]))
 		var fh = frameHeader{}
 		copy(fh[0:], p[:2])
-		as.Equal(OpcodeText, fh.GetOpcode())
+		as.Equal(OpcodeBinary, fh.GetOpcode())
 		as.Equal(true, fh.GetFIN())
 		as.Equal(false, fh.GetRSV1())
 		as.Equal(false, fh.GetMask())
@@ -100,7 +100,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, true)
 
-	t.Run("text-v1", func(t *testing.T) {
+	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
 		var n = 64
 		var text = internal.AlphabetNumeric.Generate(n)
@@ -124,7 +124,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		as.Equal(uint8(compressedLength), fh.GetLengthCode())
 	})
 
-	t.Run("text-v2", func(t *testing.T) {
+	t.Run("text v2", func(t *testing.T) {
 		writer.Reset()
 		var n = 256
 		var text = internal.AlphabetNumeric.Generate(n)

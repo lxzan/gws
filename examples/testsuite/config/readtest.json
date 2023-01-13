@@ -20,6 +20,16 @@
         }
     },
     {
+        "title": "10 byte binary",
+        "fin": true,
+        "opcode": 2,
+        "length": 10,
+        "payload": "",
+        "expected": {
+            "event": "onMessage"
+        }
+    },
+    {
         "title": "125 byte string",
         "fin": true,
         "opcode": 1,
