@@ -1,6 +1,10 @@
 package internal
 
-import "math"
+import (
+	"bytes"
+	"io"
+	"math"
+)
 
 // Add four bytes as specified in RFC
 // Add final block to squelch unexpected EOF error from flate reader.
@@ -41,3 +45,15 @@ const (
 	Lv4 = 16 * 1024
 	Lv5 = 64*1024 - 1
 )
+
+type ReadLener interface {
+	io.Reader
+	Len() int
+}
+
+type Buffer struct {
+	*bytes.Buffer
+}
+
+// ReadFrom in case of grow
+func (c *Buffer) ReadFrom() {}

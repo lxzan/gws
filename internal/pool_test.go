@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -9,10 +10,10 @@ func TestBufferPool(t *testing.T) {
 	var as = assert.New(t)
 	var pool = NewBufferPool()
 	{
-		pool.Put(NewBuffer(AlphabetNumeric.Generate(128)))
-		pool.Put(NewBuffer(AlphabetNumeric.Generate(Lv2)))
-		pool.Put(NewBuffer(AlphabetNumeric.Generate(Lv3)))
-		pool.Put(NewBuffer(AlphabetNumeric.Generate(Lv4)))
+		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(128)))
+		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv2)))
+		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv3)))
+		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv4)))
 	}
 
 	for i := 0; i < 10; i++ {

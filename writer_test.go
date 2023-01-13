@@ -107,7 +107,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		socket.WriteMessage(OpcodeText, text)
 		var compressedLength = writer.Len() - 2
 
-		buffer, err := socket.decompressor.Decompress(internal.NewBuffer(writer.Bytes()[2:]))
+		buffer, err := socket.decompressor.Decompress(bytes.NewBuffer(writer.Bytes()[2:]))
 		as.NoError(err)
 		as.Equal(string(text), string(buffer.Bytes()))
 
@@ -130,7 +130,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		var text = internal.AlphabetNumeric.Generate(n)
 		socket.WriteMessage(OpcodeText, text)
 
-		buffer, err := socket.decompressor.Decompress(internal.NewBuffer(writer.Bytes()[4:]))
+		buffer, err := socket.decompressor.Decompress(bytes.NewBuffer(writer.Bytes()[4:]))
 		if err != nil {
 			as.NoError(err)
 			return

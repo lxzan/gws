@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"github.com/lxzan/gws/internal"
@@ -27,7 +28,7 @@ type Conn struct {
 	// continuation is compressed
 	continuationCompressed bool
 	// continuation frame
-	continuationBuffer *internal.Buffer
+	continuationBuffer *bytes.Buffer
 	// frame header for read
 	fh frameHeader
 	// write buffer
@@ -113,13 +114,13 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, internal.NewBuffer(content))
+		_ = c.writeMessage(OpcodeCloseConnection, bytes.NewBuffer(content))
 		_ = c.conn.SetDeadline(time.Now())
 		c.handler.OnError(c, responseErr)
 	}
 }
 
-func (c *Conn) emitClose(buf *internal.Buffer) error {
+func (c *Conn) emitClose(buf *bytes.Buffer) error {
 	var responseCode = internal.CloseNormalClosure
 	var realCode = internal.CloseNormalClosure.Uint16()
 	switch buf.Len() {
@@ -151,7 +152,7 @@ func (c *Conn) emitClose(buf *internal.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, internal.NewBuffer(responseCode.Bytes()))
+		_ = c.writeMessage(OpcodeCloseConnection, bytes.NewBuffer(responseCode.Bytes()))
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure

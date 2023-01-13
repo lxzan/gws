@@ -1,14 +1,15 @@
 package gws
 
 import (
+	"bytes"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"unicode/utf8"
 )
 
 type Message struct {
-	opcode Opcode           // 帧状态码
-	buf    *internal.Buffer // 数据缓冲
+	opcode Opcode        // 帧状态码
+	buf    *bytes.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
@@ -31,7 +32,7 @@ func (c *Message) Bytes() []byte {
 	return c.buf.Bytes()
 }
 
-func isTextValid(opcode Opcode, buf *internal.Buffer) bool {
+func isTextValid(opcode Opcode, buf *bytes.Buffer) bool {
 	if buf.Len() > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
 		return utf8.Valid(buf.Bytes())
 	}

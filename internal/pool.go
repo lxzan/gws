@@ -1,7 +1,7 @@
 package internal
 
 import (
-	_ "embed"
+	"bytes"
 	"sync"
 )
 
@@ -20,21 +20,21 @@ func NewBufferPool() *BufferPool {
 		p3: sync.Pool{},
 	}
 	p.p0.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Lv1))
+		return bytes.NewBuffer(make([]byte, 0, Lv1))
 	}
 	p.p1.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Lv2))
+		return bytes.NewBuffer(make([]byte, 0, Lv2))
 	}
 	p.p2.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Lv3))
+		return bytes.NewBuffer(make([]byte, 0, Lv3))
 	}
 	p.p3.New = func() interface{} {
-		return NewBuffer(make([]byte, 0, Lv4))
+		return bytes.NewBuffer(make([]byte, 0, Lv4))
 	}
 	return p
 }
 
-func (p *BufferPool) Put(b *Buffer) {
+func (p *BufferPool) Put(b *bytes.Buffer) {
 	if b == nil {
 		return
 	}
@@ -62,26 +62,26 @@ func (p *BufferPool) Put(b *Buffer) {
 	}
 }
 
-func (p *BufferPool) Get(n int) *Buffer {
+func (p *BufferPool) Get(n int) *bytes.Buffer {
 	if n <= Lv1 {
-		buf := p.p0.Get().(*Buffer)
+		buf := p.p0.Get().(*bytes.Buffer)
 		buf.Reset()
 		return buf
 	}
 	if n <= Lv2 {
-		buf := p.p1.Get().(*Buffer)
+		buf := p.p1.Get().(*bytes.Buffer)
 		buf.Reset()
 		return buf
 	}
 	if n <= Lv3 {
-		buf := p.p2.Get().(*Buffer)
+		buf := p.p2.Get().(*bytes.Buffer)
 		buf.Reset()
 		return buf
 	}
 	if n <= Lv4 {
-		buf := p.p3.Get().(*Buffer)
+		buf := p.p3.Get().(*bytes.Buffer)
 		buf.Reset()
 		return buf
 	}
-	return NewBuffer(make([]byte, 0, Lv5))
+	return bytes.NewBuffer(make([]byte, 0, n))
 }

@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"strings"
@@ -61,7 +62,7 @@ func (c *Conn) WriteText(payload string) {
 // text message must be utf8 encoding
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
-	c.emitError(c.writeMessage(opcode, internal.NewBuffer(payload)))
+	c.emitError(c.writeMessage(opcode, bytes.NewBuffer(payload)))
 }
 
 func (c *Conn) writeMessage(opcode Opcode, payload internal.ReadLener) error {
@@ -78,7 +79,7 @@ func (c *Conn) writeMessage(opcode Opcode, payload internal.ReadLener) error {
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		payload = internal.NewBuffer(compressedContent)
+		payload = bytes.NewBuffer(compressedContent)
 	}
 	return c.writeFrame(opcode, payload, enableCompress)
 }

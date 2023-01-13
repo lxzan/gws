@@ -44,13 +44,13 @@ func TestMethodExists(t *testing.T) {
 	var as = assert.New(t)
 
 	t.Run("exist", func(t *testing.T) {
-		var b = NewBuffer(nil)
+		var b = bytes.NewBuffer(nil)
 		_, ok := MethodExists(b, "Write")
 		as.Equal(true, ok)
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		var b = NewBuffer(nil)
+		var b = bytes.NewBuffer(nil)
 		_, ok := MethodExists(b, "XXX")
 		as.Equal(false, ok)
 	})

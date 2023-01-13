@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -97,7 +98,7 @@ func (c *Conn) readMessage() error {
 	var contentLength = int(lengthCode)
 
 	// read data frame
-	var buf *internal.Buffer
+	var buf *bytes.Buffer
 	switch lengthCode {
 	case 126:
 		if err := c.readN(c.fh[2:4], 2); err != nil {
@@ -123,7 +124,7 @@ func (c *Conn) readMessage() error {
 	if err := c.readN(c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if _, err := io.CopyN(buf, c.rbuf, int64(contentLength)); err != nil {
+	if _, err := io.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
@@ -131,7 +132,7 @@ func (c *Conn) readMessage() error {
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
 		c.continuationCompressed = compressed
 		c.continuationOpcode = opcode
-		c.continuationBuffer = internal.NewBuffer(make([]byte, 0, contentLength))
+		c.continuationBuffer = bytes.NewBuffer(make([]byte, 0, contentLength))
 	}
 
 	if !fin || (fin && opcode == OpcodeContinuation) {

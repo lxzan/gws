@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"compress/flate"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
@@ -11,20 +12,20 @@ import (
 func newCompressor(level int) *compressor {
 	fw, _ := flate.NewWriter(nil, level)
 	return &compressor{
-		writeBuffer: internal.NewBuffer(nil),
+		writeBuffer: bytes.NewBuffer(nil),
 		fw:          fw,
 	}
 }
 
 // 压缩器
 type compressor struct {
-	writeBuffer *internal.Buffer
+	writeBuffer *bytes.Buffer
 	fw          *flate.Writer
 }
 
 func (c *compressor) reset() {
 	if c.writeBuffer.Cap() > internal.Lv4 {
-		c.writeBuffer = internal.NewBuffer(nil)
+		c.writeBuffer = bytes.NewBuffer(nil)
 	}
 	c.writeBuffer.Reset()
 	c.fw.Reset(c.writeBuffer)
@@ -60,7 +61,7 @@ type decompressor struct {
 }
 
 // Decompress 解压
-func (c *decompressor) Decompress(payload *internal.Buffer) (*internal.Buffer, error) {
+func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	if err := resetter.Reset(payload, nil); err != nil {

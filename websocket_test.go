@@ -62,7 +62,7 @@ func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, row te
 
 	var opcode = Opcode(row.Opcode)
 	var compressEnabled = conn.compressEnabled && opcode.IsDataFrame()
-	compressedText, err := conn.compressor.Compress(internal.NewBuffer(copiedText))
+	compressedText, err := conn.compressor.Compress(bytes.NewBuffer(copiedText))
 	if err != nil {
 		return err
 	}

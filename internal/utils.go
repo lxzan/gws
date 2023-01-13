@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"math/rand"
@@ -81,4 +82,11 @@ func FNV64(s string) uint64 {
 		h ^= uint64(b)
 	}
 	return h
+}
+
+func NewBufferWithCap(n uint8) *bytes.Buffer {
+	if n == 0 {
+		return bytes.NewBuffer(nil)
+	}
+	return bytes.NewBuffer(make([]byte, 0, n))
 }
