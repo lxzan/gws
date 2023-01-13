@@ -20,6 +20,16 @@ func writeN(writer io.Writer, content []byte, n int) error {
 	return nil
 }
 
+// WriteText write text frame
+func (c *Conn) WriteText(payload string) {
+	c.WriteMessage(OpcodeText, []byte(payload))
+}
+
+// WriteBinary write binary frame
+func (c *Conn) WriteBinary(payload []byte) {
+	c.WriteMessage(OpcodeBinary, payload)
+}
+
 // WritePing write ping frame
 func (c *Conn) WritePing(payload []byte) {
 	c.WriteMessage(OpcodePing, payload)
