@@ -1,7 +1,7 @@
 package gws
 
 import (
-	"hash/fnv"
+	"github.com/lxzan/gws/internal"
 	"sync"
 )
 
@@ -100,9 +100,7 @@ func NewConcurrentMap(segments uint64) *ConcurrentMap {
 func (c *ConcurrentMap) hash(key interface{}) uint64 {
 	switch k := key.(type) {
 	case string:
-		var h = fnv.New64()
-		_, _ = h.Write([]byte(k))
-		return h.Sum64()
+		return internal.FNV64(k)
 	case int:
 		return uint64(k)
 	case int64:

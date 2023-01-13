@@ -85,14 +85,14 @@ func (c *Conn) writeMessage(opcode Opcode, payload internal.ReadLener) error {
 
 // 加锁是为了防止frame header和payload并发写入后乱序
 // write a websocket frame, content is prepared
-func (c *Conn) writeFrame(opcode Opcode, reader internal.ReadLener, enableCompress bool) error {
+func (c *Conn) writeFrame(opcode Opcode, payload internal.ReadLener, enableCompress bool) error {
 	var header = frameHeader{}
-	var n = reader.Len()
+	var n = payload.Len()
 	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)
 	if err := writeN(c.wbuf, header[:headerLength]); err != nil {
 		return err
 	}
-	if err := copyN(c.wbuf, reader); err != nil {
+	if err := copyN(c.wbuf, payload); err != nil {
 		return err
 	}
 	return c.wbuf.Flush()

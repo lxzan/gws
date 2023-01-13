@@ -6,6 +6,12 @@ import (
 	"math/rand"
 	"net/http"
 	"reflect"
+	"unsafe"
+)
+
+const (
+	prime64  = 1099511628211
+	offset64 = 14695981039346656037
 )
 
 func MaskByByte(content []byte, key []byte) {
@@ -56,4 +62,23 @@ func MethodExists(in interface{}, method string) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 	return newMethod, true
+}
+
+func StringToBytes(s string) []byte {
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	bh := reflect.SliceHeader{
+		Data: sh.Data,
+		Len:  sh.Len,
+		Cap:  sh.Len,
+	}
+	return *(*[]byte)(unsafe.Pointer(&bh))
+}
+
+func FNV64(s string) uint64 {
+	var h = uint64(offset64)
+	for _, b := range s {
+		h *= prime64
+		h ^= uint64(b)
+	}
+	return h
 }

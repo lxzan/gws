@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"hash/fnv"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -62,4 +65,29 @@ func TestMethodExists(t *testing.T) {
 		_, ok := MethodExists(v, "XXX")
 		as.Equal(false, ok)
 	})
+}
+
+func BenchmarkStringToBytes(b *testing.B) {
+	var s = string(AlphabetNumeric.Generate(1024))
+	var buffer = NewBuffer(nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = io.Copy(buffer, NewBuffer(StringToBytes(s)))
+	}
+}
+
+func BenchmarkStringReader(b *testing.B) {
+	var s = string(AlphabetNumeric.Generate(1024))
+	var buffer = NewBuffer(nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = io.Copy(buffer, strings.NewReader(s))
+	}
+}
+
+func TestFNV64(t *testing.T) {
+	var s = AlphabetNumeric.Generate(16)
+	var h = fnv.New64()
+	_, _ = h.Write(s)
+	assert.Equal(t, h.Sum64(), FNV64(string(s)))
 }
