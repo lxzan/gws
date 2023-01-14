@@ -1,6 +1,6 @@
 # gws
 
-### event-driven websocket server
+### event-driven go websocket server
 
 [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
 
@@ -35,8 +35,28 @@
 #### Attention
 
 - It's designed for api server, do not write big message
-- It's recommended not to enable data compression in the intranet
-- WebSocket Events are emitted synchronously, manage goroutines yourself
+- It's recommended not to enable data compression in the intranet environment
+- WebSocket events are emitted synchronously, manage goroutines yourself
+
+#### Benchmark
+
+- machine: Ubuntu 20.04LTS VM (4C8T)
+- client: tcpkali
+
+
+| Server  | Connection | Send Speed(msg/s) | Payload size | Download / Upload Bandwidth(Mbps) |
+| ------- | ---------- | ----------------- | ------------ | --------------------------------- |
+| gws     | 200        | 20000             | 2.34KiB      | 11614.442↓ 11556.101↑             |
+| gorilla | 200        | 20000             | 2.34KiB      | 4244.398↓  4188.711↑              |
+| gws     | 2000       | 500               | 2.34KiB      | 7906.156↓  7914.797↑              |
+| gorilla | 2000       | 500               | 2.34KiB      | 4263.545↓  4260.077↑              |
+| gws     | 5000       | 50                | 2.34KiB      | 4941.188↓  4943.667↑              |
+| gorilla | 5000       | 50                | 2.34KiB      | -                                 |
+| gws     | 10000      | 10                | 2.34KiB      | 1980.124↓  1977.561↑              |
+| gorilla | 10000      | 10                | 2.34KiB      | 1972.556↓  1979.981↑              |
+| gws     | 10000      | 20                | 2.34KiB      | 3952.788↓  3959.341↑              |
+| gorilla | 10000      | 20                | 2.34KiB      | -                                 |
+> `-` means exception
 
 #### Core Interface
 
@@ -57,7 +77,7 @@ type Event interface {
 go get -v github.com/lxzan/gws@latest
 ```
 
-#### Quick Start
+#### Quick Start (Autobahn Server)
 
 ```go
 package main
@@ -152,23 +172,3 @@ docker run -it --rm \
     crossbario/autobahn-testsuite \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
-
-#### Benchmark
-
-- machine: Ubuntu 20.04LTS VM (4C8T)
-- client: tcpkali
-
-
-| Server  | Connection | Send Speed(msg/s) | Payload size | Download / Upload Bandwidth(Mbps) |
-| ------- | ---------- | ----------------- | ------------ | --------------------------------- |
-| gws     | 200        | 20000             | 2.34KiB      | 11614.442↓ 11556.101↑             |
-| gorilla | 200        | 20000             | 2.34KiB      | 4244.398↓  4188.711↑              |
-| gws     | 2000       | 500               | 2.34KiB      | 7906.156↓  7914.797↑              |
-| gorilla | 2000       | 500               | 2.34KiB      | 4263.545↓  4260.077↑              |
-| gws     | 5000       | 50                | 2.34KiB      | 4941.188↓  4943.667↑              |
-| gorilla | 5000       | 50                | 2.34KiB      | -                                 |
-| gws     | 10000      | 10                | 2.34KiB      | 1980.124↓  1977.561↑              |
-| gorilla | 10000      | 10                | 2.34KiB      | 1972.556↓  1979.981↑              |
-| gws     | 10000      | 20                | 2.34KiB      | 3952.788↓  3959.341↑              |
-| gorilla | 10000      | 20                | 2.34KiB      | -                                 |
-> `-` means exception
