@@ -61,7 +61,7 @@
 
 #### Core Interface
 
-```gogo
+```go
 type Event interface {
     OnOpen(socket *Conn)
     OnError(socket *Conn, err error)
