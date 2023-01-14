@@ -42,32 +42,33 @@
 
 - machine: Ubuntu 20.04LTS VM (4C8T)
 - client: tcpkali
+- payload: 2.34KiB
 
+| Server  | Connection | Send Speed (msg/s) | T (s) | Download / Upload Bandwidth (Mbps) |
+| ------- | ---------- | ------------------ | ----- | ---------------------------------- |
+| gws     | 200        | 4000               | 30    | 10916.094↓, 10951.587↑             |
+| gorilla | 200        | 4000               | 30    | 4344.222↓, 4380.711↑               |
+| gws     | 2000       | 300                | 30    | 7941.090↓, 7951.117↑               |
+| gorilla | 2000       | 300                | 30    | 4706.938↓, 4715.744↑               |
+| gws     | 5000       | 60                 | 30    | 5891.151↓, 5908.599↑               |
+| gorilla | 5000       | 60                 | 30    | -                                  |
+| gws     | 10000      | 10                 | 60    | 1980.124↓ 1977.561↑                |
+| gorilla | 10000      | 10                 | 60    | 1972.556↓ 1979.981↑                |
+| gws     | 10000      | 20                 | 60    | 3952.788↓ 3959.341↑                |
+| gorilla | 10000      | 20                 | 60    | -                                  |
 
-| Server  | Connection | Send Speed(msg/s) | Payload size | Download / Upload Bandwidth(Mbps) |
-| ------- | ---------- | ----------------- | ------------ | --------------------------------- |
-| gws     | 200        | 20000             | 2.34KiB      | 11614.442↓ 11556.101↑             |
-| gorilla | 200        | 20000             | 2.34KiB      | 4244.398↓  4188.711↑              |
-| gws     | 2000       | 500               | 2.34KiB      | 7906.156↓  7914.797↑              |
-| gorilla | 2000       | 500               | 2.34KiB      | 4263.545↓  4260.077↑              |
-| gws     | 5000       | 50                | 2.34KiB      | 4941.188↓  4943.667↑              |
-| gorilla | 5000       | 50                | 2.34KiB      | -                                 |
-| gws     | 10000      | 10                | 2.34KiB      | 1980.124↓  1977.561↑              |
-| gorilla | 10000      | 10                | 2.34KiB      | 1972.556↓  1979.981↑              |
-| gws     | 10000      | 20                | 2.34KiB      | 3952.788↓  3959.341↑              |
-| gorilla | 10000      | 20                | 2.34KiB      | -                                 |
 > `-` means exception
 
 #### Core Interface
 
-```go
+```gogo
 type Event interface {
-	OnOpen(socket *Conn)
-	OnError(socket *Conn, err error)
-	OnClose(socket *Conn, code uint16, reason []byte)
-	OnPing(socket *Conn, payload []byte)
-	OnPong(socket *Conn, payload []byte)
-	OnMessage(socket *Conn, message *Message)
+    OnOpen(socket *Conn)
+    OnError(socket *Conn, err error)
+    OnClose(socket *Conn, code uint16, reason []byte)
+    OnPing(socket *Conn, payload []byte)
+    OnPong(socket *Conn, payload []byte)
+    OnMessage(socket *Conn, message *Message)
 }
 ```
 
