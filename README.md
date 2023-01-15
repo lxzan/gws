@@ -102,7 +102,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		upgrader.Listen(socket)
+		socket.Listen()
 	})
 
 	_ = http.ListenAndServe(":3000", nil)
