@@ -27,7 +27,13 @@ type (
 		SessionStorage SessionStorage // store user session
 	}
 
-	Config struct {
+	// Upgrader websocket upgrader
+	// do not use &Upgrader unless, some options may not be initialized
+	// NewUpgrader is recommended
+	Upgrader struct {
+		// websocket event handler
+		EventHandler Event
+
 		// whether to compress data
 		CompressEnabled bool
 
@@ -49,24 +55,16 @@ type (
 	}
 )
 
-func (c *Config) initialize() {
-	if c.ResponseHeader == nil {
-		c.ResponseHeader = http.Header{}
+func NewUpgrader(options ...Option) *Upgrader {
+	var c = new(Upgrader)
+	options = append(options, withInitialize())
+	for _, f := range options {
+		f(c)
 	}
-	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *Request) bool {
-			return true
-		}
-	}
-	if c.MaxContentLength <= 0 {
-		c.MaxContentLength = defaultMaxContentLength
-	}
-	if c.CompressEnabled && c.CompressLevel == 0 {
-		c.CompressLevel = defaultCompressLevel
-	}
+	return c
 }
 
-func handshake(conn net.Conn, headers http.Header, websocketKey string) error {
+func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocketKey string) error {
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -106,15 +104,10 @@ func setNoDelay(conn net.Conn) error {
 
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
-func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *Config) (*Conn, error) {
-	if config == nil {
-		config = new(Config)
-	}
-	config.initialize()
-
+func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	var request = &Request{Request: r, SessionStorage: NewMap()}
-	var header = internal.CloneHeader(config.ResponseHeader)
-	if !config.CheckOrigin(request) {
+	var header = internal.CloneHeader(c.ResponseHeader)
+	if !c.CheckOrigin(request) {
 		return nil, internal.ErrCheckOrigin
 	}
 
@@ -132,7 +125,7 @@ func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *
 	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
 		return nil, internal.ErrHandshake
 	}
-	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && config.CompressEnabled {
+	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
 		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
@@ -147,7 +140,7 @@ func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *
 	}
 
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := handshake(netConn, header, websocketKey); err != nil {
+	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
 		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
@@ -162,5 +155,17 @@ func Accept(w http.ResponseWriter, r *http.Request, eventHandler Event, config *
 	if err := setNoDelay(netConn); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(config, request, netConn, brw, eventHandler, compressEnabled), nil
+	return serveWebSocket(c, request, netConn, brw, c.EventHandler, compressEnabled), nil
+}
+
+// Listen listening to websocket messages through a dead loop
+// 通过死循环监听websocket消息
+func (c *Upgrader) Listen(conn *Conn) {
+	defer conn.NetConn().Close()
+	for {
+		if err := conn.readMessage(); err != nil {
+			conn.emitError(err)
+			return
+		}
+	}
 }

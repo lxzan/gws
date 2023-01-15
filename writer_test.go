@@ -12,12 +12,11 @@ import (
 func TestConn_WriteMessage(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var config = new(Config)
-	config.initialize()
+	var upgrader = NewUpgrader(WithEventHandler(handler))
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, false)
+	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, false)
 
 	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
@@ -93,12 +92,11 @@ func TestConn_WriteMessage(t *testing.T) {
 func TestConn_WriteMessageCompress(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var config = new(Config)
-	config.initialize()
+	var upgrader = NewUpgrader(WithEventHandler(handler))
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, true)
+	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, true)
 
 	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()

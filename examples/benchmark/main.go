@@ -7,12 +7,13 @@ import (
 
 func main() {
 	var handler = new(WebSocket)
+	var upgrader = gws.NewUpgrader(gws.WithEventHandler(handler))
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(writer, request, handler, nil)
+		socket, err := upgrader.Accept(writer, request)
 		if err != nil {
 			return
 		}
-		socket.Listen()
+		upgrader.Listen(socket)
 	})
 
 	_ = http.ListenAndServe(":3000", nil)

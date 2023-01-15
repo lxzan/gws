@@ -7,18 +7,19 @@ import (
 )
 
 func main() {
-	var config = &gws.Config{
-		CompressEnabled:   true,
-		CheckTextEncoding: true,
-		MaxContentLength:  32 * 1024 * 1024,
-	}
-	var handler = new(WebSocket)
+	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
+		c.CompressEnabled = true
+		c.CheckTextEncoding = true
+		c.MaxContentLength = 32 * 1024 * 1024
+		c.EventHandler = new(WebSocket)
+	})
+
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := gws.Accept(writer, request, handler, config)
+		socket, err := upgrader.Accept(writer, request)
 		if err != nil {
 			return
 		}
-		socket.Listen()
+		upgrader.Listen(socket)
 	})
 
 	_ = http.ListenAndServe(":3000", nil)

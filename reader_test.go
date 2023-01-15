@@ -41,16 +41,17 @@ func TestRead(t *testing.T) {
 	}
 
 	var handler = new(webSocketMocker)
-	var config = &Config{
-		CompressEnabled:   true,
-		CheckTextEncoding: true,
-		MaxContentLength:  128 * 1024,
-	}
-	config.initialize()
+	var upgrader = NewUpgrader(func(c *Upgrader) {
+		c.CompressEnabled = true
+		c.CheckTextEncoding = true
+		c.MaxContentLength = 128 * 1024
+		c.EventHandler = handler
+	})
+
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, true)
+	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, upgrader.EventHandler, true)
 
 	for _, item := range items {
 		reader.Reset()
@@ -125,12 +126,20 @@ func TestRead(t *testing.T) {
 func TestSegments(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var config = &Config{}
-	config.initialize()
+	var upgrader = NewUpgrader(
+		WithEventHandler(handler),
+		WithCompress(false, 0),
+		WithResponseHeader(nil),
+		WithMaxContentLength(0),
+		WithCheckTextEncoding(false),
+		WithCheckOrigin(func(r *Request) bool {
+			return true
+		}),
+	)
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(config, &Request{}, &net.TCPConn{}, brw, handler, false)
+	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, false)
 	socket.compressor = newCompressor(flate.BestSpeed)
 
 	t.Run("valid segments", func(t *testing.T) {

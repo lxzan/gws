@@ -31,6 +31,10 @@ func TestAccept(t *testing.T) {
 		Header: http.Header{},
 		Method: http.MethodGet,
 	}
+	var upgrader = NewUpgrader(
+		WithResponseHeader(http.Header{"Server": []string{"gws"}}),
+		WithEventHandler(new(webSocketMocker)),
+	)
 
 	t.Run("ok", func(t *testing.T) {
 		request.Header.Set("Connection", "Upgrade")
@@ -38,9 +42,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Version", "13")
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "client_max_window_bits")
-		_, err := Accept(newHttpWriter(), request, new(webSocketMocker), &Config{
-			ResponseHeader: http.Header{"Server": []string{"gws"}},
-		})
+		_, err := upgrader.Accept(newHttpWriter(), request)
 		assert.NoError(t, err)
 	})
 
@@ -50,7 +52,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Version", "14")
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "client_max_window_bits")
-		_, err := Accept(newHttpWriter(), request, new(webSocketMocker), nil)
+		_, err := upgrader.Accept(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 }
