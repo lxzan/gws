@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lxzan/gws/internal"
-	"io"
 	"sync/atomic"
 )
 
@@ -27,7 +26,7 @@ func (c *Conn) readControl() error {
 	if err := c.readN(c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if _, err := io.CopyN(buf, c.rbuf, int64(n)); err != nil {
+	if err := copyN(buf, c.rbuf, int64(n)); err != nil {
 		return err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
