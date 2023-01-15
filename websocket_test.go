@@ -236,7 +236,7 @@ func TestConn(t *testing.T) {
 	socket.NetConn()
 	socket.RemoteAddr()
 	socket.Close(1000, []byte("goodbye"))
-	NewUpgrader().Listen(socket)
+	socket.Listen()
 	new(internal.Buffer).ReadFrom()
 	return
 }

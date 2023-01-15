@@ -4,7 +4,8 @@ import "net/http"
 
 type Option func(c *Upgrader)
 
-func withInitialize() Option {
+// WithInitialize initialize the upgrader configure
+func WithInitialize() Option {
 	return func(c *Upgrader) {
 		if c.ResponseHeader == nil {
 			c.ResponseHeader = http.Header{}

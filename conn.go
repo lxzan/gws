@@ -13,7 +13,7 @@ import (
 )
 
 type Conn struct {
-	// whether you use compression
+	// whether to use compression
 	compressEnabled bool
 	// tcp connection
 	conn net.Conn
@@ -38,7 +38,6 @@ type Conn struct {
 	// WebSocket Event Handler
 	handler Event
 
-	// Concurrent Variable
 	// store session information
 	SessionStorage SessionStorage
 	// whether server is closed
@@ -66,6 +65,19 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 	}
 	c.handler.OnOpen(c)
 	return c
+}
+
+// Listen listening to websocket messages through a dead loop
+// 监听websocket消息
+func (c *Conn) Listen() {
+	defer c.conn.Close()
+
+	for {
+		if err := c.readMessage(); err != nil {
+			c.emitError(err)
+			return
+		}
+	}
 }
 
 // Close proactively close the connection

@@ -57,7 +57,7 @@ type (
 
 func NewUpgrader(options ...Option) *Upgrader {
 	var c = new(Upgrader)
-	options = append(options, withInitialize())
+	options = append(options, WithInitialize())
 	for _, f := range options {
 		f(c)
 	}
@@ -156,16 +156,4 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 		return nil, err
 	}
 	return serveWebSocket(c, request, netConn, brw, c.EventHandler, compressEnabled), nil
-}
-
-// Listen listening to websocket messages through a dead loop
-// 通过死循环监听websocket消息
-func (c *Upgrader) Listen(conn *Conn) {
-	defer conn.NetConn().Close()
-	for {
-		if err := conn.readMessage(); err != nil {
-			conn.emitError(err)
-			return
-		}
-	}
 }

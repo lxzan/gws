@@ -37,7 +37,7 @@ func main() {
 			if err != nil {
 				return
 			}
-			upgrader.Listen(socket)
+			socket.Listen()
 		default:
 			w.Write(html)
 		}
