@@ -2,18 +2,16 @@ package gws
 
 import (
 	"compress/flate"
-	"crypto/tls"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 )
 
 var (
-	_pool = internal.NewBufferPool()
+	bpool = internal.NewBufferPool()
 )
 
 const (
@@ -65,6 +63,7 @@ func NewUpgrader(options ...Option) *Upgrader {
 }
 
 func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocketKey string) error {
+	// handshake
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -79,27 +78,24 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
-	_, err := conn.Write(buf)
-	return err
-}
-
-// setNoDelay set tcp no delay
-func setNoDelay(conn net.Conn) error {
-	switch v := conn.(type) {
-	case *net.TCPConn:
-		return v.SetNoDelay(false)
-	case *tls.Conn:
-		if method, exist := internal.MethodExists(v, "NetConn"); exist {
-			if rets := method.Call([]reflect.Value{}); len(rets) > 0 {
-				if tcpConn, ok := rets[0].Interface().(*net.TCPConn); ok {
-					return tcpConn.SetNoDelay(false)
-				}
-			}
-		}
-		return nil
-	default:
-		return nil
+	if _, err := conn.Write(buf); err != nil {
+		return err
 	}
+
+	// initialize the connection
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return err
+	}
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		return err
+	}
+	if err := conn.SetWriteDeadline(time.Time{}); err != nil {
+		return err
+	}
+	if err := setNoDelay(conn); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Accept http protocol upgrade to websocket
@@ -129,6 +125,10 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
 		compressEnabled = true
 	}
+	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
+	if websocketKey == "" {
+		return nil, internal.ErrHandshake
+	}
 
 	hj, ok := w.(http.Hijacker)
 	if !ok {
@@ -136,24 +136,13 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 	}
 	netConn, brw, err := hj.Hijack()
 	if err != nil {
+		_ = netConn.Close()
+		return nil, err
+	}
+	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
+		_ = netConn.Close()
 		return nil, err
 	}
 
-	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
-	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
-		return nil, err
-	}
-	if err := netConn.SetDeadline(time.Time{}); err != nil {
-		return nil, err
-	}
-	if err := netConn.SetReadDeadline(time.Time{}); err != nil {
-		return nil, err
-	}
-	if err := netConn.SetWriteDeadline(time.Time{}); err != nil {
-		return nil, err
-	}
-	if err := setNoDelay(netConn); err != nil {
-		return nil, err
-	}
 	return serveWebSocket(c, request, netConn, brw, c.EventHandler, compressEnabled), nil
 }

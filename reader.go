@@ -90,16 +90,16 @@ func (c *Conn) readMessage() error {
 			return err
 		}
 		contentLength = int(binary.BigEndian.Uint16(c.fh[2:4]))
-		buf = _pool.Get(contentLength)
+		buf = bpool.Get(contentLength)
 	case 127:
 		err := c.readN(c.fh[2:10], 8)
 		if err != nil {
 			return err
 		}
 		contentLength = int(binary.BigEndian.Uint64(c.fh[2:10]))
-		buf = _pool.Get(contentLength)
+		buf = bpool.Get(contentLength)
 	default:
-		buf = _pool.Get(int(lengthCode))
+		buf = bpool.Get(int(lengthCode))
 	}
 
 	if contentLength > c.config.MaxContentLength {
