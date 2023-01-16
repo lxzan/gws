@@ -206,7 +206,7 @@ func TestSegments(t *testing.T) {
 		wg.Wait()
 	})
 
-	t.Run("invalid length", func(t *testing.T) {
+	t.Run("invalid length 1", func(t *testing.T) {
 		reader.Reset()
 		socket.rbuf.Reset(reader)
 		atomic.StoreUint32(&socket.closed, 0)
@@ -215,7 +215,7 @@ func TestSegments(t *testing.T) {
 		wg.Add(1)
 		var fh = frameHeader{}
 		var key = internal.NewMaskKey()
-		var offset = fh.GenerateServerHeader(true, false, OpcodeText, 10)
+		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
 		fh.SetMask()
 		fh.SetMaskKey(offset, key)
 		reader.Write(fh[:offset+4])
@@ -233,10 +233,82 @@ func TestSegments(t *testing.T) {
 		wg.Wait()
 	})
 
+	t.Run("invalid length 2", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
+
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var fh = frameHeader{}
+		var key = internal.NewMaskKey()
+		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		fh.SetMask()
+		fh.SetMaskKey(offset, key)
+		reader.Write(fh[:offset])
+
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		if err := socket.readMessage(); err != nil {
+			socket.emitError(err)
+		}
+		wg.Wait()
+	})
+
+	t.Run("invalid length 3", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
+
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var fh = frameHeader{}
+		var key = internal.NewMaskKey()
+		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		fh.SetMask()
+		fh.SetMaskKey(offset, key)
+		reader.Write(fh[:1])
+
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		if err := socket.readMessage(); err != nil {
+			socket.emitError(err)
+		}
+		wg.Wait()
+	})
+
+	t.Run("no mask", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
+
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var fh = frameHeader{}
+		var key = internal.NewMaskKey()
+		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		fh.SetMask()
+		fh.SetMaskKey(offset, key)
+		reader.Write([]byte{128, 0})
+
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		if err := socket.readMessage(); err != nil {
+			socket.emitError(err)
+		}
+		wg.Wait()
+	})
+
 	t.Run("illegal rsv", func(t *testing.T) {
 		reader.Reset()
 		socket.rbuf.Reset(reader)
-		reader.Write([]byte{127, 0})
+		reader.Write([]byte{192, 0})
 		as.Error(socket.readMessage())
 	})
 
