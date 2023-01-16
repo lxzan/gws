@@ -23,10 +23,10 @@ func (c *Conn) readControl() error {
 	}
 
 	var buf = internal.NewBufferWithCap(n)
-	if err := c.readN(c.fh[10:14], 4); err != nil {
+	if err := internal.ReadN(c.rbuf, c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if err := copyN(buf, c.rbuf, int64(n)); err != nil {
+	if err := internal.CopyN(buf, c.rbuf, int64(n)); err != nil {
 		return err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
@@ -51,7 +51,7 @@ func (c *Conn) readMessage() error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.CloseNormalClosure
 	}
-	if err := c.readN(c.fh[:2], 2); err != nil {
+	if err := internal.ReadN(c.rbuf, c.fh[:2], 2); err != nil {
 		return err
 	}
 
@@ -86,13 +86,13 @@ func (c *Conn) readMessage() error {
 	var buf *bytes.Buffer
 	switch lengthCode {
 	case 126:
-		if err := c.readN(c.fh[2:4], 2); err != nil {
+		if err := internal.ReadN(c.rbuf, c.fh[2:4], 2); err != nil {
 			return err
 		}
 		contentLength = int(binary.BigEndian.Uint16(c.fh[2:4]))
 		buf = bpool.Get(contentLength)
 	case 127:
-		err := c.readN(c.fh[2:10], 8)
+		err := internal.ReadN(c.rbuf, c.fh[2:10], 8)
 		if err != nil {
 			return err
 		}
@@ -106,10 +106,10 @@ func (c *Conn) readMessage() error {
 		return internal.CloseMessageTooLarge
 	}
 
-	if err := c.readN(c.fh[10:14], 4); err != nil {
+	if err := internal.ReadN(c.rbuf, c.fh[10:14], 4); err != nil {
 		return err
 	}
-	if err := copyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
+	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
 	maskXOR(buf.Bytes(), c.fh[10:14])
@@ -124,7 +124,7 @@ func (c *Conn) readMessage() error {
 		if c.continuationBuffer == nil {
 			return internal.CloseProtocolError
 		}
-		if err := writeN(c.continuationBuffer, buf.Bytes(), buf.Len()); err != nil {
+		if err := internal.WriteN(c.continuationBuffer, buf.Bytes(), buf.Len()); err != nil {
 			return err
 		}
 		if c.continuationBuffer.Len() > c.config.MaxContentLength {

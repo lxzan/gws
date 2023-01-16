@@ -145,6 +145,7 @@ func TestSegments(t *testing.T) {
 	t.Run("valid segments", func(t *testing.T) {
 		reader.Reset()
 		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
 
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
@@ -174,6 +175,7 @@ func TestSegments(t *testing.T) {
 	t.Run("invalid segments", func(t *testing.T) {
 		reader.Reset()
 		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
 
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
@@ -197,6 +199,33 @@ func TestSegments(t *testing.T) {
 
 		if err := socket.readMessage(); err != nil {
 			socket.emitError(err)
+		}
+		if err := socket.readMessage(); err != nil {
+			socket.emitError(err)
+		}
+		wg.Wait()
+	})
+
+	t.Run("invalid length", func(t *testing.T) {
+		reader.Reset()
+		socket.rbuf.Reset(reader)
+		atomic.StoreUint32(&socket.closed, 0)
+
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var fh = frameHeader{}
+		var key = internal.NewMaskKey()
+		var offset = fh.GenerateServerHeader(true, false, OpcodeText, 10)
+		fh.SetMask()
+		fh.SetMaskKey(offset, key)
+		reader.Write(fh[:offset+4])
+		var text = internal.AlphabetNumeric.Generate(5)
+		maskXOR(text, key[0:])
+		reader.Write(text)
+
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
 		}
 		if err := socket.readMessage(); err != nil {
 			socket.emitError(err)

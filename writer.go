@@ -2,51 +2,8 @@ package gws
 
 import (
 	"github.com/lxzan/gws/internal"
-	"io"
 	"sync/atomic"
 )
-
-func (c *Conn) readN(data []byte, n int) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := io.ReadFull(c.rbuf, data)
-	if err != nil {
-		return internal.NewError(internal.CloseInternalServerErr, err)
-	}
-	if num != n {
-		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
-	}
-	return nil
-}
-
-func writeN(writer io.Writer, content []byte, n int) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := writer.Write(content)
-	if err != nil {
-		return internal.NewError(internal.CloseInternalServerErr, err)
-	}
-	if num != n {
-		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
-	}
-	return nil
-}
-
-func copyN(dst io.Writer, src io.Reader, n int64) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := io.CopyN(dst, src, n)
-	if err != nil {
-		return internal.NewError(internal.CloseInternalServerErr, err)
-	}
-	if num != n {
-		return internal.NewError(internal.CloseInternalServerErr, internal.ErrUnexpectedContentLength)
-	}
-	return nil
-}
 
 // WritePing write ping frame
 func (c *Conn) WritePing(payload []byte) {
@@ -95,10 +52,10 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	var header = frameHeader{}
 	var n = len(payload)
 	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)
-	if err := writeN(c.wbuf, header[:headerLength], headerLength); err != nil {
+	if err := internal.WriteN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
-	if err := writeN(c.wbuf, payload, n); err != nil {
+	if err := internal.WriteN(c.wbuf, payload, n); err != nil {
 		return err
 	}
 	return c.wbuf.Flush()

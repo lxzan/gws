@@ -34,7 +34,7 @@ func (c *compressor) reset() {
 // Compress 压缩
 func (c *compressor) Compress(content []byte) ([]byte, error) {
 	c.reset()
-	if err := writeN(c.fw, content, len(content)); err != nil {
+	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
 		return nil, err
 	}
 	if err := c.fw.Flush(); err != nil {

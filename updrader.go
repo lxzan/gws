@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,9 +27,10 @@ type (
 	}
 
 	// Upgrader websocket upgrader
-	// do not use &Upgrader unless, some options may not be initialized
-	// NewUpgrader is recommended
+	// do not use &Upgrader unless, some options may not be initialized, NewUpgrader is recommended
 	Upgrader struct {
+		once sync.Once
+
 		// websocket event handler
 		EventHandler Event
 
@@ -55,7 +57,7 @@ type (
 
 func NewUpgrader(options ...Option) *Upgrader {
 	var c = new(Upgrader)
-	options = append(options, WithInitialize())
+	options = append(options, withInitialize())
 	for _, f := range options {
 		f(c)
 	}
@@ -101,6 +103,7 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	withInitialize()(c)
 	var request = &Request{Request: r, SessionStorage: NewMap()}
 	var header = internal.CloneHeader(c.ResponseHeader)
 	if !c.CheckOrigin(request) {
