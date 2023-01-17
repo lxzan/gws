@@ -4,12 +4,67 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"sync"
 	"testing"
 )
+
+func newHttpWriter() *httpWriter {
+	server, client := net.Pipe()
+	var r = bytes.NewBuffer(nil)
+	var w = bytes.NewBuffer(nil)
+	var brw = bufio.NewReadWriter(bufio.NewReader(r), bufio.NewWriter(w))
+
+	go func() {
+		for {
+			var p [1024]byte
+			if _, err := client.Read(p[0:]); err != nil {
+				return
+			}
+		}
+	}()
+
+	return &httpWriter{
+		conn: server,
+		brw:  brw,
+	}
+}
+
+type httpWriter struct {
+	conn net.Conn
+	brw  *bufio.ReadWriter
+}
+
+func (c *httpWriter) Header() http.Header {
+	return http.Header{}
+}
+
+func (c *httpWriter) Write(i []byte) (int, error) {
+	return 0, nil
+}
+
+func (c *httpWriter) WriteHeader(statusCode int) {}
+
+func (c *httpWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return c.conn, c.brw, nil
+}
+
+type httpWriterWrapper1 struct {
+	*httpWriter
+}
+
+func (c *httpWriterWrapper1) Hijack() {}
+
+type httpWriterWrapper2 struct {
+	*httpWriter
+}
+
+func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return c.conn, nil, errors.New("test")
+}
 
 func TestNoDelay(t *testing.T) {
 	var handler = new(webSocketMocker)

@@ -71,8 +71,6 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 	c.SetReadDeadline(time.Time{})
 	c.SetWriteDeadline(time.Time{})
 	c.setNoDelay()
-
-	c.handler.OnOpen(c)
 	return c
 }
 
@@ -81,6 +79,7 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 func (c *Conn) Listen() {
 	defer c.conn.Close()
 
+	c.handler.OnOpen(c)
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
@@ -123,7 +122,7 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, content)
+		_ = c.doWriteMessage(OpcodeCloseConnection, content)
 		_ = c.conn.SetDeadline(time.Now())
 		c.handler.OnError(c, responseErr)
 	}
@@ -161,7 +160,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, responseCode.Bytes())
+		_ = c.doWriteMessage(OpcodeCloseConnection, responseCode.Bytes())
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure

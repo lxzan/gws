@@ -83,7 +83,6 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 }
 
 // Accept http protocol upgrade to websocket
-// ctx done means server stopping
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	socket, err := c.doAccept(w, r)
 	if err != nil {

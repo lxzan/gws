@@ -27,11 +27,12 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return
 	}
-	c.emitError(c.writeMessage(opcode, payload))
+	c.emitError(c.doWriteMessage(opcode, payload))
 }
 
-// writeMessage 关闭状态置为1后还能写, 以便发送关闭帧
-func (c *Conn) writeMessage(opcode Opcode, payload []byte) error {
+// doWriteMessage
+// 关闭状态置为1后还能写, 以便发送关闭帧
+func (c *Conn) doWriteMessage(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
