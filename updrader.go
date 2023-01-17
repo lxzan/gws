@@ -53,12 +53,32 @@ type (
 	}
 )
 
+// withInitialize initialize the upgrader configure
+func (c *Upgrader) initialize() {
+	c.once.Do(func() {
+		if c.ResponseHeader == nil {
+			c.ResponseHeader = http.Header{}
+		}
+		if c.CheckOrigin == nil {
+			c.CheckOrigin = func(r *Request) bool {
+				return true
+			}
+		}
+		if c.MaxContentLength <= 0 {
+			c.MaxContentLength = defaultMaxContentLength
+		}
+		if c.CompressEnabled && c.CompressLevel == 0 {
+			c.CompressLevel = defaultCompressLevel
+		}
+	})
+}
+
 func NewUpgrader(options ...Option) *Upgrader {
 	var c = new(Upgrader)
-	options = append(options, withInitialize())
 	for _, f := range options {
 		f(c)
 	}
+	c.initialize()
 	return c
 }
 
@@ -83,6 +103,7 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 
 // Accept http upgrade to websocket protocol
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	c.initialize()
 	socket, err := c.doAccept(w, r)
 	if err != nil {
 		if socket != nil && socket.conn != nil {
@@ -94,7 +115,6 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 }
 
 func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	withInitialize()(c)
 	var request = &Request{Request: r, SessionStorage: NewMap()}
 	var header = internal.CloneHeader(c.ResponseHeader)
 	if !c.CheckOrigin(request) {

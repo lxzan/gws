@@ -43,7 +43,7 @@ func TestRead(t *testing.T) {
 	var upgrader = NewUpgrader(func(c *Upgrader) {
 		c.CompressEnabled = true
 		c.CheckTextEncoding = true
-		c.MaxContentLength = 128 * 1024
+		c.MaxContentLength = 1024 * 1024
 		c.EventHandler = handler
 	})
 
