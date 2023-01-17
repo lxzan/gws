@@ -140,6 +140,16 @@
         }
     },
     {
+        "title": "ping with long payload",
+        "fin": true,
+        "opcode": 9,
+        "length": 256,
+        "payload": "",
+        "expected": {
+            "event": "onError"
+        }
+    },
+    {
         "title": "pong",
         "fin": true,
         "opcode": 10,

@@ -34,7 +34,7 @@ func (c *compressor) reset() {
 // Compress 压缩
 func (c *compressor) Compress(content []byte) ([]byte, error) {
 	c.reset()
-	if err := writeN(c.fw, content, len(content)); err != nil {
+	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
 		return nil, err
 	}
 	if err := c.fw.Flush(); err != nil {
@@ -68,8 +68,8 @@ func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) 
 		return nil, err
 	}
 
-	var buf = _pool.Get(3 * payload.Len())
+	var buf = bpool.Get(3 * payload.Len())
 	_, err := io.Copy(buf, c.fr)
-	_pool.Put(payload)
+	bpool.Put(payload)
 	return buf, err
 }

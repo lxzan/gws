@@ -4,23 +4,25 @@ import "net/http"
 
 type Option func(c *Upgrader)
 
-// WithInitialize initialize the upgrader configure
-func WithInitialize() Option {
+// withInitialize initialize the upgrader configure
+func withInitialize() Option {
 	return func(c *Upgrader) {
-		if c.ResponseHeader == nil {
-			c.ResponseHeader = http.Header{}
-		}
-		if c.CheckOrigin == nil {
-			c.CheckOrigin = func(r *Request) bool {
-				return true
+		c.once.Do(func() {
+			if c.ResponseHeader == nil {
+				c.ResponseHeader = http.Header{}
 			}
-		}
-		if c.MaxContentLength <= 0 {
-			c.MaxContentLength = defaultMaxContentLength
-		}
-		if c.CompressEnabled && c.CompressLevel == 0 {
-			c.CompressLevel = defaultCompressLevel
-		}
+			if c.CheckOrigin == nil {
+				c.CheckOrigin = func(r *Request) bool {
+					return true
+				}
+			}
+			if c.MaxContentLength <= 0 {
+				c.MaxContentLength = defaultMaxContentLength
+			}
+			if c.CompressEnabled && c.CompressLevel == 0 {
+				c.CompressLevel = defaultCompressLevel
+			}
+		})
 	}
 }
 

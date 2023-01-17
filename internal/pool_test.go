@@ -33,4 +33,8 @@ func TestBufferPool(t *testing.T) {
 		var buf = pool.Get(5000)
 		as.Equal(Lv4, buf.Cap())
 	}
+
+	pool.Put(nil)
+	pool.Put(NewBufferWithCap(0))
+	pool.Get(17 * 1024)
 }

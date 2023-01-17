@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
+	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -89,4 +90,44 @@ func NewBufferWithCap(n uint8) *bytes.Buffer {
 		return bytes.NewBuffer(nil)
 	}
 	return bytes.NewBuffer(make([]byte, 0, n))
+}
+
+/*
+IO Utils
+ReadN
+WriteN
+CopyN
+*/
+func checkIOError(expectN, realN int, err error) error {
+	if err != nil {
+		return NewError(CloseInternalServerErr, err)
+	}
+	if realN != expectN {
+		return NewError(CloseInternalServerErr, ErrUnexpectedContentLength)
+	}
+	return nil
+}
+
+func ReadN(reader io.Reader, data []byte, n int) error {
+	if n == 0 {
+		return nil
+	}
+	num, err := io.ReadFull(reader, data)
+	return checkIOError(n, num, err)
+}
+
+func WriteN(writer io.Writer, content []byte, n int) error {
+	if n == 0 {
+		return nil
+	}
+	num, err := writer.Write(content)
+	return checkIOError(n, num, err)
+}
+
+func CopyN(dst io.Writer, src io.Reader, n int64) error {
+	if n == 0 {
+		return nil
+	}
+	num, err := io.CopyN(dst, src, n)
+	return checkIOError(int(n), int(num), err)
 }

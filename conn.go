@@ -3,10 +3,12 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,7 +65,12 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		c.compressor = newCompressor(config.CompressLevel)
 		c.decompressor = newDecompressor()
 	}
-	c.handler.OnOpen(c)
+
+	// initialize the connection
+	c.SetDeadline(time.Time{})
+	c.SetReadDeadline(time.Time{})
+	c.SetWriteDeadline(time.Time{})
+	c.setNoDelay()
 	return c
 }
 
@@ -72,6 +79,7 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 func (c *Conn) Listen() {
 	defer c.conn.Close()
 
+	c.handler.OnOpen(c)
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
@@ -114,7 +122,7 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, content)
+		_ = c.doWriteMessage(OpcodeCloseConnection, content)
 		_ = c.conn.SetDeadline(time.Now())
 		c.handler.OnError(c, responseErr)
 	}
@@ -152,7 +160,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.writeMessage(OpcodeCloseConnection, responseCode.Bytes())
+		_ = c.doWriteMessage(OpcodeCloseConnection, responseCode.Bytes())
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure
@@ -184,4 +192,22 @@ func (c *Conn) RemoteAddr() net.Addr {
 // NetConn get tcp/tls/... conn
 func (c *Conn) NetConn() net.Conn {
 	return c.conn
+}
+
+// setNoDelay set tcp no delay
+func (c *Conn) setNoDelay() {
+	switch v := c.conn.(type) {
+	case *net.TCPConn:
+		c.emitError(v.SetNoDelay(false))
+		return
+	case *tls.Conn:
+		if method, exist := internal.MethodExists(v, "NetConn"); exist {
+			if rets := method.Call([]reflect.Value{}); len(rets) > 0 {
+				if tcpConn, ok := rets[0].Interface().(*net.TCPConn); ok {
+					c.emitError(tcpConn.SetNoDelay(false))
+					return
+				}
+			}
+		}
+	}
 }
