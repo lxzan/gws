@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -55,10 +54,7 @@ func TestRead(t *testing.T) {
 	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, upgrader.EventHandler, true)
 
 	for _, item := range items {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var payload []byte
 		if item.Payload == "" {
 			payload = internal.AlphabetNumeric.Generate(item.Length)
@@ -145,10 +141,7 @@ func TestSegments(t *testing.T) {
 	socket.compressor = newCompressor(flate.BestSpeed)
 
 	t.Run("valid segments", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var s1 = internal.AlphabetNumeric.Generate(16)
@@ -175,10 +168,7 @@ func TestSegments(t *testing.T) {
 	})
 
 	t.Run("invalid segments", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var s1 = internal.AlphabetNumeric.Generate(16)
@@ -209,10 +199,7 @@ func TestSegments(t *testing.T) {
 	})
 
 	t.Run("invalid length 1", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var fh = frameHeader{}
@@ -236,10 +223,7 @@ func TestSegments(t *testing.T) {
 	})
 
 	t.Run("invalid length 2", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var fh = frameHeader{}
@@ -260,10 +244,7 @@ func TestSegments(t *testing.T) {
 	})
 
 	t.Run("invalid length 3", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var fh = frameHeader{}
@@ -284,10 +265,7 @@ func TestSegments(t *testing.T) {
 	})
 
 	t.Run("no mask", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		atomic.StoreUint32(&socket.closed, 0)
-
+		handler.reset(socket, reader, writer)
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var fh = frameHeader{}

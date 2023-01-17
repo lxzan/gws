@@ -9,16 +9,26 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 type webSocketMocker struct {
+	sync.Mutex
 	onMessage func(socket *Conn, message *Message)
 	onPing    func(socket *Conn, payload []byte)
 	onPong    func(socket *Conn, payload []byte)
 	onClose   func(socket *Conn, code uint16, reason []byte)
 	onError   func(socket *Conn, err error)
+}
+
+func (c *webSocketMocker) reset(socket *Conn, reader *bytes.Buffer, writer *bytes.Buffer) {
+	reader.Reset()
+	writer.Reset()
+	socket.rbuf.Reset(reader)
+	socket.wbuf.Reset(writer)
+	atomic.StoreUint32(&socket.closed, 0)
 }
 
 func (c *webSocketMocker) OnOpen(socket *Conn) {
