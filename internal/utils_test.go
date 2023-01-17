@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,18 @@ import (
 func TestNewMaskKey(t *testing.T) {
 	var key = NewMaskKey()
 	assert.Equal(t, 4, len(key))
+}
+
+func TestMaskByByte(t *testing.T) {
+	var data = []byte("hello")
+	MaskByByte(data, []byte{0xa, 0xb, 0xc, 0xd})
+	assert.Equal(t, "626e606165", hex.EncodeToString(data))
+}
+
+func TestStringToBytes(t *testing.T) {
+	var s1 = string(AlphabetNumeric.Generate(32))
+	var s2 = string(StringToBytes(s1))
+	assert.Equal(t, s1, s2)
 }
 
 func TestComputeAcceptKey(t *testing.T) {
@@ -91,4 +104,56 @@ func TestFNV64(t *testing.T) {
 	var h = fnv.New64()
 	_, _ = h.Write(s)
 	assert.Equal(t, h.Sum64(), FNV64(string(s)))
+}
+
+func TestIOUtil(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("", func(t *testing.T) {
+		var dst = bytes.NewBuffer(nil)
+		var src = bytes.NewBuffer(make([]byte, 0))
+		var err = CopyN(dst, src, 0)
+		as.NoError(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var dst = bytes.NewBuffer(nil)
+		var src = bytes.NewBuffer(make([]byte, 6))
+		var err = CopyN(dst, src, 12)
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var reader = strings.NewReader("hello")
+		var p = make([]byte, 0)
+		var err = ReadN(reader, p, 0)
+		as.NoError(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var reader = strings.NewReader("hello")
+		var p = make([]byte, 5)
+		var err = ReadN(reader, p, 10)
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var writer = bytes.NewBufferString("")
+		var err = WriteN(writer, nil, 0)
+		as.NoError(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var writer = bytes.NewBufferString("")
+		var p = []byte("hello")
+		var err = WriteN(writer, p, 5)
+		as.NoError(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var buf1 = NewBufferWithCap(0)
+		as.Equal(0, buf1.Cap())
+		var buf2 = NewBufferWithCap(12)
+		as.Equal(12, buf2.Cap())
+	})
 }
