@@ -51,7 +51,8 @@ func TestRead(t *testing.T) {
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, upgrader.EventHandler, true)
+	conn, _ := net.Pipe()
+	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, upgrader.EventHandler, true)
 
 	for _, item := range items {
 		reader.Reset()
@@ -139,7 +140,8 @@ func TestSegments(t *testing.T) {
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, false)
+	conn, _ := net.Pipe()
+	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, false)
 	socket.compressor = newCompressor(flate.BestSpeed)
 
 	t.Run("valid segments", func(t *testing.T) {

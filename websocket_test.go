@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/binary"
+	"errors"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"net"
@@ -131,6 +132,20 @@ func (c *httpWriter) WriteHeader(statusCode int) {}
 
 func (c *httpWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return c.conn, c.brw, nil
+}
+
+type httpWriterWrapper1 struct {
+	*httpWriter
+}
+
+func (c *httpWriterWrapper1) Hijack() {}
+
+type httpWriterWrapper2 struct {
+	*httpWriter
+}
+
+func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return c.conn, nil, errors.New("test")
 }
 
 func BenchmarkNewBuffer(b *testing.B) {

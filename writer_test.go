@@ -6,6 +6,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 	"net"
+	"sync/atomic"
 	"testing"
 )
 
@@ -16,10 +17,14 @@ func TestConn_WriteMessage(t *testing.T) {
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, false)
+	conn, _ := net.Pipe()
+	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, false)
 
 	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		socket.WriteString("hello")
 		var p = make([]byte, 7)
 		_, _ = writer.Read(p)
@@ -37,6 +42,9 @@ func TestConn_WriteMessage(t *testing.T) {
 
 	t.Run("binary v2", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		var contentLength = 500
 		var text = internal.AlphabetNumeric.Generate(contentLength)
 		socket.WriteMessage(OpcodeBinary, text)
@@ -54,6 +62,9 @@ func TestConn_WriteMessage(t *testing.T) {
 
 	t.Run("ping", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		socket.WritePing([]byte("ping"))
 		var p = make([]byte, 6)
 		_, _ = writer.Read(p)
@@ -69,6 +80,9 @@ func TestConn_WriteMessage(t *testing.T) {
 
 	t.Run("pong", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		socket.WritePong(nil)
 		var p = make([]byte, 6)
 		_, _ = writer.Read(p)
@@ -96,10 +110,14 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	var socket = serveWebSocket(upgrader, &Request{}, &net.TCPConn{}, brw, handler, true)
+	conn, _ := net.Pipe()
+	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, true)
 
 	t.Run("text v1", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		var n = 64
 		var text = internal.AlphabetNumeric.Generate(n)
 		socket.WriteMessage(OpcodeText, text)
@@ -124,6 +142,9 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 
 	t.Run("text v2", func(t *testing.T) {
 		writer.Reset()
+		socket.wbuf.Reset(writer)
+		atomic.StoreUint32(&socket.closed, 0)
+
 		var n = 256
 		var text = internal.AlphabetNumeric.Generate(n)
 		socket.WriteMessage(OpcodeText, text)

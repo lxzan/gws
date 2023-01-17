@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 )
 
 var (
@@ -65,7 +64,6 @@ func NewUpgrader(options ...Option) *Upgrader {
 }
 
 func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocketKey string) error {
-	// handshake
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -80,29 +78,24 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
-	if _, err := conn.Write(buf); err != nil {
-		return err
-	}
-
-	// initialize the connection
-	if err := conn.SetDeadline(time.Time{}); err != nil {
-		return err
-	}
-	if err := conn.SetReadDeadline(time.Time{}); err != nil {
-		return err
-	}
-	if err := conn.SetWriteDeadline(time.Time{}); err != nil {
-		return err
-	}
-	if err := setNoDelay(conn); err != nil {
-		return err
-	}
-	return nil
+	_, err := conn.Write(buf)
+	return err
 }
 
 // Accept http protocol upgrade to websocket
 // ctx done means server stopping
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	socket, err := c.doAccept(w, r)
+	if err != nil {
+		if socket != nil && socket.conn != nil {
+			_ = socket.conn.Close()
+		}
+		return nil, err
+	}
+	return socket, err
+}
+
+func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	withInitialize()(c)
 	var request = &Request{Request: r, SessionStorage: NewMap()}
 	var header = internal.CloneHeader(c.ResponseHeader)
@@ -133,18 +126,17 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 		return nil, internal.ErrHandshake
 	}
 
+	// Hijack
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		return nil, internal.CloseInternalServerErr
 	}
 	netConn, brw, err := hj.Hijack()
 	if err != nil {
-		_ = netConn.Close()
-		return nil, err
+		return &Conn{conn: netConn}, err
 	}
 	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
-		_ = netConn.Close()
-		return nil, err
+		return &Conn{conn: netConn}, err
 	}
 
 	return serveWebSocket(c, request, netConn, brw, c.EventHandler, compressEnabled), nil
