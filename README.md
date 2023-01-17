@@ -25,7 +25,7 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 
-- [gws](#gws)
+- [Index](#gws)
 	- [Highlight](#highlight)
 	- [Attention](#attention)
 	- [Benchmark](#benchmark)
@@ -33,7 +33,7 @@
 	- [Install](#install)
 	- [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
 	- [TLS](#tls)
-	- [Autobahn Test](#test)
+	- [Autobahn Test](#autobahn-test)
 
 #### Highlight
 
