@@ -26,7 +26,6 @@ type (
 	}
 
 	// Upgrader websocket upgrader
-	// do not use &Upgrader unless, some options may not be initialized, NewUpgrader is recommended
 	Upgrader struct {
 		once sync.Once
 
@@ -82,7 +81,7 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 	return err
 }
 
-// Accept http protocol upgrade to websocket
+// Accept http upgrade to websocket protocol
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	socket, err := c.doAccept(w, r)
 	if err != nil {

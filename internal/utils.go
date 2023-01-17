@@ -94,6 +94,9 @@ func NewBufferWithCap(n uint8) *bytes.Buffer {
 
 /*
 IO Utils
+ReadN
+WriteN
+CopyN
 */
 func checkIOError(expectN, realN int, err error) error {
 	if err != nil {
