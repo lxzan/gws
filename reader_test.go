@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-//go:embed examples/testsuite/config/readtest.json
+//go:embed examples/data/readtest.json
 var testdata []byte
 
 type testRow struct {

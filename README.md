@@ -25,15 +25,17 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 
-- [Index](#gws)
-	- [Highlight](#highlight)
-	- [Attention](#attention)
-	- [Benchmark](#benchmark)
-	- [Core Interface](#core-interface)
-	- [Install](#install)
-	- [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
-	- [TLS](#tls)
-	- [Autobahn Test](#autobahn-test)
+- [gws](#gws)
+		- [event-driven go websocket server](#event-driven-go-websocket-server)
+			- [Highlight](#highlight)
+			- [Attention](#attention)
+			- [Benchmark](#benchmark)
+			- [Core Interface](#core-interface)
+			- [Install](#install)
+			- [Examples](#examples)
+			- [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
+			- [TLS](#tls)
+			- [Autobahn Test](#autobahn-test)
 
 #### Highlight
 
@@ -88,6 +90,10 @@ type Event interface {
 ```bash
 go get -v github.com/lxzan/gws@latest
 ```
+
+#### Examples
+- [chat room](examples/chatroom/main.go)
+- [echo](examples/testsuite/main.go)
 
 #### Quick Start (Autobahn Server)
 
