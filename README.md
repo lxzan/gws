@@ -26,16 +26,15 @@
 
 
 - [gws](#gws)
-		- [event-driven go websocket server](#event-driven-go-websocket-server)
-			- [Highlight](#highlight)
-			- [Attention](#attention)
-			- [Benchmark](#benchmark)
-			- [Core Interface](#core-interface)
-			- [Install](#install)
-			- [Examples](#examples)
-			- [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
-			- [TLS](#tls)
-			- [Autobahn Test](#autobahn-test)
+  - [Highlight](#highlight)
+  - [Attention](#attention)
+  - [Benchmark](#benchmark)
+  - [Core Interface](#core-interface)
+  - [Install](#install)
+  - [Examples](#examples)
+  - [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
+  - [TLS](#tls)
+  - [Autobahn Test](#autobahn-test)
 
 #### Highlight
 
