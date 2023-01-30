@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 )
 
 var (
@@ -15,7 +14,7 @@ var (
 )
 
 const (
-	defaultCompressLevel    = flate.BestSpeed
+	defaultCompressLevel    = flate.BestSpeed  // Best Speed
 	defaultMaxContentLength = 16 * 1024 * 1024 // 16MiB
 )
 
@@ -27,8 +26,6 @@ type (
 
 	// Upgrader websocket upgrader
 	Upgrader struct {
-		once sync.Once
-
 		// websocket event handler
 		EventHandler Event
 
@@ -53,24 +50,23 @@ type (
 	}
 )
 
-// withInitialize initialize the upgrader configure
-func (c *Upgrader) initialize() {
-	c.once.Do(func() {
-		if c.ResponseHeader == nil {
-			c.ResponseHeader = http.Header{}
+// Initialize the upgrader configure
+// 如果没有使用NewUpgrader, 需要调用此方法初始化配置
+func (c *Upgrader) Initialize() {
+	if c.ResponseHeader == nil {
+		c.ResponseHeader = http.Header{}
+	}
+	if c.CheckOrigin == nil {
+		c.CheckOrigin = func(r *Request) bool {
+			return true
 		}
-		if c.CheckOrigin == nil {
-			c.CheckOrigin = func(r *Request) bool {
-				return true
-			}
-		}
-		if c.MaxContentLength <= 0 {
-			c.MaxContentLength = defaultMaxContentLength
-		}
-		if c.CompressEnabled && c.CompressLevel == 0 {
-			c.CompressLevel = defaultCompressLevel
-		}
-	})
+	}
+	if c.MaxContentLength <= 0 {
+		c.MaxContentLength = defaultMaxContentLength
+	}
+	if c.CompressEnabled && c.CompressLevel == 0 {
+		c.CompressLevel = defaultCompressLevel
+	}
 }
 
 func NewUpgrader(options ...Option) *Upgrader {
@@ -78,7 +74,7 @@ func NewUpgrader(options ...Option) *Upgrader {
 	for _, f := range options {
 		f(c)
 	}
-	c.initialize()
+	c.Initialize()
 	return c
 }
 
@@ -103,7 +99,6 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 
 // Accept http upgrade to websocket protocol
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	c.initialize()
 	socket, err := c.doAccept(w, r)
 	if err != nil {
 		if socket != nil && socket.conn != nil {
