@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const PingInterval = 15 * time.Second
+const PingInterval = 15 * time.Second // 客户端心跳间隔
 
 //go:embed index.html
 var html []byte
@@ -19,6 +19,10 @@ func main() {
 	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
 		c.CompressEnabled = true
 		c.EventHandler = handler
+
+		// 在querystring里面传入用户名
+		// 把Sec-WebSocket-Key作为连接的key
+		// 刷新页面的时候, 会触发上一个连接的OnClose/OnError事件, 这时候需要对比key并删除map里存储的连接
 		c.CheckOrigin = func(r *gws.Request) bool {
 			var name = r.URL.Query().Get("name")
 			if name == "" {
@@ -30,18 +34,22 @@ func main() {
 		}
 	})
 
-	_ = http.ListenAndServe(":3000", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/connect":
-			socket, err := upgrader.Accept(w, r)
-			if err != nil {
-				return
-			}
-			socket.Listen()
-		default:
-			w.Write(html)
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Accept(writer, request)
+		if err != nil {
+			log.Printf("Accept: " + err.Error())
+			return
 		}
-	}))
+		socket.Listen()
+	})
+
+	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write(html)
+	})
+
+	if err := http.ListenAndServe(":3000", nil); err != nil {
+		log.Fatalf("%+v", err)
+	}
 }
 
 func NewWebSocket() *WebSocket {
@@ -49,19 +57,20 @@ func NewWebSocket() *WebSocket {
 }
 
 type WebSocket struct {
-	sessions *gws.ConcurrentMap
+	sessions *gws.ConcurrentMap // 使用内置的ConcurrentMap存储连接, 可以减少锁冲突
 }
 
-func (c *WebSocket) GetName(socket *gws.Conn) string {
+func (c *WebSocket) getName(socket *gws.Conn) string {
 	name, _ := socket.SessionStorage.Load("name")
 	return name.(string)
 }
 
-func (c *WebSocket) GetKey(socket *gws.Conn) string {
+func (c *WebSocket) getKey(socket *gws.Conn) string {
 	name, _ := socket.SessionStorage.Load("key")
 	return name.(string)
 }
 
+// 根据用户名获取WebSocket连接
 func (c *WebSocket) GetSocket(name string) (*gws.Conn, bool) {
 	if v0, ok0 := c.sessions.Load(name); ok0 {
 		if v1, ok1 := v0.(*gws.Conn); ok1 {
@@ -71,18 +80,19 @@ func (c *WebSocket) GetSocket(name string) (*gws.Conn, bool) {
 	return nil, false
 }
 
-func (c *WebSocket) DeleteSocket(socket *gws.Conn) {
-	name := c.GetName(socket)
-	key := c.GetKey(socket)
+// RemoveSocket 移除WebSocket连接
+func (c *WebSocket) RemoveSocket(socket *gws.Conn) {
+	name := c.getName(socket)
+	key := c.getKey(socket)
 	if mSocket, ok := c.GetSocket(name); ok {
-		if mKey := c.GetKey(mSocket); mKey == key {
+		if mKey := c.getKey(mSocket); mKey == key {
 			c.sessions.Delete(name)
 		}
 	}
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	name := c.GetName(socket)
+	name := c.getName(socket)
 	if v, ok := c.sessions.Load(name); ok {
 		var conn = v.(*gws.Conn)
 		conn.Close(1000, []byte("connection replaced"))
@@ -93,14 +103,14 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 }
 
 func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-	name := c.GetName(socket)
-	c.DeleteSocket(socket)
+	name := c.getName(socket)
+	c.RemoveSocket(socket)
 	log.Printf("onerror, name=%s, msg=%s\n", name, err.Error())
 }
 
 func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	name := c.GetName(socket)
-	c.DeleteSocket(socket)
+	name := c.getName(socket)
+	c.RemoveSocket(socket)
 	log.Printf("onclose, name=%s, code=%d, msg=%s\n", name, code, string(reason))
 }
 
@@ -115,6 +125,8 @@ type Input struct {
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
+
+	// chrome websocket不支持ping方法, 所以在text frame里面模拟ping
 	if b := message.Bytes(); len(b) == 4 && string(b) == "ping" {
 		socket.WriteMessage(gws.OpcodeText, []byte("pong"))
 		socket.SetDeadline(time.Now().Add(3 * PingInterval))
@@ -122,7 +134,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	}
 
 	var input = &Input{}
-	json.Unmarshal(message.Bytes(), input)
+	_ = json.Unmarshal(message.Bytes(), input)
 	if v, ok := c.sessions.Load(input.To); ok {
 		v.(*gws.Conn).WriteMessage(gws.OpcodeText, message.Bytes())
 	}
