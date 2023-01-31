@@ -6,7 +6,7 @@ import (
 )
 
 // SessionStorage because sync.Map is not easy to debug, so I implemented my own map.
-// if you don't like it, you can also use sync.Map instead.
+// if you don't like it, use sync.Map instead.
 type SessionStorage interface {
 	Load(key interface{}) (value interface{}, exist bool)
 	Delete(key interface{})
