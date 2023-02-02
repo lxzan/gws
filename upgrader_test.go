@@ -74,20 +74,13 @@ func TestNoDelay(t *testing.T) {
 		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
 	}
 
-	t.Run("tcp conn", func(t *testing.T) {
-		c.conn = &net.TCPConn{}
-		c.setNoDelay()
-	})
-
 	t.Run("tls conn", func(t *testing.T) {
-		c.conn = &tls.Conn{}
-		c.setNoDelay()
+		c.setNoDelay(&tls.Conn{})
 	})
 
 	t.Run("other", func(t *testing.T) {
 		conn, _ := net.Pipe()
-		c.conn = conn
-		c.setNoDelay()
+		c.setNoDelay(conn)
 	})
 }
 

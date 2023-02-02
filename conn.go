@@ -8,7 +8,6 @@ import (
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,7 +69,7 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 	c.SetDeadline(time.Time{})
 	c.SetReadDeadline(time.Time{})
 	c.SetWriteDeadline(time.Time{})
-	c.setNoDelay()
+	c.setNoDelay(c.conn)
 	return c
 }
 
@@ -195,19 +194,13 @@ func (c *Conn) NetConn() net.Conn {
 }
 
 // setNoDelay set tcp no delay
-func (c *Conn) setNoDelay() {
-	switch v := c.conn.(type) {
+func (c *Conn) setNoDelay(conn net.Conn) {
+	switch v := conn.(type) {
 	case *net.TCPConn:
 		c.emitError(v.SetNoDelay(false))
-		return
 	case *tls.Conn:
-		if method, exist := internal.MethodExists(v, "NetConn"); exist {
-			if rets := method.Call([]reflect.Value{}); len(rets) > 0 {
-				if tcpConn, ok := rets[0].Interface().(*net.TCPConn); ok {
-					c.emitError(tcpConn.SetNoDelay(false))
-					return
-				}
-			}
+		if netConn, ok := conn.(internal.NetConn); ok {
+			c.setNoDelay(netConn.NetConn())
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"math"
+	"net"
 )
 
 // Add four bytes as specified in RFC
@@ -46,10 +47,16 @@ const (
 	Lv5 = 64*1024 - 1
 )
 
-type ReadLener interface {
-	io.Reader
-	Len() int
-}
+type (
+	ReadLener interface {
+		io.Reader
+		Len() int
+	}
+
+	NetConn interface {
+		NetConn() net.Conn
+	}
+)
 
 type Buffer struct {
 	*bytes.Buffer
