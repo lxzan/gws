@@ -26,3 +26,17 @@ type Event interface {
 	OnPong(socket *Conn, payload []byte)
 	OnMessage(socket *Conn, message *Message)
 }
+
+type BuiltinEventEngine struct{}
+
+func (b BuiltinEventEngine) OnOpen(socket *Conn) {}
+
+func (b BuiltinEventEngine) OnError(socket *Conn, err error) {}
+
+func (b BuiltinEventEngine) OnClose(socket *Conn, code uint16, reason []byte) {}
+
+func (b BuiltinEventEngine) OnPing(socket *Conn, payload []byte) {}
+
+func (b BuiltinEventEngine) OnPong(socket *Conn, payload []byte) {}
+
+func (b BuiltinEventEngine) OnMessage(socket *Conn, message *Message) {}
