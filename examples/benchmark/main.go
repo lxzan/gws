@@ -6,8 +6,9 @@ import (
 )
 
 func main() {
-	var handler = new(WebSocket)
-	var upgrader = gws.NewUpgrader(gws.WithEventHandler(handler))
+	var upgrader = gws.NewUpgrader(
+		gws.WithEventHandler(new(WebSocket)),
+	)
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Accept(writer, request)
 		if err != nil {
@@ -19,20 +20,9 @@ func main() {
 	_ = http.ListenAndServe(":3000", nil)
 }
 
-type WebSocket struct{}
-
-func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
+type WebSocket struct {
+	gws.BuiltinEventEngine
 }
-
-func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-}
-
-func (c *WebSocket) OnOpen(socket *gws.Conn) {
-}
-
-func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {}
-
-func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	socket.WriteMessage(message.Typ(), message.Bytes())
