@@ -19,7 +19,7 @@ func TestError(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		var code = StatusCode(0)
-		as.Equal(hex.EncodeToString(code.Bytes()), "0000")
+		as.Equal(hex.EncodeToString(code.Bytes()), "")
 	})
 
 	t.Run("", func(t *testing.T) {
