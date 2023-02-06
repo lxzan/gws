@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"github.com/lxzan/gws/internal"
 	"sync/atomic"
 )
@@ -38,11 +39,11 @@ func (c *Conn) doWriteMessage(opcode Opcode, payload []byte) error {
 
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame()
 	if enableCompress {
-		compressedContent, err := c.compressor.Compress(payload)
+		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		payload = compressedContent
+		payload = compressedContent.Bytes()
 	}
 	return c.writeFrame(opcode, payload, enableCompress)
 }

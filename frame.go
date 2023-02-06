@@ -27,6 +27,11 @@ func (c *Message) Typ() Opcode {
 	return c.opcode
 }
 
+// Len get message length
+func (c *Message) Len() int {
+	return c.buf.Len()
+}
+
 // Bytes get message content
 func (c *Message) Bytes() []byte {
 	return c.buf.Bytes()

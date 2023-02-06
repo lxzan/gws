@@ -32,22 +32,22 @@ func (c *compressor) reset() {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content []byte) ([]byte, error) {
+func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
 	c.reset()
-	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
+	if err := internal.WriteN(c.fw, content.Bytes(), content.Len()); err != nil {
 		return nil, err
 	}
 	if err := c.fw.Flush(); err != nil {
 		return nil, err
 	}
 
-	compressedContent := c.writeBuffer.Bytes()
 	if n := c.writeBuffer.Len(); n >= 4 {
+		compressedContent := c.writeBuffer.Bytes()
 		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			compressedContent = compressedContent[:n-4]
+			c.writeBuffer.Truncate(n - 4)
 		}
 	}
-	return compressedContent, nil
+	return c.writeBuffer, nil
 }
 
 func newDecompressor() *decompressor {
