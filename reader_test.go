@@ -78,7 +78,7 @@ func TestRead(t *testing.T) {
 		switch item.Expected.Event {
 		case "onMessage":
 			handler.onMessage = func(socket *Conn, message *Message) {
-				as.Equal(string(payload), string(message.Bytes()))
+				as.Equal(string(payload), string(message.Data.Bytes()))
 				go func() { wg.Done() }()
 			}
 			as.NoError(socket.readMessage())
@@ -158,7 +158,7 @@ func TestSegments(t *testing.T) {
 		}, s2)
 
 		handler.onMessage = func(socket *Conn, message *Message) {
-			as.Equal(string(s1)+string(s2), string(message.Bytes()))
+			as.Equal(string(s1)+string(s2), string(message.Data.Bytes()))
 			wg.Done()
 		}
 

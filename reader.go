@@ -142,26 +142,26 @@ func (c *Conn) readMessage() error {
 	switch opcode {
 	case OpcodeContinuation:
 		compressed = c.continuationCompressed
-		msg := &Message{opcode: c.continuationOpcode, buf: c.continuationBuffer}
+		msg := &Message{Opcode: c.continuationOpcode, Data: c.continuationBuffer}
 		c.continuationCompressed = false
 		c.continuationOpcode = 0
 		c.continuationBuffer = nil
 		return c.emitMessage(msg, compressed)
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{opcode: opcode, buf: buf}, compressed)
+		return c.emitMessage(&Message{Opcode: opcode, Data: buf}, compressed)
 	}
 	return internal.CloseNormalClosure
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if compressed {
-		data, err := c.decompressor.Decompress(msg.buf)
+		data, err := c.decompressor.Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		msg.buf = data
+		msg.Data = data
 	}
-	if c.config.CheckTextEncoding && !isTextValid(msg.opcode, msg.buf) {
+	if c.config.CheckTextEncoding && !isTextValid(msg.Opcode, msg.Data) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 	c.handler.OnMessage(c, msg)

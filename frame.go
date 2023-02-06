@@ -8,33 +8,18 @@ import (
 )
 
 type Message struct {
-	opcode Opcode        // 帧状态码
-	buf    *bytes.Buffer // 数据缓冲
+	Opcode Opcode        // 帧状态码
+	Data   *bytes.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
-	return c.buf.Read(p)
+	return c.Data.Read(p)
 }
 
 // Close recycle buffer
 func (c *Message) Close() {
-	bpool.Put(c.buf)
-	c.buf = nil
-}
-
-// Typ get message type
-func (c *Message) Typ() Opcode {
-	return c.opcode
-}
-
-// Len get message length
-func (c *Message) Len() int {
-	return c.buf.Len()
-}
-
-// Bytes get message content
-func (c *Message) Bytes() []byte {
-	return c.buf.Bytes()
+	bpool.Put(c.Data)
+	c.Data = nil
 }
 
 func isTextValid(opcode Opcode, buf *bytes.Buffer) bool {

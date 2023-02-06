@@ -25,6 +25,6 @@ type WebSocket struct {
 }
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	socket.WriteMessage(message.Typ(), message.Bytes())
+	socket.WriteMessage(message.Opcode, message.Data.Bytes())
 	message.Close()
 }
