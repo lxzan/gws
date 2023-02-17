@@ -199,3 +199,15 @@ func TestAccept(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestBuiltinEventEngine(t *testing.T) {
+	var ev = new(BuiltinEventEngine)
+	_, ok := interface{}(ev).(Event)
+	assert.Equal(t, true, ok)
+
+	ev.OnError(nil, nil)
+	ev.OnClose(nil, 0, nil)
+	ev.OnMessage(nil, nil)
+	ev.OnPing(nil, nil)
+	ev.OnPong(nil, nil)
+}

@@ -100,6 +100,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 	conn, _ := net.Pipe()
 	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, true)
 
+	// 消息长度低于阈值, 不压缩内容
 	t.Run("text v1", func(t *testing.T) {
 		handler.reset(socket, reader, writer)
 		var n = 64
@@ -107,17 +108,14 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		socket.WriteMessage(OpcodeText, text)
 		var compressedLength = writer.Len() - 2
 
-		buffer, err := socket.decompressor.Decompress(bytes.NewBuffer(writer.Bytes()[2:]))
-		as.NoError(err)
-		as.Equal(string(text), string(buffer.Bytes()))
-
 		var p = make([]byte, 2)
 		_, _ = writer.Read(p)
+		as.Equal(string(text), writer.String())
 		var fh = frameHeader{}
 		copy(fh[0:], p[:2])
 		as.Equal(OpcodeText, fh.GetOpcode())
 		as.Equal(true, fh.GetFIN())
-		as.Equal(true, fh.GetRSV1())
+		as.Equal(false, fh.GetRSV1())
 		as.Equal(false, fh.GetRSV2())
 		as.Equal(false, fh.GetRSV3())
 		as.Equal(false, fh.GetMask())
@@ -126,7 +124,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 
 	t.Run("text v2", func(t *testing.T) {
 		handler.reset(socket, reader, writer)
-		var n = 256
+		var n = 1024
 		var text = internal.AlphabetNumeric.Generate(n)
 		socket.WriteMessage(OpcodeText, text)
 
