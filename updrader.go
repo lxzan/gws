@@ -14,8 +14,9 @@ var (
 )
 
 const (
-	defaultCompressLevel    = flate.BestSpeed  // Best Speed
-	defaultMaxContentLength = 16 * 1024 * 1024 // 16MiB
+	defaultCompressLevel        = flate.BestSpeed  // Best Speed
+	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB
+	defaultCompressionThreshold = 512              // 512 Byte
 )
 
 type (
@@ -34,6 +35,9 @@ type (
 
 		// compress level eg: flate.BestSpeed
 		CompressLevel int
+
+		// if contentLength < compressionThreshold, it won't be compressed.
+		CompressionThreshold int
 
 		// max message size
 		MaxContentLength int
@@ -66,6 +70,9 @@ func (c *Upgrader) Initialize() {
 	}
 	if c.CompressEnabled && c.CompressLevel == 0 {
 		c.CompressLevel = defaultCompressLevel
+	}
+	if c.CompressionThreshold <= 0 {
+		c.CompressionThreshold = defaultCompressionThreshold
 	}
 }
 
