@@ -47,7 +47,6 @@
 #### Attention
 
 - It's designed for api server, do not write big message
-- It's recommended not to enable data compression in the intranet environment
 - WebSocket events are emitted synchronously, manage goroutines yourself
 
 #### Benchmark
