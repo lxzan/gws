@@ -46,8 +46,9 @@
 
 #### Attention
 
-- It's designed for api server, do not write big message
-- WebSocket events are emitted synchronously, manage goroutines yourself
+- It's designed for api server, do not write big message.
+- WebSocket events are emitted synchronously, manage goroutines yourself.
+- Write operations are synchronous blocking, for broadcast scenarios, special attention is needed.
 
 #### Benchmark
 

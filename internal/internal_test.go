@@ -10,6 +10,9 @@ import (
 
 func TestError(t *testing.T) {
 	var as = assert.New(t)
+
+	_ = ErrConnClosed.Error()
+
 	t.Run("", func(t *testing.T) {
 		var code = StatusCode(1000)
 		as.Equal(uint16(1000), code.Uint16())

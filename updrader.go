@@ -42,7 +42,7 @@ type (
 		// max message size
 		MaxContentLength int
 
-		// whether to check utf8 encoding, disabled for better performance
+		// whether to check utf8 encoding when read messages, disabled for better performance
 		CheckTextEncoding bool
 
 		// https://www.rfc-editor.org/rfc/rfc6455.html#section-1.3
@@ -125,7 +125,7 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
-		return nil, errors.New("http method must be get")
+		return nil, internal.ErrGetMethodRequired
 	}
 	if version := r.Header.Get(internal.SecWebSocketVersion); version != internal.SecWebSocketVersion_Value {
 		msg := "websocket protocol not supported: " + version

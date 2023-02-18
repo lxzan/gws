@@ -90,6 +90,7 @@ func (c *Conn) Listen() {
 // Close proactively close the connection
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
 // 主动关闭连接, 发送关闭帧, 并将连接状态置为关闭
+// 没有特殊原因的话, 建议code=0, reason=nil
 func (c *Conn) Close(code uint16, reason []byte) {
 	var err = internal.NewError(internal.StatusCode(code), errors.New(""))
 	if len(reason) > 0 {
@@ -154,7 +155,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 				responseCode = internal.StatusCode(realCode)
 			}
 		}
-		if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, buf) {
+		if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, buf.Bytes()) {
 			responseCode = internal.CloseUnsupportedData
 		}
 	}

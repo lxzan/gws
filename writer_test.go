@@ -3,6 +3,7 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 	"net"
@@ -93,7 +94,7 @@ func TestConn_WriteMessage(t *testing.T) {
 func TestConn_WriteMessageCompress(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(WithEventHandler(handler))
+	var upgrader = NewUpgrader(WithEventHandler(handler), WithCheckTextEncoding(true))
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
@@ -146,5 +147,19 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		as.Equal(false, fh.GetRSV3())
 		as.Equal(false, fh.GetMask())
 		as.Equal(uint8(126), fh.GetLengthCode())
+	})
+
+	t.Run("write invalid utf8 payload", func(t *testing.T) {
+		handler.reset(socket, reader, writer)
+		var n = 1024
+		var text = internal.AlphabetNumeric.Generate(n)
+		socket.closed = 1
+		as.Equal(internal.ErrConnClosed, socket.WriteMessage(OpcodeText, text))
+	})
+
+	t.Run("write to closed socket", func(t *testing.T) {
+		handler.reset(socket, reader, writer)
+		p, _ := hex.DecodeString("cebae1bdb9cf83cebcceb5eda080656469746564")
+		as.Error(socket.WriteMessage(OpcodeText, p))
 	})
 }

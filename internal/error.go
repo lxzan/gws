@@ -1,13 +1,19 @@
 package internal
 
-import "errors"
-
 var (
-	ErrCheckOrigin             = errors.New("check origin error")
-	ErrHandshake               = errors.New("connecting handshake error")
-	ErrTextEncoding            = errors.New("text frame payload must be utf8 encoding")
-	ErrUnexpectedContentLength = errors.New("unexpected content length")
+	ErrCheckOrigin             = GwsError("check origin error")
+	ErrHandshake               = GwsError("connecting handshake error")
+	ErrTextEncoding            = GwsError("text frame payload must be utf8 encoding")
+	ErrUnexpectedContentLength = GwsError("unexpected content length")
+	ErrConnClosed              = GwsError("connection closed")
+	ErrGetMethodRequired       = GwsError("http method must be get")
 )
+
+type GwsError string
+
+func (c GwsError) Error() string {
+	return string(c)
+}
 
 var closeErrorMap = map[StatusCode]string{
 	0:                      "empty code",

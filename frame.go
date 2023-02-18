@@ -22,9 +22,9 @@ func (c *Message) Close() {
 	c.Data = nil
 }
 
-func isTextValid(opcode Opcode, buf *bytes.Buffer) bool {
-	if buf.Len() > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
-		return utf8.Valid(buf.Bytes())
+func isTextValid(opcode Opcode, p []byte) bool {
+	if len(p) > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
+		return utf8.Valid(p)
 	}
 	return true
 }
