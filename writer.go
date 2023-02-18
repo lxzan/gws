@@ -2,33 +2,36 @@ package gws
 
 import (
 	"bytes"
+	"errors"
 	"github.com/lxzan/gws/internal"
 	"sync/atomic"
 )
 
 // WritePing write ping frame
-func (c *Conn) WritePing(payload []byte) {
-	c.WriteMessage(OpcodePing, payload)
+func (c *Conn) WritePing(payload []byte) error {
+	return c.WriteMessage(OpcodePing, payload)
 }
 
 // WritePong write pong frame
-func (c *Conn) WritePong(payload []byte) {
-	c.WriteMessage(OpcodePong, payload)
+func (c *Conn) WritePong(payload []byte) error {
+	return c.WriteMessage(OpcodePong, payload)
 }
 
 // WriteString write text frame
-func (c *Conn) WriteString(s string) {
-	c.WriteMessage(OpcodeText, internal.StringToBytes(s))
+func (c *Conn) WriteString(s string) error {
+	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
 // WriteMessage write text/binary message
 // text message must be utf8 encoding
 // 发送文本/二进制消息, 文本消息必须是utf8编码
-func (c *Conn) WriteMessage(opcode Opcode, payload []byte) {
+func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
-		return
+		return errors.New("connection closed")
 	}
-	c.emitError(c.doWriteMessage(opcode, payload))
+	err := c.doWriteMessage(opcode, payload)
+	c.emitError(err)
+	return err
 }
 
 // doWriteMessage
