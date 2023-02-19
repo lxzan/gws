@@ -38,10 +38,6 @@ func (c *Conn) doWriteMessage(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
-	if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, payload) {
-		return internal.CloseUnsupportedData
-	}
-
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressionThreshold
 	if enableCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
