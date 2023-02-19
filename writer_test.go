@@ -147,4 +147,12 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		as.Equal(false, fh.GetMask())
 		as.Equal(uint8(126), fh.GetLengthCode())
 	})
+
+	t.Run("write to closed socket", func(t *testing.T) {
+		handler.reset(socket, reader, writer)
+		var n = 1024
+		var text = internal.AlphabetNumeric.Generate(n)
+		socket.closed = 1
+		as.Equal(internal.ErrConnClosed, socket.WriteMessage(OpcodeText, text))
+	})
 }
