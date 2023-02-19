@@ -42,7 +42,7 @@ type (
 		// max message size
 		MaxContentLength int
 
-		// whether to check utf8 encoding, disabled for better performance
+		// whether to check utf8 encoding when read messages, disabled for better performance
 		CheckTextEncoding bool
 
 		// https://www.rfc-editor.org/rfc/rfc6455.html#section-1.3
