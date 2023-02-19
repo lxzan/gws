@@ -125,7 +125,7 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
-		return nil, errors.New("http method must be get")
+		return nil, internal.ErrGetMethodRequired
 	}
 	if version := r.Header.Get(internal.SecWebSocketVersion); version != internal.SecWebSocketVersion_Value {
 		msg := "websocket protocol not supported: " + version

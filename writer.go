@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bytes"
-	"errors"
 	"github.com/lxzan/gws/internal"
 	"sync/atomic"
 )
@@ -27,7 +26,7 @@ func (c *Conn) WriteString(s string) error {
 // 发送文本/二进制消息, 文本消息必须是utf8编码
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
-		return errors.New("connection closed")
+		return internal.ErrConnClosed
 	}
 	err := c.doWriteMessage(opcode, payload)
 	c.emitError(err)
