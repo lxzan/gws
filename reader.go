@@ -161,7 +161,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		}
 		msg.Data = data
 	}
-	if c.config.CheckTextEncoding && !isTextValid(msg.Opcode, msg.Data) {
+	if c.config.CheckTextEncoding && !isTextValid(msg.Opcode, msg.Data.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 	c.handler.OnMessage(c, msg)

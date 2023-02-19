@@ -22,8 +22,7 @@ func (c *Conn) WriteString(s string) error {
 }
 
 // WriteMessage write text/binary message
-// text message must be utf8 encoding
-// 发送文本/二进制消息, 文本消息必须是utf8编码
+// 发送文本/二进制消息
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
@@ -38,6 +37,10 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 func (c *Conn) doWriteMessage(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
+
+	if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, payload) {
+		return internal.CloseUnsupportedData
+	}
 
 	var enableCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressionThreshold
 	if enableCompress {
