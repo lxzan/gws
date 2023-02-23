@@ -9,10 +9,6 @@ import (
 	"strings"
 )
 
-var (
-	bpool = internal.NewBufferPool()
-)
-
 const (
 	defaultCompressLevel        = flate.BestSpeed  // Best Speed
 	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB

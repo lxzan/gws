@@ -68,8 +68,8 @@ func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) 
 		return nil, err
 	}
 
-	var buf = bpool.Get(3 * payload.Len())
+	var buf = _bpool.Get(3 * payload.Len())
 	_, err := io.Copy(buf, c.fr)
-	bpool.Put(payload)
+	_bpool.Put(payload)
 	return buf, err
 }

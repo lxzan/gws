@@ -63,3 +63,46 @@ func (c *Conn) writeFrame(opcode Opcode, payload []byte, enableCompress bool) er
 	}
 	return c.wbuf.Flush()
 }
+
+// WriteMessageAsync write message async
+func (c *Conn) WriteMessageAsync(opcode Opcode, payload []byte) {
+	c.wmq.Push(c, messageWrapper{
+		opcode:  opcode,
+		payload: payload,
+	})
+}
+
+// write and clear messages
+func doWriteAsync(conn *Conn) error {
+	if conn.wmq.Len() == 0 {
+		return nil
+	}
+
+	conn.wmu.Lock()
+	defer conn.wmu.Unlock()
+	return conn.wmq.Range(func(msg messageWrapper) error {
+		if atomic.LoadUint32(&conn.closed) == 1 {
+			return internal.ErrConnClosed
+		}
+
+		var enableCompress = conn.compressEnabled && msg.opcode.IsDataFrame() && len(msg.payload) >= conn.config.CompressionThreshold
+		if enableCompress {
+			compressedContent, err := conn.compressor.Compress(bytes.NewBuffer(msg.payload))
+			if err != nil {
+				return internal.NewError(internal.CloseInternalServerErr, err)
+			}
+			msg.payload = compressedContent.Bytes()
+		}
+
+		var header = frameHeader{}
+		var n = len(msg.payload)
+		var headerLength = header.GenerateServerHeader(true, enableCompress, msg.opcode, n)
+		if err := internal.WriteN(conn.wbuf, header[:headerLength], headerLength); err != nil {
+			return err
+		}
+		if err := internal.WriteN(conn.wbuf, msg.payload, n); err != nil {
+			return err
+		}
+		return conn.wbuf.Flush()
+	})
+}

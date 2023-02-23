@@ -45,6 +45,8 @@ type Conn struct {
 	closed uint32
 	// write lock
 	wmu *sync.Mutex
+	// messages wait for sending
+	wmq messageQueue
 }
 
 func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
@@ -59,6 +61,7 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
+		wmq:             newMessageQueue(),
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor(config.CompressLevel)
