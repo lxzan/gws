@@ -42,13 +42,13 @@
 - zero extra goroutine to manage connection
 - zero error to read/write operation, errors have been handled appropriately
 - built-in concurrent_map implementation
+- support for asynchronous write messages
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Attention
 
-- It's designed for api server, do not write big message.
+- It's designed for api server, not suitable for transmitting large messages.
 - WebSocket events are emitted synchronously, manage goroutines yourself.
-- Write operations are synchronous blocking, for broadcast scenarios, special attention is needed.
 
 #### Benchmark
 

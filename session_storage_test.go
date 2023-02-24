@@ -137,3 +137,20 @@ func TestConcurrentMap_Range(t *testing.T) {
 		as.Equal(1000, len(keys))
 	}
 }
+
+func TestHash(t *testing.T) {
+	m := NewConcurrentMap(16)
+	m.hash("1")
+
+	m.hash(int(1))
+	m.hash(int64(1))
+	m.hash(int32(1))
+	m.hash(int16(1))
+	m.hash(int8(1))
+
+	m.hash(uint(1))
+	m.hash(uint64(1))
+	m.hash(uint32(1))
+	m.hash(uint16(1))
+	m.hash(uint8(1))
+}

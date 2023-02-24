@@ -119,7 +119,7 @@ func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcod
 	return headerLength
 }
 
-// 解析完整协议头, 返回payload长度
+// 解析完整协议头, 最多14byte, 返回payload长度
 func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 	if err := internal.ReadN(reader, (*c)[0:2], 2); err != nil {
 		return 0, err
