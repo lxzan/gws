@@ -36,7 +36,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 	go func() {
 		for i := 0; i < count; i++ {
-			server.WriteMessageAsync(OpcodeText, message)
+			server.WriteAsync(OpcodeText, message)
 		}
 	}()
 

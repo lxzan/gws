@@ -125,7 +125,7 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.doWriteMessage(OpcodeCloseConnection, content)
+		_ = c.doWrite(OpcodeCloseConnection, content)
 		_ = c.conn.SetDeadline(time.Now())
 		c.handler.OnError(c, responseErr)
 	}
@@ -163,7 +163,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.doWriteMessage(OpcodeCloseConnection, responseCode.Bytes())
+		_ = c.doWrite(OpcodeCloseConnection, responseCode.Bytes())
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure

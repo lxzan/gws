@@ -40,7 +40,7 @@ func TestConn_WriteMessage(t *testing.T) {
 		handler.reset(socket, reader, writer)
 		var contentLength = 500
 		var text = internal.AlphabetNumeric.Generate(contentLength)
-		socket.WriteMessage(OpcodeBinary, text)
+		socket.Write(OpcodeBinary, text)
 		var p = make([]byte, contentLength+4)
 		_, _ = writer.Read(p)
 		as.Equal(string(text), string(p[4:]))
@@ -85,7 +85,7 @@ func TestConn_WriteMessage(t *testing.T) {
 	t.Run("close", func(t *testing.T) {
 		socket.closed = 1
 		writer.Reset()
-		socket.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(500))
+		socket.Write(OpcodeText, internal.AlphabetNumeric.Generate(500))
 		as.Equal(0, writer.Len())
 	})
 }
@@ -105,7 +105,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		handler.reset(socket, reader, writer)
 		var n = 64
 		var text = internal.AlphabetNumeric.Generate(n)
-		socket.WriteMessage(OpcodeText, text)
+		socket.Write(OpcodeText, text)
 		var compressedLength = writer.Len() - 2
 
 		var p = make([]byte, 2)
@@ -126,7 +126,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		handler.reset(socket, reader, writer)
 		var n = 1024
 		var text = internal.AlphabetNumeric.Generate(n)
-		socket.WriteMessage(OpcodeText, text)
+		socket.Write(OpcodeText, text)
 
 		buffer, err := socket.decompressor.Decompress(bytes.NewBuffer(writer.Bytes()[4:]))
 		if err != nil {
@@ -153,6 +153,6 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		var n = 1024
 		var text = internal.AlphabetNumeric.Generate(n)
 		socket.closed = 1
-		as.Equal(internal.ErrConnClosed, socket.WriteMessage(OpcodeText, text))
+		as.Equal(internal.ErrConnClosed, socket.Write(OpcodeText, text))
 	})
 }
