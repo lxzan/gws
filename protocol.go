@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
+	"io"
 	"unicode/utf8"
 )
 
@@ -116,6 +117,40 @@ func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcod
 
 	headerLength += c.SetLength(uint64(length))
 	return headerLength
+}
+
+// 解析完整协议头, 返回payload长度
+func (c *frameHeader) Parse(reader io.Reader) (int, error) {
+	if err := internal.ReadN(reader, (*c)[0:2], 2); err != nil {
+		return 0, err
+	}
+
+	var payloadLength = 0
+	var lengthCode = c.GetLengthCode()
+	switch lengthCode {
+	case 126:
+		if err := internal.ReadN(reader, (*c)[2:4], 2); err != nil {
+			return 0, err
+		}
+		payloadLength = int(binary.BigEndian.Uint16((*c)[2:4]))
+
+	case 127:
+		if err := internal.ReadN(reader, (*c)[2:10], 8); err != nil {
+			return 0, err
+		}
+		payloadLength = int(binary.BigEndian.Uint64((*c)[2:10]))
+	default:
+		payloadLength = int(lengthCode)
+	}
+
+	var maskOn = c.GetMask()
+	if maskOn {
+		if err := internal.ReadN(reader, (*c)[:10:14], 4); err != nil {
+			return 0, err
+		}
+	}
+
+	return payloadLength, nil
 }
 
 type Message struct {
