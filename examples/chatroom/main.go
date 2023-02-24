@@ -128,7 +128,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 	// chrome websocket不支持ping方法, 所以在text frame里面模拟ping
 	if b := message.Data.Bytes(); len(b) == 4 && string(b) == "ping" {
-		socket.WriteMessage(gws.OpcodeText, []byte("pong"))
+		socket.Write(gws.OpcodeText, []byte("pong"))
 		socket.SetDeadline(time.Now().Add(3 * PingInterval))
 		return
 	}
@@ -136,6 +136,6 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	var input = &Input{}
 	_ = json.Unmarshal(message.Data.Bytes(), input)
 	if v, ok := c.sessions.Load(input.To); ok {
-		v.(*gws.Conn).WriteMessage(gws.OpcodeText, message.Data.Bytes())
+		v.(*gws.Conn).Write(gws.OpcodeText, message.Data.Bytes())
 	}
 }

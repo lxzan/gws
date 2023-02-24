@@ -12,7 +12,8 @@ var (
 	_bpool = internal.NewBufferPool()
 )
 
-func SetMaxConcurrencyForWriteQueue(num int64) {
+// set max concurrent goroutines for write queue
+func SetGoLimit(num int64) {
 	if num > 0 {
 		_writeQueue.maxConcurrency = num
 	}

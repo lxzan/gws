@@ -25,7 +25,7 @@ func newTestPeer(config *Upgrader) (server, client *Conn) {
 
 func TestConn_WriteAsync(t *testing.T) {
 	var as = assert.New(t)
-	SetMaxConcurrencyForWriteQueue(8)
+	SetGoLimit(16)
 	var handler = new(webSocketMocker)
 	var upgrader = NewUpgrader(func(c *Upgrader) {
 		c.EventHandler = handler

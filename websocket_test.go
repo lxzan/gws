@@ -91,10 +91,10 @@ func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, row te
 	reader.Write(fh[:offset+4])
 
 	if compressEnabled {
-		maskXOR(compressedText.Bytes(), key[0:])
+		internal.MaskXOR(compressedText.Bytes(), key[0:])
 		reader.Write(compressedText.Bytes())
 	} else {
-		maskXOR(copiedText, key[0:])
+		internal.MaskXOR(copiedText, key[0:])
 		reader.Write(copiedText)
 	}
 
@@ -139,7 +139,7 @@ func BenchmarkMask(b *testing.B) {
 	var key [4]byte
 	binary.LittleEndian.PutUint32(key[:4], internal.AlphabetNumeric.Uint32())
 	for i := 0; i < b.N; i++ {
-		maskXOR(s2, key[:4])
+		internal.MaskXOR(s2, key[:4])
 	}
 }
 
@@ -160,24 +160,6 @@ func BenchmarkSyncMap_Load(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(4))
 		m.Load(key)
-	}
-}
-
-func TestMask(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		var s1 = internal.AlphabetNumeric.Generate(1280)
-		var s2 = make([]byte, len(s1))
-		copy(s2, s1)
-
-		var key = make([]byte, 4, 4)
-		binary.LittleEndian.PutUint32(key, internal.AlphabetNumeric.Uint32())
-		maskXOR(s1, key)
-		internal.MaskByByte(s2, key)
-		for i, _ := range s1 {
-			if s1[i] != s2[i] {
-				t.Fail()
-			}
-		}
 	}
 }
 

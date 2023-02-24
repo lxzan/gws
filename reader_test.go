@@ -209,7 +209,7 @@ func TestSegments(t *testing.T) {
 		fh.SetMaskKey(offset, key)
 		reader.Write(fh[:offset+4])
 		var text = internal.AlphabetNumeric.Generate(5)
-		maskXOR(text, key[0:])
+		internal.MaskXOR(text, key[0:])
 		reader.Write(text)
 
 		handler.onError = func(socket *Conn, err error) {

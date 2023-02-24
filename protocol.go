@@ -1,5 +1,12 @@
 package gws
 
+import (
+	"bytes"
+	"encoding/binary"
+	"github.com/lxzan/gws/internal"
+	"unicode/utf8"
+)
+
 type Opcode uint8
 
 const (
@@ -40,3 +47,95 @@ func (b BuiltinEventEngine) OnPing(socket *Conn, payload []byte) {}
 func (b BuiltinEventEngine) OnPong(socket *Conn, payload []byte) {}
 
 func (b BuiltinEventEngine) OnMessage(socket *Conn, message *Message) {}
+
+type frameHeader [internal.FrameHeaderSize]byte
+
+func (c *frameHeader) GetFIN() bool {
+	return ((*c)[0] >> 7) == 1
+}
+
+func (c *frameHeader) GetRSV1() bool {
+	return ((*c)[0] << 1 >> 7) == 1
+}
+
+func (c *frameHeader) GetRSV2() bool {
+	return ((*c)[0] << 2 >> 7) == 1
+}
+
+func (c *frameHeader) GetRSV3() bool {
+	return ((*c)[0] << 3 >> 7) == 1
+}
+
+func (c *frameHeader) GetOpcode() Opcode {
+	return Opcode((*c)[0] << 4 >> 4)
+}
+
+func (c *frameHeader) GetMask() bool {
+	return ((*c)[1] >> 7) == 1
+}
+
+func (c *frameHeader) GetLengthCode() uint8 {
+	return (*c)[1] << 1 >> 1
+}
+
+func (c *frameHeader) SetMask() {
+	(*c)[1] |= uint8(128)
+}
+
+func (c *frameHeader) SetLength(n uint64) (offset int) {
+	if n <= internal.ThresholdV1 {
+		(*c)[1] += uint8(n)
+		return 0
+	} else if n <= internal.ThresholdV2 {
+		(*c)[1] += 126
+		binary.BigEndian.PutUint16((*c)[2:4], uint16(n))
+		return 2
+	} else {
+		(*c)[1] += 127
+		binary.BigEndian.PutUint64((*c)[2:10], n)
+		return 8
+	}
+}
+
+func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
+	copy((*c)[offset:offset+4], key[0:])
+}
+
+// generate server side frame header for writing
+// do not use mask
+func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcode, length int) int {
+	var headerLength = 2
+	var b0 = uint8(opcode)
+	if fin {
+		b0 += 128
+	}
+	if compress {
+		b0 += 64
+	}
+	(*c)[0] = b0
+
+	headerLength += c.SetLength(uint64(length))
+	return headerLength
+}
+
+type Message struct {
+	Opcode Opcode        // 帧状态码
+	Data   *bytes.Buffer // 数据缓冲
+}
+
+func (c *Message) Read(p []byte) (n int, err error) {
+	return c.Data.Read(p)
+}
+
+// Close recycle buffer
+func (c *Message) Close() {
+	_bpool.Put(c.Data)
+	c.Data = nil
+}
+
+func isTextValid(opcode Opcode, p []byte) bool {
+	if len(p) > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
+		return utf8.Valid(p)
+	}
+	return true
+}

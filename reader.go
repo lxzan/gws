@@ -29,7 +29,7 @@ func (c *Conn) readControl() error {
 	if err := internal.CopyN(buf, c.rbuf, int64(n)); err != nil {
 		return err
 	}
-	maskXOR(buf.Bytes(), c.fh[10:14])
+	internal.MaskXOR(buf.Bytes(), c.fh[10:14])
 
 	var opcode = c.fh.GetOpcode()
 	switch opcode {
@@ -112,7 +112,7 @@ func (c *Conn) readMessage() error {
 	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
-	maskXOR(buf.Bytes(), c.fh[10:14])
+	internal.MaskXOR(buf.Bytes(), c.fh[10:14])
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
 		c.continuationCompressed = compressed
