@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/lxzan/gws/internal"
@@ -22,14 +21,14 @@ func (c *Conn) readControl() error {
 		return internal.CloseProtocolError
 	}
 
-	var buf = internal.NewBufferWithCap(n)
-	if err := internal.ReadN(c.rbuf, c.fh[10:14], 4); err != nil {
-		return err
+	// 不回收小块buffer, 控制帧一般payload长度为0
+	var buf bytes.Buffer
+	if n > 0 {
+		if err := internal.CopyN(&buf, c.rbuf, int64(n)); err != nil {
+			return err
+		}
+		internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
 	}
-	if err := internal.CopyN(buf, c.rbuf, int64(n)); err != nil {
-		return err
-	}
-	internal.MaskXOR(buf.Bytes(), c.fh[10:14])
 
 	var opcode = c.fh.GetOpcode()
 	switch opcode {
@@ -40,7 +39,7 @@ func (c *Conn) readControl() error {
 		c.handler.OnPong(c, buf.Bytes())
 		return nil
 	case OpcodeCloseConnection:
-		return c.emitClose(buf)
+		return c.emitClose(&buf)
 	default:
 		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
 		return internal.NewError(internal.CloseProtocolError, err)
@@ -51,10 +50,11 @@ func (c *Conn) readMessage() error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.CloseNormalClosure
 	}
-	if err := internal.ReadN(c.rbuf, c.fh[:2], 2); err != nil {
+
+	contentLength, err := c.fh.Parse(c.rbuf)
+	if err != nil {
 		return err
 	}
-
 	// RSV1, RSV2, RSV3:  1 bit each
 	//
 	//      MUST be 0 unless an extension is negotiated that defines meanings
@@ -79,40 +79,15 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var lengthCode = c.fh.GetLengthCode()
-	var contentLength = int(lengthCode)
-
-	// read data frame
-	var buf *bytes.Buffer
-	switch lengthCode {
-	case 126:
-		if err := internal.ReadN(c.rbuf, c.fh[2:4], 2); err != nil {
-			return err
-		}
-		contentLength = int(binary.BigEndian.Uint16(c.fh[2:4]))
-		buf = _bpool.Get(contentLength)
-	case 127:
-		err := internal.ReadN(c.rbuf, c.fh[2:10], 8)
-		if err != nil {
-			return err
-		}
-		contentLength = int(binary.BigEndian.Uint64(c.fh[2:10]))
-		buf = _bpool.Get(contentLength)
-	default:
-		buf = _bpool.Get(int(lengthCode))
-	}
-
+	var buf = _bpool.Get(contentLength)
 	if contentLength > c.config.MaxContentLength {
 		return internal.CloseMessageTooLarge
 	}
 
-	if err := internal.ReadN(c.rbuf, c.fh[10:14], 4); err != nil {
-		return err
-	}
 	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
-	internal.MaskXOR(buf.Bytes(), c.fh[10:14])
+	internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
 		c.continuationCompressed = compressed

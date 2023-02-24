@@ -145,12 +145,17 @@ func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 
 	var maskOn = c.GetMask()
 	if maskOn {
-		if err := internal.ReadN(reader, (*c)[:10:14], 4); err != nil {
+		if err := internal.ReadN(reader, (*c)[10:14], 4); err != nil {
 			return 0, err
 		}
 	}
 
 	return payloadLength, nil
+}
+
+// GetMaskKey parser把maskKey放到了末尾
+func (c *frameHeader) GetMaskKey() []byte {
+	return (*c)[10:14]
 }
 
 type Message struct {
