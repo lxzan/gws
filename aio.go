@@ -1,9 +1,7 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
 	"sync"
-	"sync/atomic"
 )
 
 type (
@@ -15,8 +13,8 @@ type (
 	}
 
 	asyncJob struct {
-		Args *Conn
-		Do   func(args *Conn) error
+		Args interface{}
+		Do   func(args interface{}) error
 	}
 
 	messageWrapper struct {
@@ -79,74 +77,21 @@ func (c *workerQueue) AddJob(job asyncJob) {
 	}
 }
 
-func newMessageQueue() messageQueue {
-	return messageQueue{
-		mu:   &sync.RWMutex{},
-		data: []messageWrapper{},
-	}
-}
-
-type messageQueue struct {
-	mu   *sync.RWMutex
-	data []messageWrapper
-}
-
-func (c *messageQueue) Len() int {
-	c.mu.RLock()
-	n := len(c.data)
-	c.mu.RUnlock()
-	return n
-}
-
-func (c *messageQueue) Push(conn *Conn, m messageWrapper) {
-	c.mu.Lock()
-	c.data = append(c.data, m)
-	if n := len(c.data); n == 1 {
-		_writeQueue.AddJob(asyncJob{Args: conn, Do: doWriteAsync})
-	}
-	c.mu.Unlock()
-}
-
-func (c *messageQueue) Range(f func(msg messageWrapper) error) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for i, _ := range c.data {
-		if err := f(c.data[i]); err != nil {
-			return err
-		}
-	}
-	c.data = c.data[:0]
-	return nil
-}
-
 // WriteAsync
 // 异步写入消息, 适合广播等需要非阻塞的场景
 // asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
-	c.wmq.Push(c, messageWrapper{
-		opcode:  opcode,
-		payload: payload,
+	c.aiomq.AddJob(asyncJob{
+		Args: messageWrapper{
+			opcode:  opcode,
+			payload: payload,
+		},
+		Do: c.doWriteAsync,
 	})
 }
 
 // 写入并清空消息
-func doWriteAsync(conn *Conn) error {
-	if conn.wmq.Len() == 0 {
-		return nil
-	}
-
-	conn.wmu.Lock()
-	err := conn.wmq.Range(func(msg messageWrapper) error {
-		if atomic.LoadUint32(&conn.closed) == 1 {
-			return internal.ErrConnClosed
-		}
-		return conn.writePublic(msg.opcode, msg.payload)
-	})
-	conn.wmu.Unlock()
-
-	if err != nil {
-		conn.emitError(err)
-	}
-	return err
+func (c *Conn) doWriteAsync(args interface{}) error {
+	input := args.(messageWrapper)
+	return c.WriteMessage(input.opcode, input.payload)
 }

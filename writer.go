@@ -8,22 +8,22 @@ import (
 
 // WritePing write ping frame
 func (c *Conn) WritePing(payload []byte) error {
-	return c.Write(OpcodePing, payload)
+	return c.WriteMessage(OpcodePing, payload)
 }
 
 // WritePong write pong frame
 func (c *Conn) WritePong(payload []byte) error {
-	return c.Write(OpcodePong, payload)
+	return c.WriteMessage(OpcodePong, payload)
 }
 
 // WriteString write text frame
 func (c *Conn) WriteString(s string) error {
-	return c.Write(OpcodeText, internal.StringToBytes(s))
+	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-// Write writes message
+// WriteMessage writes message
 // 发送消息
-func (c *Conn) Write(opcode Opcode, payload []byte) error {
+func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
