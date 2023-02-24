@@ -63,28 +63,3 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 	}
 	return c.wbuf.Flush()
 }
-
-// WriteAsync write message async
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
-	c.wmq.Push(c, messageWrapper{
-		opcode:  opcode,
-		payload: payload,
-	})
-}
-
-// write and clear messages
-func doWriteAsync(conn *Conn) error {
-	if conn.wmq.Len() == 0 {
-		return nil
-	}
-
-	conn.wmu.Lock()
-	err := conn.wmq.Range(func(msg messageWrapper) error {
-		if atomic.LoadUint32(&conn.closed) == 1 {
-			return internal.ErrConnClosed
-		}
-		return conn.writePublic(msg.opcode, msg.payload)
-	})
-	conn.wmu.Unlock()
-	return err
-}

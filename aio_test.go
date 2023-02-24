@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-func newPeer(config *Upgrader) (server, client *Conn) {
+// 创建用于测试的对等连接
+func newTestPeer(config *Upgrader) (server, client *Conn) {
 	size := 4096
 	s, c := net.Pipe()
 	{
@@ -29,7 +30,7 @@ func TestConn_WriteAsync(t *testing.T) {
 	var upgrader = NewUpgrader(func(c *Upgrader) {
 		c.EventHandler = handler
 	})
-	server, client := newPeer(upgrader)
+	server, client := newTestPeer(upgrader)
 
 	var message = []byte("hello")
 	var count = 1000
