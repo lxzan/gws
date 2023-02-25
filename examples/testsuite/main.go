@@ -11,6 +11,7 @@ func main() {
 		c.CompressEnabled = true
 		c.CheckTextEncoding = true
 		c.MaxContentLength = 32 * 1024 * 1024
+		c.AsyncReadEnabled = true
 		c.EventHandler = new(WebSocket)
 	})
 

@@ -12,11 +12,11 @@ func WithEventHandler(eventHandler Event) Option {
 	}
 }
 
-// WithAIOGoroutineLimit 设置单个连接异步IO的最大并发协程数量限制
+// WithAsyncIOGoLimit 设置单个连接异步IO的最大并发协程数量限制
 // set the maximum number of concurrent co-processes for asynchronous IO
-func WithAIOGoroutineLimit(limit int) Option {
+func WithAsyncIOGoLimit(limit int) Option {
 	return func(c *Upgrader) {
-		c.AIOGoroutineLimit = limit
+		c.AsyncIOGoLimit = limit
 	}
 }
 

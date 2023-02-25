@@ -25,7 +25,7 @@ func (c Opcode) IsDataFrame() bool {
 
 // WebSocket Event
 // one of onclose and onerror will be called once during the connection's lifetime.
-// 在连接的生命周期中，onclose和onerror中的一个有且只有一次被调用
+// 在连接的生命周期中，onclose和onerror中的一个有且只有一次被调用.
 type Event interface {
 	OnOpen(socket *Conn)
 	OnError(socket *Conn, err error)
