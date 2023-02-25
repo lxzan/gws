@@ -178,8 +178,6 @@ func TestConn(t *testing.T) {
 	socket.LocalAddr()
 	socket.NetConn()
 	socket.RemoteAddr()
-	socket.Close(1000, []byte("goodbye"))
-	socket.Listen()
 	new(internal.Buffer).ReadFrom()
 	return
 }

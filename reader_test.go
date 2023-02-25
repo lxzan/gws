@@ -81,6 +81,7 @@ func TestRead(t *testing.T) {
 	}
 
 	for _, item := range items {
+		println(item.Title)
 		var payload []byte
 		if item.Payload == "" {
 			payload = internal.AlphabetNumeric.Generate(item.Length)

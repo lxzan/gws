@@ -13,9 +13,9 @@ import (
 const (
 	defaultAsyncReadGoLimit     = 8
 	defaultCompressLevel        = flate.BestSpeed
-	defaultMaxContentLength     = 16 * 1024 * 1024       // 16MiB
-	defaultCompressionThreshold = 512                    // 512 Byte
-	defaultCloseTimeout         = 500 * time.Millisecond // 500ms
+	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB
+	defaultCompressionThreshold = 512              // 512 Byte
+	defaultCloseTimeout         = 5 * time.Second  // 5s
 )
 
 type (

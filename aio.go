@@ -1,7 +1,9 @@
 package gws
 
 import (
+	"context"
 	"sync"
+	"time"
 )
 
 type (
@@ -76,18 +78,58 @@ func (c *workerQueue) AddJob(job asyncJob) {
 	}
 }
 
-// WriteAsync
-// 异步写入消息, 适合广播等需要非阻塞的场景
-// asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
-	c.aiomq.AddJob(asyncJob{
-		Args: messageWrapper{
-			opcode:  opcode,
-			payload: payload,
-		},
-		Do: func(args interface{}) error {
-			input := args.(messageWrapper)
-			return c.WriteMessage(input.opcode, input.payload)
-		},
-	})
+// 获取当前并发
+func (c *workerQueue) getCurConcurrency() int64 {
+	c.mu.Lock()
+	num := c.curConcurrency
+	c.mu.Unlock()
+	return num
+}
+
+func (c *workerQueue) Wait(timeout time.Duration) {
+	if c.getCurConcurrency() == 0 {
+		return
+	}
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer func() {
+		ticker.Stop()
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if c.getCurConcurrency() == 0 {
+				return
+			}
+		}
+	}
+}
+
+type writeQueue struct {
+	sync.RWMutex
+	data []messageWrapper
+}
+
+func (c *writeQueue) Len() int {
+	c.RLock()
+	n := len(c.data)
+	c.RUnlock()
+	return n
+}
+
+func (c *writeQueue) Push(v messageWrapper) {
+	c.Lock()
+	c.data = append(c.data, v)
+	c.Unlock()
+}
+
+func (c *writeQueue) Pop() messageWrapper {
+	msg := c.data[0]
+	c.data = c.data[1:]
+	return msg
 }

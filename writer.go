@@ -63,3 +63,41 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 	}
 	return c.wbuf.Flush()
 }
+
+// WriteAsync
+// 异步写入消息, 适合广播等需要非阻塞的场景
+// asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
+	// 不允许加任务了
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return
+	}
+
+	c.wmq.Push(messageWrapper{opcode: opcode, payload: payload})
+	c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
+}
+
+func (c *Conn) doWriteAsync(args interface{}) error {
+	if c.wmq.Len() == 0 {
+		return nil
+	}
+
+	c.wmq.Lock()
+	msgs := c.wmq.data
+	c.wmq.data = []messageWrapper{}
+	c.wmq.Unlock()
+
+	myerr := func() error {
+		c.wmu.Lock()
+		defer c.wmu.Unlock()
+
+		for _, msg := range msgs {
+			if err := c.writePublic(msg.opcode, msg.payload); err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	c.emitError(myerr)
+	return myerr
+}
