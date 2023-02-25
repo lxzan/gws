@@ -7,13 +7,15 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
 	defaultAsyncIOGoLimit       = 8
 	defaultCompressLevel        = flate.BestSpeed
-	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB
-	defaultCompressionThreshold = 512              // 512 Byte
+	defaultMaxContentLength     = 16 * 1024 * 1024       // 16MiB
+	defaultCompressionThreshold = 512                    // 512 Byte
+	defaultCloseTimeout         = 500 * time.Millisecond // 500ms
 )
 
 type (
