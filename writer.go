@@ -68,10 +68,12 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 // 异步写入消息, 适合广播等需要非阻塞的场景
 // asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
-	c.wmq.Push(messageWrapper{
-		opcode:  opcode,
-		payload: payload,
-	})
+	// 不允许加任务了
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return
+	}
+
+	c.wmq.Push(messageWrapper{opcode: opcode, payload: payload})
 	c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
 }
 
@@ -80,23 +82,22 @@ func (c *Conn) doWriteAsync(args interface{}) error {
 		return nil
 	}
 
-	c.wmu.Lock()
 	c.wmq.Lock()
-	defer func() {
-		c.wmu.Unlock()
-		c.wmq.Unlock()
+	msgs := c.wmq.data
+	c.wmq.data = []messageWrapper{}
+	c.wmq.Unlock()
+
+	myerr := func() error {
+		c.wmu.Lock()
+		defer c.wmu.Unlock()
+
+		for _, msg := range msgs {
+			if err := c.writePublic(msg.opcode, msg.payload); err != nil {
+				return err
+			}
+		}
+		return nil
 	}()
-
-	for len(c.wmq.data) > 0 {
-		if atomic.LoadUint32(&c.closed) == 1 {
-			return internal.ErrConnClosed
-		}
-
-		msg := c.wmq.Pop()
-		if err := c.writePublic(msg.opcode, msg.payload); err != nil {
-			c.emitError(err)
-			return err
-		}
-	}
-	return nil
+	c.emitError(myerr)
+	return myerr
 }

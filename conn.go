@@ -3,7 +3,6 @@ package gws
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -129,19 +128,10 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		ctx, cancel := context.WithTimeout(context.Background(), defaultCloseTimeout)
-		defer cancel()
-		go func() {
-			// 写可能会产生阻塞
-			_ = c.doWrite(OpcodeCloseConnection, content)
-			_ = c.conn.SetDeadline(time.Now())
-			cancel()
-		}()
-		for {
-			<-ctx.Done()
-			c.handler.OnError(c, responseErr)
-			break
-		}
+		c.wmq.Push(messageWrapper{opcode: OpcodeCloseConnection, payload: content})
+		c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
+		c.aiomq.Wait(defaultCloseTimeout)
+		c.handler.OnError(c, responseErr)
 	}
 }
 
@@ -177,18 +167,10 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		ctx, cancel := context.WithTimeout(context.Background(), defaultCloseTimeout)
-		defer cancel()
-		go func() {
-			// 写可能会产生阻塞
-			_ = c.doWrite(OpcodeCloseConnection, responseCode.Bytes())
-			cancel()
-		}()
-		for {
-			<-ctx.Done()
-			c.handler.OnClose(c, realCode, buf.Bytes())
-			break
-		}
+		c.wmq.Push(messageWrapper{opcode: OpcodeCloseConnection, payload: responseCode.Bytes()})
+		c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
+		c.aiomq.Wait(defaultCloseTimeout)
+		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure
 }
