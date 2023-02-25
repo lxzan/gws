@@ -27,7 +27,6 @@ type (
 func newWorkerQueue(maxConcurrency int64) *workerQueue {
 	c := &workerQueue{
 		mu:             &sync.Mutex{},
-		q:              make([]asyncJob, 0),
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
 	}

@@ -10,5 +10,5 @@ build:
 run-testsuite-server:
 	go run github.com/lxzan/gws/examples/testsuite
 
-coverage:
-	go test ./... -covermode=count -coverprofile=./bin/gws.out
+cover:
+	go test -coverprofile=./bin/cover.out --cover ./...

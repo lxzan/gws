@@ -27,7 +27,6 @@
 
 - [gws](#gws)
   - [Highlight](#highlight)
-  - [Attention](#attention)
   - [Benchmark](#benchmark)
   - [Core Interface](#core-interface)
   - [Install](#install)
@@ -42,13 +41,8 @@
 - zero extra goroutine to manage connection
 - zero error to read/write operation, errors have been handled appropriately
 - built-in concurrent_map implementation
-- support for asynchronous write messages
+- asynchronous non-blocking read and write support
 - fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
-
-#### Attention
-
-- It's designed for api server, not suitable for transmitting large messages.
-- WebSocket events are emitted synchronously, manage goroutines yourself.
 
 #### Benchmark
 
