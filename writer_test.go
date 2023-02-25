@@ -93,7 +93,7 @@ func TestConn_WriteMessage(t *testing.T) {
 func TestConn_WriteMessageCompress(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(WithEventHandler(handler), WithCheckTextEncoding(true))
+	var upgrader = NewUpgrader(WithEventHandler(handler), WithCheckTextEncoding())
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))

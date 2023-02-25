@@ -71,7 +71,6 @@ func doTestClientWrite(client *Conn, opcode Opcode, payload []byte) error {
 // 测试异步写入
 func TestConn_WriteAsync(t *testing.T) {
 	var as = assert.New(t)
-	SetGoLimit(16)
 
 	// 关闭压缩
 	t.Run("plain text", func(t *testing.T) {

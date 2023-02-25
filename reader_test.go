@@ -125,10 +125,8 @@ func TestSegments(t *testing.T) {
 	var handler = new(webSocketMocker)
 	var upgrader = NewUpgrader(
 		WithEventHandler(handler),
-		WithCompress(false, 0, 0),
 		WithResponseHeader(nil),
 		WithMaxContentLength(0),
-		WithCheckTextEncoding(false),
 		WithCheckOrigin(func(r *Request) bool {
 			return true
 		}),

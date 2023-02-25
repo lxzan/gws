@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 )
 
+var _bpool = internal.NewBufferPool()
+
 // read control frame
 func (c *Conn) readControl() error {
 	//RFC6455:  Control frames themselves MUST NOT be fragmented.

@@ -22,18 +22,18 @@ func WithAsyncIOGoLimit(limit int) Option {
 
 // WithAsyncReadEnabled 开启异步读功能, 并发地调用onmessage, 并发度会受到AIOGoroutineLimit的限制.
 // enable asynchronous read, call onmessage concurrently, concurrency is limited by AIOGoroutineLimit.
-func WithAsyncReadEnabled(enabled bool) Option {
+func WithAsyncReadEnabled() Option {
 	return func(c *Upgrader) {
-		c.AsyncReadEnabled = enabled
+		c.AsyncReadEnabled = true
 	}
 }
 
 // WithCompress 设置数据压缩. 是否压缩, 压缩级别和阈值, 低于阈值的数据不会被压缩.
 // set data compression.
-// Whether to compress, the compression level and the threshold value, below which the data will not be compressed.
-func WithCompress(enabled bool, level int, threshold int) Option {
+// set the compression level and the threshold value, below which the data will not be compressed.
+func WithCompress(level int, threshold int) Option {
 	return func(c *Upgrader) {
-		c.CompressEnabled = enabled
+		c.CompressEnabled = true
 		c.CompressLevel = level
 		c.CompressionThreshold = threshold
 	}
@@ -49,9 +49,9 @@ func WithMaxContentLength(n int) Option {
 
 // WithCheckTextEncoding 检查文本utf8编码, 关闭性能会更好.
 // set text encoding checking
-func WithCheckTextEncoding(enabled bool) Option {
+func WithCheckTextEncoding() Option {
 	return func(c *Upgrader) {
-		c.CheckTextEncoding = enabled
+		c.CheckTextEncoding = true
 	}
 }
 

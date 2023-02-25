@@ -60,6 +60,9 @@ type (
 // Initialize the upgrader configure
 // 如果没有使用NewUpgrader, 需要调用此方法初始化配置
 func (c *Upgrader) Initialize() {
+	if c.EventHandler == nil {
+		c.EventHandler = new(BuiltinEventHandler)
+	}
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
 	}

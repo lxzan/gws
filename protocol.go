@@ -35,19 +35,19 @@ type Event interface {
 	OnMessage(socket *Conn, message *Message)
 }
 
-type BuiltinEventEngine struct{}
+type BuiltinEventHandler struct{}
 
-func (b BuiltinEventEngine) OnOpen(socket *Conn) {}
+func (b BuiltinEventHandler) OnOpen(socket *Conn) {}
 
-func (b BuiltinEventEngine) OnError(socket *Conn, err error) {}
+func (b BuiltinEventHandler) OnError(socket *Conn, err error) {}
 
-func (b BuiltinEventEngine) OnClose(socket *Conn, code uint16, reason []byte) {}
+func (b BuiltinEventHandler) OnClose(socket *Conn, code uint16, reason []byte) {}
 
-func (b BuiltinEventEngine) OnPing(socket *Conn, payload []byte) {}
+func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) {}
 
-func (b BuiltinEventEngine) OnPong(socket *Conn, payload []byte) {}
+func (b BuiltinEventHandler) OnPong(socket *Conn, payload []byte) {}
 
-func (b BuiltinEventEngine) OnMessage(socket *Conn, message *Message) {}
+func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
 
 type frameHeader [internal.FrameHeaderSize]byte
 

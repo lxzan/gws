@@ -201,7 +201,7 @@ func TestAccept(t *testing.T) {
 }
 
 func TestBuiltinEventEngine(t *testing.T) {
-	var ev = new(BuiltinEventEngine)
+	var ev = new(BuiltinEventHandler)
 	_, ok := interface{}(ev).(Event)
 	assert.Equal(t, true, ok)
 

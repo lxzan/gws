@@ -21,7 +21,7 @@ func main() {
 }
 
 type WebSocket struct {
-	gws.BuiltinEventEngine
+	gws.BuiltinEventHandler
 }
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
