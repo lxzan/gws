@@ -86,12 +86,9 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
 			opcode:  opcode,
 			payload: payload,
 		},
-		Do: c.doWriteAsync,
+		Do: func(args interface{}) error {
+			input := args.(messageWrapper)
+			return c.WriteMessage(input.opcode, input.payload)
+		},
 	})
-}
-
-// 写入并清空消息
-func (c *Conn) doWriteAsync(args interface{}) error {
-	input := args.(messageWrapper)
-	return c.WriteMessage(input.opcode, input.payload)
 }

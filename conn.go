@@ -46,7 +46,7 @@ type Conn struct {
 	// write lock
 	wmu *sync.Mutex
 
-	//
+	// async io task queue
 	aiomq *workerQueue
 }
 

@@ -139,6 +139,18 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if c.config.CheckTextEncoding && !isTextValid(msg.Opcode, msg.Data.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
-	c.handler.OnMessage(c, msg)
+
+	if c.config.AsyncReadEnabled {
+		c.aiomq.AddJob(asyncJob{
+			Args: msg,
+			Do: func(args interface{}) error {
+				c.handler.OnMessage(c, args.(*Message))
+				return nil
+			},
+		})
+	} else {
+		c.handler.OnMessage(c, msg)
+	}
+
 	return nil
 }

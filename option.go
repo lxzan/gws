@@ -4,44 +4,67 @@ import "net/http"
 
 type Option func(c *Upgrader)
 
-// WithEventHandler set event handler
+// WithEventHandler 设置事件处理器
+// set event handler
 func WithEventHandler(eventHandler Event) Option {
 	return func(c *Upgrader) {
 		c.EventHandler = eventHandler
 	}
 }
 
-// WithCompress set deflate compress
-func WithCompress(enabled bool, level int) Option {
+// WithAIOGoroutineLimit 设置单个连接异步IO的最大并发协程数量限制
+// set the maximum number of concurrent co-processes for asynchronous IO
+func WithAIOGoroutineLimit(limit int) Option {
 	return func(c *Upgrader) {
-		c.CompressEnabled = enabled
-		c.CompressLevel = level
+		c.AIOGoroutineLimit = limit
 	}
 }
 
-// WithMaxContentLength set max content length
+// WithAsyncReadEnabled 开启异步读功能, 并发地调用onmessage, 并发度会受到AIOGoroutineLimit的限制.
+// enable asynchronous read, call onmessage concurrently, concurrency is limited by AIOGoroutineLimit.
+func WithAsyncReadEnabled(enabled bool) Option {
+	return func(c *Upgrader) {
+		c.AsyncReadEnabled = enabled
+	}
+}
+
+// WithCompress 设置数据压缩. 是否压缩, 压缩级别和阈值, 低于阈值的数据不会被压缩.
+// set data compression.
+// Whether to compress, the compression level and the threshold value, below which the data will not be compressed.
+func WithCompress(enabled bool, level int, threshold int) Option {
+	return func(c *Upgrader) {
+		c.CompressEnabled = enabled
+		c.CompressLevel = level
+		c.CompressionThreshold = threshold
+	}
+}
+
+// WithMaxContentLength 设置消息最大长度(字节)
+// set max content length (byte).
 func WithMaxContentLength(n int) Option {
 	return func(c *Upgrader) {
 		c.MaxContentLength = n
 	}
 }
 
-// WithCheckTextEncoding set text encoding checking
-func WithCheckTextEncoding(check bool) Option {
+// WithCheckTextEncoding 检查文本utf8编码, 关闭性能会更好.
+// set text encoding checking
+func WithCheckTextEncoding(enabled bool) Option {
 	return func(c *Upgrader) {
-		c.CheckTextEncoding = check
+		c.CheckTextEncoding = enabled
 	}
 }
 
-// WithResponseHeader set response header
-// client may not support, use nil instead
+// WithResponseHeader 设置响应头, 客户端可能不支持.
+// set response header, client may not support, use nil instead
 func WithResponseHeader(h http.Header) Option {
 	return func(c *Upgrader) {
 		c.ResponseHeader = h
 	}
 }
 
-// WithCheckOrigin check request origin
+// WithCheckOrigin 检查请求来源, 进行鉴权.
+// check request origin
 func WithCheckOrigin(f func(r *Request) bool) Option {
 	return func(c *Upgrader) {
 		c.CheckOrigin = f

@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	defaultCompressLevel        = flate.BestSpeed  // Best Speed
+	defaultAIOGoroutineLimit    = 8
+	defaultCompressLevel        = flate.BestSpeed
 	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB
 	defaultCompressionThreshold = 512              // 512 Byte
 )
@@ -25,6 +26,12 @@ type (
 	Upgrader struct {
 		// websocket event handler
 		EventHandler Event
+
+		// whether to enable asynchronous reading. if on, onmessage will be called concurrently.
+		AsyncReadEnabled bool
+
+		// max goroutine num on concurrent async io
+		AIOGoroutineLimit int
 
 		// whether to compress data
 		CompressEnabled bool
@@ -69,6 +76,9 @@ func (c *Upgrader) Initialize() {
 	}
 	if c.CompressionThreshold <= 0 {
 		c.CompressionThreshold = defaultCompressionThreshold
+	}
+	if c.AIOGoroutineLimit <= 0 {
+		c.AIOGoroutineLimit = defaultAIOGoroutineLimit
 	}
 }
 
