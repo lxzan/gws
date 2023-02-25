@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultAsyncIOGoLimit       = 8
+	defaultAsyncReadGoLimit     = 8
 	defaultCompressLevel        = flate.BestSpeed
 	defaultMaxContentLength     = 16 * 1024 * 1024       // 16MiB
 	defaultCompressionThreshold = 512                    // 512 Byte
@@ -32,8 +32,8 @@ type (
 		// whether to enable asynchronous reading. if on, onmessage will be called concurrently.
 		AsyncReadEnabled bool
 
-		// goroutine limits on concurrent async io
-		AsyncIOGoLimit int
+		// goroutine limits for concurrent onmessage
+		AsyncReadGoLimit int
 
 		// whether to compress data
 		CompressEnabled bool
@@ -82,8 +82,8 @@ func (c *Upgrader) Initialize() {
 	if c.CompressionThreshold <= 0 {
 		c.CompressionThreshold = defaultCompressionThreshold
 	}
-	if c.AsyncIOGoLimit <= 0 {
-		c.AsyncIOGoLimit = defaultAsyncIOGoLimit
+	if c.AsyncReadGoLimit <= 0 {
+		c.AsyncReadGoLimit = defaultAsyncReadGoLimit
 	}
 }
 
