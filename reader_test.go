@@ -14,6 +14,46 @@ import (
 	"testing"
 )
 
+// 测试同步读
+func TestReadSync(t *testing.T) {
+	var handler = new(webSocketMocker)
+	var upgrader = NewUpgrader(func(c *Upgrader) {
+		c.EventHandler = handler
+		c.CompressEnabled = true
+		c.CompressionThreshold = 512
+	})
+
+	var mu = &sync.Mutex{}
+	var listA []string
+	var listB []string
+	const count = 1000
+	var wg = &sync.WaitGroup{}
+	wg.Add(count)
+
+	handler.onMessage = func(socket *Conn, message *Message) {
+		mu.Lock()
+		listB = append(listB, message.Data.String())
+		mu.Unlock()
+		wg.Done()
+	}
+
+	server, client := testNewPeer(upgrader)
+
+	go func() {
+		for i := 0; i < count; i++ {
+			var n = internal.AlphabetNumeric.Intn(1024)
+			var message = internal.AlphabetNumeric.Generate(n)
+			listA = append(listA, string(message))
+			testClientWrite(client, true, OpcodeText, message)
+		}
+	}()
+
+	go server.Listen()
+
+	wg.Wait()
+	assert.ElementsMatch(t, listA, listB)
+}
+
 //go:embed examples/data/readtest.json
 var testdata []byte
 
@@ -33,28 +73,14 @@ type testRow struct {
 
 func TestRead(t *testing.T) {
 	var as = assert.New(t)
+
 	var items = make([]testRow, 0)
 	if err := json.Unmarshal(testdata, &items); err != nil {
 		as.NoError(err)
 		return
 	}
 
-	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(func(c *Upgrader) {
-		c.CompressEnabled = true
-		c.CheckTextEncoding = true
-		c.MaxContentLength = 1024 * 1024
-		c.EventHandler = handler
-	})
-
-	var writer = bytes.NewBuffer(nil)
-	var reader = bytes.NewBuffer(nil)
-	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, upgrader.EventHandler, true)
-
 	for _, item := range items {
-		handler.reset(socket, reader, writer)
 		var payload []byte
 		if item.Payload == "" {
 			payload = internal.AlphabetNumeric.Generate(item.Length)
@@ -67,39 +93,37 @@ func TestRead(t *testing.T) {
 			payload = p
 		}
 
-		if err := handler.writeToReader(socket, reader, item, payload); err != nil {
-			as.NoError(err, item.Title)
-			return
-		}
-
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
+		var handler = new(webSocketMocker)
+		var upgrader = NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = handler
+			c.CompressEnabled = true
+			c.CheckTextEncoding = true
+			c.MaxContentLength = 1024 * 1024
+		})
 
 		switch item.Expected.Event {
 		case "onMessage":
 			handler.onMessage = func(socket *Conn, message *Message) {
-				as.Equal(string(payload), string(message.Data.Bytes()))
-				go func() { wg.Done() }()
+				as.Equal(string(payload), message.Data.String())
+				wg.Done()
 			}
-			as.NoError(socket.readMessage())
 		case "onPing":
 			handler.onPing = func(socket *Conn, d []byte) {
 				as.Equal(string(payload), string(d))
-				go func() { wg.Done() }()
+				wg.Done()
 			}
-			as.NoError(socket.readMessage())
 		case "onPong":
 			handler.onPong = func(socket *Conn, d []byte) {
 				as.Equal(string(payload), string(d))
-				go func() { wg.Done() }()
+				wg.Done()
 			}
-			as.NoError(socket.readMessage())
 		case "onError":
 			handler.onError = func(socket *Conn, err error) {
 				as.Error(err)
-				go func() { wg.Done() }()
+				wg.Done()
 			}
-			socket.emitError(socket.readMessage())
 		case "onClose":
 			handler.onClose = func(socket *Conn, code uint16, reason []byte) {
 				defer wg.Done()
@@ -111,16 +135,70 @@ func TestRead(t *testing.T) {
 				}
 				as.Equal(string(reason), string(p))
 			}
-			as.Error(socket.readMessage())
-		default:
-			wg.Done()
 		}
 
+		server, client := testNewPeer(upgrader)
+		buf := bytes.NewBufferString("")
+		buf.Write(payload)
+		go testClientWrite(client, item.Fin, Opcode(item.Opcode), buf.Bytes())
+		go server.Listen()
 		wg.Wait()
 	}
 }
 
 func TestSegments(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("valid segments", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var handler = new(webSocketMocker)
+		var upgrader = NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = handler
+		})
+
+		var s1 = internal.AlphabetNumeric.Generate(16)
+		var s2 = internal.AlphabetNumeric.Generate(16)
+		handler.onMessage = func(socket *Conn, message *Message) {
+			as.Equal(string(s1)+string(s2), message.Data.String())
+			wg.Done()
+		}
+
+		server, client := testNewPeer(upgrader)
+		go func() {
+			testClientWrite(client, false, OpcodeText, testCloneBytes(s1))
+			testClientWrite(client, true, OpcodeContinuation, testCloneBytes(s2))
+		}()
+		go server.Listen()
+		wg.Wait()
+	})
+
+	t.Run("invalid segments", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var handler = new(webSocketMocker)
+		var upgrader = NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = handler
+		})
+
+		var s1 = internal.AlphabetNumeric.Generate(16)
+		var s2 = internal.AlphabetNumeric.Generate(16)
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+
+		server, client := testNewPeer(upgrader)
+		go func() {
+			testClientWrite(client, false, OpcodeText, testCloneBytes(s1))
+			testClientWrite(client, true, OpcodeText, testCloneBytes(s2))
+		}()
+		go server.Listen()
+		wg.Wait()
+	})
+}
+
+func TestUnexpectedBehavior(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
 	var upgrader = NewUpgrader(
@@ -137,64 +215,6 @@ func TestSegments(t *testing.T) {
 	conn, _ := net.Pipe()
 	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, false)
 	socket.compressor = newCompressor(flate.BestSpeed)
-
-	t.Run("valid segments", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var s1 = internal.AlphabetNumeric.Generate(16)
-		var s2 = internal.AlphabetNumeric.Generate(16)
-		_ = handler.writeToReader(socket, reader, testRow{
-			Fin:     false,
-			Opcode:  uint8(OpcodeText),
-			Payload: hex.EncodeToString(s1),
-		}, s1)
-		_ = handler.writeToReader(socket, reader, testRow{
-			Fin:     true,
-			Opcode:  uint8(OpcodeContinuation),
-			Payload: hex.EncodeToString(s2),
-		}, s2)
-
-		handler.onMessage = func(socket *Conn, message *Message) {
-			as.Equal(string(s1)+string(s2), string(message.Data.Bytes()))
-			wg.Done()
-		}
-
-		_ = socket.readMessage()
-		_ = socket.readMessage()
-		wg.Wait()
-	})
-
-	t.Run("invalid segments", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var s1 = internal.AlphabetNumeric.Generate(16)
-		var s2 = internal.AlphabetNumeric.Generate(16)
-		_ = handler.writeToReader(socket, reader, testRow{
-			Fin:     false,
-			Opcode:  uint8(OpcodeText),
-			Payload: hex.EncodeToString(s1),
-		}, s1)
-		_ = handler.writeToReader(socket, reader, testRow{
-			Fin:     true,
-			Opcode:  uint8(OpcodeText),
-			Payload: hex.EncodeToString(s2),
-		}, s2)
-
-		handler.onError = func(socket *Conn, err error) {
-			as.Error(err)
-			wg.Done()
-		}
-
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		wg.Wait()
-	})
 
 	t.Run("invalid length 1", func(t *testing.T) {
 		handler.reset(socket, reader, writer)
