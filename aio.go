@@ -109,27 +109,3 @@ func (c *workerQueue) Wait(timeout time.Duration) {
 		}
 	}
 }
-
-type writeQueue struct {
-	sync.RWMutex
-	data []messageWrapper
-}
-
-func (c *writeQueue) Len() int {
-	c.RLock()
-	n := len(c.data)
-	c.RUnlock()
-	return n
-}
-
-func (c *writeQueue) Push(v messageWrapper) {
-	c.Lock()
-	c.data = append(c.data, v)
-	c.Unlock()
-}
-
-func (c *writeQueue) Pop() messageWrapper {
-	msg := c.data[0]
-	c.data = c.data[1:]
-	return msg
-}

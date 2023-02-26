@@ -77,30 +77,25 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
 
 // 添加异步写的任务
 func (c *Conn) addWriteTask(opcode Opcode, payload []byte) {
-	c.wMessages.Push(messageWrapper{opcode: opcode, payload: payload})
+	c.wChannel <- messageWrapper{opcode: opcode, payload: payload}
 	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
 }
 
 func (c *Conn) doWriteAsync(args interface{}) error {
-	if c.wMessages.Len() == 0 {
-		return nil
-	}
-
-	c.wMessages.Lock()
-	msgs := c.wMessages.data
-	c.wMessages.data = []messageWrapper{}
-	c.wMessages.Unlock()
-
 	myerr := func() error {
 		c.wmu.Lock()
 		defer c.wmu.Unlock()
 
-		for _, msg := range msgs {
-			if err := c.writePublic(msg.opcode, msg.payload); err != nil {
-				return err
+		for {
+			select {
+			case msg := <-c.wChannel:
+				if err := c.writePublic(msg.opcode, msg.payload); err != nil {
+					return err
+				}
+			default:
+				return nil
 			}
 		}
-		return nil
 	}()
 	c.emitError(myerr)
 	return myerr

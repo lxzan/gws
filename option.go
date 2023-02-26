@@ -15,11 +15,11 @@ func WithEventHandler(eventHandler Event) Option {
 	}
 }
 
-// WithAsyncReadGoLimit 设置单个连接异步读的最大并发协程数量限制
+// WithAsyncIOGoLimit 设置单个连接异步IO的最大并发协程数量限制
 // set the maximum number of concurrent co-processes for asynchronous read
-func WithAsyncReadGoLimit(limit int) Option {
+func WithAsyncIOGoLimit(limit int) Option {
 	return func(c *Upgrader) {
-		c.AsyncReadGoLimit = limit
+		c.AsyncIOGoLimit = limit
 	}
 }
 

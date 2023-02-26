@@ -13,7 +13,7 @@ func TestNewUpgrader(t *testing.T) {
 	as.Equal(false, config.CompressEnabled)
 	as.Equal(false, config.AsyncReadEnabled)
 	as.Equal(false, config.CheckTextEncoding)
-	as.Equal(defaultAsyncReadGoLimit, config.AsyncReadGoLimit)
+	as.Equal(defaultAsyncIOGoLimit, config.AsyncIOGoLimit)
 	as.Equal(defaultMaxContentLength, config.MaxContentLength)
 	as.Equal(defaultCloseTimeout, config.CloseTimeout)
 	as.NotNil(config.EventHandler)
@@ -26,7 +26,7 @@ func TestOptions(t *testing.T) {
 	var config = NewUpgrader(
 		WithCompress(flate.BestSpeed, 128),
 		WithAsyncReadEnabled(),
-		WithAsyncReadGoLimit(16),
+		WithAsyncIOGoLimit(16),
 		WithMaxContentLength(256),
 		WithCloseTimeout(100*time.Millisecond),
 		WithCheckTextEncoding(),
@@ -36,7 +36,7 @@ func TestOptions(t *testing.T) {
 	as.Equal(128, config.CompressionThreshold)
 
 	as.Equal(true, config.AsyncReadEnabled)
-	as.Equal(16, config.AsyncReadGoLimit)
+	as.Equal(16, config.AsyncIOGoLimit)
 	as.Equal(100*time.Millisecond, config.CloseTimeout)
 	as.Equal(256, config.MaxContentLength)
 	as.Equal(true, config.CheckTextEncoding)
