@@ -45,10 +45,12 @@ type Conn struct {
 	closed uint32
 	// write lock
 	wmu *sync.Mutex
-	// async io task queue
-	aiomq *workerQueue
-	// write message queue
-	wmq *writeQueue
+	// async read task queue
+	readTaskQ *workerQueue
+	// async write task queue
+	writeTaskQ *workerQueue
+	// messages waiting for writing
+	wMessages *writeQueue
 }
 
 func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
@@ -63,8 +65,9 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		aiomq:           newWorkerQueue(int64(config.AsyncIOGoLimit)),
-		wmq:             &writeQueue{},
+		readTaskQ:       newWorkerQueue(int64(config.AsyncReadGoLimit)),
+		writeTaskQ:      newWorkerQueue(1),
+		wMessages:       &writeQueue{},
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor(config.CompressLevel)
@@ -128,9 +131,8 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.wmq.Push(messageWrapper{opcode: OpcodeCloseConnection, payload: content})
-		c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
-		c.aiomq.Wait(defaultCloseTimeout)
+		c.addWriteTask(OpcodeCloseConnection, content)
+		c.writeTaskQ.Wait(defaultCloseTimeout)
 		c.handler.OnError(c, responseErr)
 	}
 }
@@ -167,9 +169,8 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.wmq.Push(messageWrapper{opcode: OpcodeCloseConnection, payload: responseCode.Bytes()})
-		c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
-		c.aiomq.Wait(defaultCloseTimeout)
+		c.addWriteTask(OpcodeCloseConnection, responseCode.Bytes())
+		c.writeTaskQ.Wait(defaultCloseTimeout)
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure

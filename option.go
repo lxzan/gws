@@ -1,6 +1,9 @@
 package gws
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type Option func(c *Upgrader)
 
@@ -68,5 +71,14 @@ func WithResponseHeader(h http.Header) Option {
 func WithCheckOrigin(f func(r *Request) bool) Option {
 	return func(c *Upgrader) {
 		c.CheckOrigin = f
+	}
+}
+
+// WithCloseTimeout 关闭连接等待超时时间
+// 当IO出现异常时, 连接内可能还有一些未写入数据, 所以需要等待
+// 为了快速关闭异常连接, 这个值不要设置太大
+func WithCloseTimeout(timeout time.Duration) Option {
+	return func(c *Upgrader) {
+		c.CloseTimeout = timeout
 	}
 }

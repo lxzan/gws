@@ -72,20 +72,24 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return
 	}
+	c.addWriteTask(opcode, payload)
+}
 
-	c.wmq.Push(messageWrapper{opcode: opcode, payload: payload})
-	c.aiomq.AddJob(asyncJob{Do: c.doWriteAsync})
+// 添加异步写的任务
+func (c *Conn) addWriteTask(opcode Opcode, payload []byte) {
+	c.wMessages.Push(messageWrapper{opcode: opcode, payload: payload})
+	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
 }
 
 func (c *Conn) doWriteAsync(args interface{}) error {
-	if c.wmq.Len() == 0 {
+	if c.wMessages.Len() == 0 {
 		return nil
 	}
 
-	c.wmq.Lock()
-	msgs := c.wmq.data
-	c.wmq.data = []messageWrapper{}
-	c.wmq.Unlock()
+	c.wMessages.Lock()
+	msgs := c.wMessages.data
+	c.wMessages.data = []messageWrapper{}
+	c.wMessages.Unlock()
 
 	myerr := func() error {
 		c.wmu.Lock()
