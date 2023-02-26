@@ -37,12 +37,11 @@
 
 #### Highlight
 
-- zero dependency, not use channel but event driven
-- zero extra goroutine to manage connection
-- zero error to read/write operation, errors have been handled appropriately
-- built-in concurrent_map implementation
-- asynchronous non-blocking read and write support
-- fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
+- No dependency
+- No additional resident concurrent processes
+- Asynchronous non-blocking read and write support
+- Ultra-high performance, ultra-high IOPS
+- Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Benchmark
 
@@ -112,7 +111,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		socket.Listen()
+		go socket.Listen()
 	})
 
 	_ = http.ListenAndServe(":3000", nil)
