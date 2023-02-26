@@ -95,7 +95,7 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	name := c.getName(socket)
 	if v, ok := c.sessions.Load(name); ok {
 		var conn = v.(*gws.Conn)
-		conn.Close(1000, []byte("connection replaced"))
+		conn.WriteClose(1000, []byte("connection replaced"))
 	}
 	socket.SetDeadline(time.Now().Add(3 * PingInterval))
 	c.sessions.Store(name, socket)

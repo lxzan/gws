@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -15,7 +14,6 @@ const (
 	defaultCompressLevel        = flate.BestSpeed
 	defaultMaxContentLength     = 16 * 1024 * 1024 // 16MiB
 	defaultCompressionThreshold = 512              // 512 Byte
-	defaultCloseTimeout         = time.Second      // 1s
 )
 
 type (
@@ -34,10 +32,6 @@ type (
 
 		// goroutine limits on concurrent async io
 		AsyncIOGoLimit int
-
-		// maximum wait time to close a connection. for fast closing of abnormal connections, do not set this value too high.
-		// when an IO exception occurs, there may be some unwritten data in the connection, so you need to wait
-		CloseTimeout time.Duration
 
 		// whether to compress data
 		CompressEnabled bool
@@ -88,9 +82,6 @@ func (c *Upgrader) Initialize() {
 	}
 	if c.AsyncIOGoLimit <= 0 {
 		c.AsyncIOGoLimit = defaultAsyncIOGoLimit
-	}
-	if c.CloseTimeout <= 0 {
-		c.CloseTimeout = defaultCloseTimeout
 	}
 }
 

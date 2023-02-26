@@ -9,7 +9,7 @@ import (
 func main() {
 	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
 		c.EventHandler = new(WebSocket)
-		//c.CompressEnabled = true
+		c.CompressEnabled = true
 		c.CheckTextEncoding = true
 		c.MaxContentLength = 32 * 1024 * 1024
 		//c.AsyncReadEnabled = true
@@ -48,8 +48,8 @@ func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	//socket.WriteAsync(message.Opcode, cloneBytes(message.Data.Bytes()))
-	socket.WriteMessage(message.Opcode, message.Data.Bytes())
+	socket.WriteAsync(message.Opcode, cloneBytes(message.Data.Bytes()))
+	//socket.WriteMessage(message.Opcode, message.Data.Bytes())
 	message.Close()
 }
 

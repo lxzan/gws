@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
-	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
@@ -96,18 +95,6 @@ func (c *Conn) Listen() {
 	}
 }
 
-// Close proactively close the connection
-// code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
-// 主动关闭连接, 发送关闭帧, 并将连接状态置为关闭
-// 没有特殊原因的话, 建议code=0, reason=nil
-func (c *Conn) Close(code uint16, reason []byte) {
-	var err = internal.NewError(internal.StatusCode(code), errors.New(""))
-	if len(reason) > 0 {
-		err.Err = errors.New(string(reason))
-	}
-	c.emitError(err)
-}
-
 func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
@@ -131,8 +118,7 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.addWriteTask(OpcodeCloseConnection, content)
-		c.writeTaskQ.Wait(defaultCloseTimeout)
+		_ = c.doWrite(OpcodeCloseConnection, content)
 		c.handler.OnError(c, responseErr)
 	}
 }
@@ -169,8 +155,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.addWriteTask(OpcodeCloseConnection, responseCode.Bytes())
-		c.writeTaskQ.Wait(defaultCloseTimeout)
+		_ = c.doWrite(OpcodeCloseConnection, responseCode.Bytes())
 		c.handler.OnClose(c, realCode, buf.Bytes())
 	}
 	return internal.CloseNormalClosure

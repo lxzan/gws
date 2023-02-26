@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
-	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,7 +13,7 @@ import (
 // 创建用于测试的对等连接
 func testNewPeer(config *Upgrader) (server, client *Conn) {
 	size := 4096
-	s, c := net.Pipe()
+	s, c := Pipe()
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
 		server = serveWebSocket(config, &Request{}, s, brw, config.EventHandler, config.CompressEnabled)
