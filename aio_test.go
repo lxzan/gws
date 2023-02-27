@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // 创建用于测试的对等连接
@@ -214,4 +215,33 @@ func TestReadAsync(t *testing.T) {
 
 	wg.Wait()
 	assert.ElementsMatch(t, listA, listB)
+}
+
+func TestTaskQueue(t *testing.T) {
+	var as = assert.New(t)
+	var mu = &sync.Mutex{}
+	var listA []int
+	var listB []int
+
+	var count = 1000
+	var wg = &sync.WaitGroup{}
+	wg.Add(count)
+	var q = newWorkerQueue(8)
+	for i := 0; i < count; i++ {
+		listA = append(listA, i)
+		q.AddJob(asyncJob{
+			Args: i,
+			Do: func(args interface{}) error {
+				defer wg.Done()
+				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
+				time.Sleep(latency)
+				mu.Lock()
+				listB = append(listB, args.(int))
+				mu.Unlock()
+				return nil
+			},
+		})
+	}
+	wg.Wait()
+	as.ElementsMatch(listA, listB)
 }
