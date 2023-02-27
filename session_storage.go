@@ -8,59 +8,87 @@ import (
 // SessionStorage because sync.Map is not easy to debug, so I implemented my own map.
 // if you don't like it, use sync.Map instead.
 type SessionStorage interface {
-	Load(key interface{}) (value interface{}, exist bool)
-	Delete(key interface{})
-	Store(key interface{}, value interface{})
-	Range(f func(key, value interface{}) bool)
+	Load(key string) (value interface{}, exist bool)
+	Delete(key string)
+	Store(key string, value interface{})
+	Range(f func(key string, value interface{}) bool)
 }
 
-func NewMap() *Map {
-	return &Map{mu: sync.RWMutex{}, d: make(map[interface{}]interface{})}
-}
+type (
+	sliceMap struct {
+		sync.RWMutex
+		data []kv
+	}
 
-type Map struct {
-	mu sync.RWMutex
-	d  map[interface{}]interface{}
-}
+	kv struct {
+		deleted bool
+		key     string
+		value   interface{}
+	}
+)
 
-func (c *Map) Len() int {
-	c.mu.RLock()
-	n := len(c.d)
-	c.mu.RUnlock()
+func (c *sliceMap) Len() int {
+	c.RLock()
+	defer c.RUnlock()
+	var n = len(c.data)
+	for _, v := range c.data {
+		if v.deleted {
+			n--
+		}
+	}
 	return n
 }
 
-func (c *Map) Load(key interface{}) (value interface{}, exist bool) {
-	c.mu.RLock()
-	value, exist = c.d[key]
-	c.mu.RUnlock()
-	return
-}
-
-// Delete deletes the value for a key.
-func (c *Map) Delete(key interface{}) {
-	c.mu.Lock()
-	delete(c.d, key)
-	c.mu.Unlock()
-}
-
-// Store sets the value for a key.
-func (c *Map) Store(key interface{}, value interface{}) {
-	c.mu.Lock()
-	c.d[key] = value
-	c.mu.Unlock()
-}
-
-// Range calls f sequentially for each key and value present in the map.
-// If f returns false, range stops the iteration.
-func (c *Map) Range(f func(key, value interface{}) bool) {
-	c.mu.RLock()
-	for k, v := range c.d {
-		if ok := f(k, v); !ok {
-			break
+func (c *sliceMap) Load(key string) (value interface{}, exist bool) {
+	c.RLock()
+	defer c.RUnlock()
+	for _, v := range c.data {
+		if v.key == key && !v.deleted {
+			return v.value, true
 		}
 	}
-	c.mu.RUnlock()
+	return nil, false
+}
+
+func (c *sliceMap) Delete(key string) {
+	c.Lock()
+	defer c.Unlock()
+	for i, v := range c.data {
+		if v.key == key {
+			c.data[i].deleted = true
+		}
+	}
+}
+
+func (c *sliceMap) Store(key string, value interface{}) {
+	c.Lock()
+	defer c.Unlock()
+
+	for i, v := range c.data {
+		if v.key == key && !v.deleted {
+			c.data[i].value = value
+			return
+		}
+	}
+
+	c.data = append(c.data, kv{
+		deleted: false,
+		key:     key,
+		value:   value,
+	})
+}
+
+func (c *sliceMap) Range(f func(key string, value interface{}) bool) {
+	c.Lock()
+	defer c.Unlock()
+
+	for _, v := range c.data {
+		if !v.deleted {
+			if !f(v.key, v.value) {
+				return
+			}
+		}
+	}
 }
 
 /*

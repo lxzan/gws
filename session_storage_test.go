@@ -8,8 +8,8 @@ import (
 
 func TestMap(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[interface{}]interface{})
-	var m2 = NewMap()
+	var m1 = make(map[string]interface{})
+	var m2 = &sliceMap{}
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -18,7 +18,7 @@ func TestMap(t *testing.T) {
 		m2.Store(key, val)
 	}
 
-	var keys = make([]interface{}, 0)
+	var keys = make([]string, 0)
 	for k, _ := range m1 {
 		keys = append(keys, k)
 	}
@@ -38,7 +38,7 @@ func TestMap(t *testing.T) {
 func TestMap_Range(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[interface{}]interface{})
-	var m2 = NewMap()
+	var m2 = &sliceMap{}
 	var count = 1000
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -49,7 +49,7 @@ func TestMap_Range(t *testing.T) {
 
 	{
 		var keys []interface{}
-		m2.Range(func(key interface{}, value interface{}) bool {
+		m2.Range(func(key string, value interface{}) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)
@@ -61,7 +61,7 @@ func TestMap_Range(t *testing.T) {
 
 	{
 		var keys []interface{}
-		m2.Range(func(key interface{}, value interface{}) bool {
+		m2.Range(func(key string, value interface{}) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)

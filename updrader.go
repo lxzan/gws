@@ -135,7 +135,7 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 }
 
 func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	var request = &Request{Request: r, SessionStorage: NewMap()}
+	var request = &Request{Request: r, SessionStorage: &sliceMap{}}
 	var header = internal.CloneHeader(c.ResponseHeader)
 	if !c.CheckOrigin(request) {
 		return nil, internal.ErrCheckOrigin
