@@ -38,31 +38,17 @@
 #### Highlight
 
 - No dependency
-- No additional resident concurrent processes
+- No additional resident concurrent goroutine
 - Asynchronous non-blocking read and write support
-- Ultra-high performance, ultra-high IOPS
+- High IOPS and low latency
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Benchmark
 
-- machine: Ubuntu 20.04LTS VM (4C8T)
-- client: tcpkali
-- payload: 2.34KiB
+- machine: `Ubuntu 20.04LTS VM (4C8T)`
+- command: `tcpkali -c 1000 --connect-rate 1000 -r 500 -T 30s -f assets/1K.txt --ws 127.0.0.1:${port}/connect`
 
-| Server  | Connection | Send Speed (msg/s) | T (s) | Download / Upload Bandwidth (Mbps) |
-| ------- | ---------- | ------------------ | ----- | ---------------------------------- |
-| gws     | 200        | 4000               | 30    | 10916.094↓ 10951.587↑              |
-| gorilla | 200        | 4000               | 30    | 4344.222↓ 4380.711↑                |
-| gws     | 2000       | 300                | 30    | 7941.090↓ 7951.117↑                |
-| gorilla | 2000       | 300                | 30    | 4706.938↓ 4715.744↑                |
-| gws     | 5000       | 60                 | 30    | 5891.151↓ 5908.599↑                |
-| gorilla | 5000       | 60                 | 30    | -                                  |
-| gws     | 10000      | 10                 | 60    | 1980.124↓ 1977.561↑                |
-| gorilla | 10000      | 10                 | 60    | 1972.556↓ 1979.981↑                |
-| gws     | 10000      | 20                 | 60    | 3952.788↓ 3959.341↑                |
-| gorilla | 10000      | 20                 | 60    | -                                  |
-
-> `-` means exception
+![](assets/performance.png)
 
 #### Core Interface
 
