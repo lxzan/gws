@@ -45,7 +45,6 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	return err
 }
 
-// doWrite
 // 关闭状态置为1后还能写, 以便发送关闭帧
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
@@ -56,8 +55,8 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 
 // 写入消息的公共逻辑
 func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
-	var enableCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressionThreshold
-	if enableCompress {
+	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressionThreshold
+	if useCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
@@ -67,7 +66,7 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 
 	var header = frameHeader{}
 	var n = len(payload)
-	var headerLength = header.GenerateServerHeader(true, enableCompress, opcode, n)
+	var headerLength = header.GenerateServerHeader(true, useCompress, opcode, n)
 	if err := internal.WriteN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}
@@ -85,11 +84,6 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return
 	}
-	c.addWriteTask(opcode, payload)
-}
-
-// 添加异步写的任务
-func (c *Conn) addWriteTask(opcode Opcode, payload []byte) {
 	c.wChannel <- messageWrapper{opcode: opcode, payload: payload}
 	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
 }

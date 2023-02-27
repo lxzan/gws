@@ -54,7 +54,7 @@ func TestReadSync(t *testing.T) {
 	assert.ElementsMatch(t, listA, listB)
 }
 
-//go:embed examples/data/readtest.json
+//go:embed assets/read_test.json
 var testdata []byte
 
 type testRow struct {
@@ -81,7 +81,6 @@ func TestRead(t *testing.T) {
 	}
 
 	for _, item := range items {
-		println(item.Title)
 		var payload []byte
 		if item.Payload == "" {
 			payload = internal.AlphabetNumeric.Generate(item.Length)

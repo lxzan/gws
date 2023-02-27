@@ -65,22 +65,18 @@ func (p *BufferPool) Put(b *bytes.Buffer) {
 func (p *BufferPool) Get(n int) *bytes.Buffer {
 	if n <= Lv1 {
 		buf := p.p0.Get().(*bytes.Buffer)
-		buf.Reset()
 		return buf
 	}
 	if n <= Lv2 {
 		buf := p.p1.Get().(*bytes.Buffer)
-		buf.Reset()
 		return buf
 	}
 	if n <= Lv3 {
 		buf := p.p2.Get().(*bytes.Buffer)
-		buf.Reset()
 		return buf
 	}
 	if n <= Lv4 {
 		buf := p.p3.Get().(*bytes.Buffer)
-		buf.Reset()
 		return buf
 	}
 	return bytes.NewBuffer(make([]byte, 0, n))

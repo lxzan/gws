@@ -20,18 +20,22 @@ func TestBufferPool(t *testing.T) {
 		var n = AlphabetNumeric.Intn(126)
 		var buf = pool.Get(n)
 		as.Equal(128, buf.Cap())
+		as.Equal(0, buf.Len())
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(500)
 		as.Equal(Lv2, buf.Cap())
+		as.Equal(0, buf.Len())
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(2000)
 		as.Equal(Lv3, buf.Cap())
+		as.Equal(0, buf.Len())
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(5000)
 		as.Equal(Lv4, buf.Cap())
+		as.Equal(0, buf.Len())
 	}
 
 	pool.Put(nil)
