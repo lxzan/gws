@@ -49,13 +49,13 @@ func (c *Conn) readControl() error {
 }
 
 func (c *Conn) readMessage() error {
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return internal.CloseNormalClosure
+	}
+
 	contentLength, err := c.fh.Parse(c.rbuf)
 	if err != nil {
 		return err
-	}
-
-	if atomic.LoadUint32(&c.closed) == 1 {
-		return internal.CloseNormalClosure
 	}
 
 	// RSV1, RSV2, RSV3:  1 bit each
