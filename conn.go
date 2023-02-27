@@ -13,6 +13,8 @@ import (
 )
 
 type Conn struct {
+	// store session information
+	SessionStorage SessionStorage
 	// whether to use compression
 	compressEnabled bool
 	// tcp connection
@@ -38,8 +40,6 @@ type Conn struct {
 	// WebSocket Event Handler
 	handler Event
 
-	// store session information
-	SessionStorage SessionStorage
 	// whether server is closed
 	closed uint32
 	// write lock

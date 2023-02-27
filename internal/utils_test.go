@@ -161,7 +161,8 @@ func TestMaskByByte(t *testing.T) {
 
 func TestMask(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		var s1 = AlphabetNumeric.Generate(1280)
+		var n = AlphabetNumeric.Intn(1024)
+		var s1 = AlphabetNumeric.Generate(n)
 		var s2 = make([]byte, len(s1))
 		copy(s2, s1)
 
