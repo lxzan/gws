@@ -2,9 +2,22 @@ package gws
 
 import (
 	"bytes"
+	"errors"
 	"github.com/lxzan/gws/internal"
 	"sync/atomic"
 )
+
+// WriteClose proactively close the connection
+// code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
+// 通过emitError发送关闭帧, 将连接状态置为关闭, 用于服务端主动断开连接
+// 没有特殊原因的话, 建议code=0, reason=nil
+func (c *Conn) WriteClose(code uint16, reason []byte) {
+	var err = internal.NewError(internal.StatusCode(code), internal.GwsError(""))
+	if len(reason) > 0 {
+		err.Err = errors.New(string(reason))
+	}
+	c.emitError(err)
+}
 
 // WritePing write ping frame
 func (c *Conn) WritePing(payload []byte) error {

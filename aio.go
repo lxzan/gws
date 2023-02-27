@@ -1,9 +1,7 @@
 package gws
 
 import (
-	"context"
 	"sync"
-	"time"
 )
 
 type (
@@ -75,37 +73,5 @@ func (c *workerQueue) AddJob(job asyncJob) {
 	c.mu.Unlock()
 	if item := c.getJob(); item != nil {
 		go c.do(item.(asyncJob))
-	}
-}
-
-// 获取当前并发
-func (c *workerQueue) getCurConcurrency() int64 {
-	c.mu.Lock()
-	num := c.curConcurrency
-	c.mu.Unlock()
-	return num
-}
-
-func (c *workerQueue) Wait(timeout time.Duration) {
-	if c.getCurConcurrency() == 0 {
-		return
-	}
-
-	ticker := time.NewTicker(10 * time.Millisecond)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer func() {
-		ticker.Stop()
-		cancel()
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if c.getCurConcurrency() == 0 {
-				return
-			}
-		}
 	}
 }
