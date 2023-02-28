@@ -63,6 +63,9 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 		}
 		payload = compressedContent.Bytes()
 	}
+	if len(payload) > c.config.MaxContentLength {
+		return internal.CloseMessageTooLarge
+	}
 
 	var header = frameHeader{}
 	var n = len(payload)

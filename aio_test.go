@@ -174,6 +174,24 @@ func TestConn_WriteAsync(t *testing.T) {
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
 	})
+
+	// 往关闭的连接写数据
+	t.Run("write to closed conn", func(t *testing.T) {
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		var handler = new(webSocketMocker)
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		var upgrader = NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = handler
+		})
+		server, client := testNewPeer(upgrader)
+		client.NetConn().Close()
+		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
+		wg.Wait()
+	})
 }
 
 // 测试异步读

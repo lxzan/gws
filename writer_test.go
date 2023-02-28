@@ -156,3 +156,21 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 		as.Equal(internal.ErrConnClosed, socket.WriteMessage(OpcodeText, text))
 	})
 }
+
+func TestWriteBigMessage(t *testing.T) {
+	var config = NewUpgrader(func(c *Upgrader) {
+		c.MaxContentLength = 10
+	})
+	srv, _ := testNewPeer(config)
+	var err = srv.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
+	assert.Error(t, err)
+}
+
+func TestWriteClose(t *testing.T) {
+	var config = NewUpgrader(func(c *Upgrader) {
+		c.MaxContentLength = 10
+		c.EventHandler = new(BuiltinEventHandler)
+	})
+	srv, _ := testNewPeer(config)
+	srv.WriteClose(0, []byte("goodbye"))
+}
