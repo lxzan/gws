@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"github.com/lxzan/gws/internal"
 	"sync"
 )
 
@@ -34,10 +35,11 @@ func newWorkerQueue(maxConcurrency int64) *workerQueue {
 }
 
 // 获取一个任务
-func (c *workerQueue) getJob() interface{} {
+func (c *workerQueue) getJob(delta int64) interface{} {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
 	}
@@ -50,18 +52,10 @@ func (c *workerQueue) getJob() interface{} {
 	return result
 }
 
-// 并发减一
-func (c *workerQueue) decrease() {
-	c.mu.Lock()
-	c.curConcurrency--
-	c.mu.Unlock()
-}
-
 // 递归地执行任务
 func (c *workerQueue) do(job asyncJob) {
 	_ = job.Do(job.Args)
-	c.decrease()
-	if nextJob := c.getJob(); nextJob != nil {
+	if nextJob := c.getJob(-1); nextJob != nil {
 		c.do(nextJob.(asyncJob))
 	}
 }
@@ -71,14 +65,14 @@ func (c *workerQueue) AddJob(job asyncJob) {
 	c.mu.Lock()
 	c.q = append(c.q, job)
 	c.mu.Unlock()
-	if item := c.getJob(); item != nil {
+	if item := c.getJob(0); item != nil {
 		go c.do(item.(asyncJob))
 	}
 }
 
-func newMessageQueue() *messageQueue {
+func newMessageQueue(capacity int) *messageQueue {
 	var mq = new(messageQueue)
-	mq.cap = 256
+	mq.cap = capacity
 	return mq
 }
 
@@ -89,18 +83,18 @@ type messageQueue struct {
 }
 
 // 追加一条消息
-// 如果容量已满消息会被抛弃并返回false
-func (c *messageQueue) Push(opcode Opcode, payload []byte) (succeed bool) {
+// 如果容量已满消息会被抛弃并返回错误
+func (c *messageQueue) Push(opcode Opcode, payload []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	if len(c.data) >= c.cap {
-		return false
+		return internal.ErrWriteMessageQueueCapFull
 	}
 	c.data = append(c.data, messageWrapper{
 		opcode:  opcode,
 		payload: payload,
 	})
-	return true
+	return nil
 }
 
 // 取出所有消息

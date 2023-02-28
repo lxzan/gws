@@ -84,8 +84,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	if ok := c.writeMessageQ.Push(opcode, payload); !ok {
-		return internal.ErrWriteMessageQueueCapFull
+	if err := c.writeMessageQ.Push(opcode, payload); err != nil {
+		return err
 	}
 	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
 	return nil

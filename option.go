@@ -14,19 +14,27 @@ func WithEventHandler(eventHandler Event) Option {
 	}
 }
 
-// WithAsyncIOGoLimit 设置单个连接异步IO的最大并发协程数量限制
-// set the maximum number of concurrent co-processes for asynchronous read
-func WithAsyncIOGoLimit(limit int) Option {
-	return func(c *Upgrader) {
-		c.AsyncIOGoLimit = limit
-	}
-}
-
-// WithAsyncReadEnabled 开启异步读功能, 并发地调用onmessage, 并发度会受到AIOGoroutineLimit的限制.
-// enable asynchronous read, call onmessage concurrently, concurrency is limited by AIOGoroutineLimit.
+// WithAsyncReadEnabled 开启异步读功能, 并行地调用onmessage, 并发度会受到AsyncReadGoLimit的限制.
+// enable asynchronous read, call onmessage concurrently, concurrency is limited by AsyncReadGoLimit.
 func WithAsyncReadEnabled() Option {
 	return func(c *Upgrader) {
 		c.AsyncReadEnabled = true
+	}
+}
+
+// WithAsyncReadGoLimit 并行处理消息的最大协程数量限制
+// limit on the maximum number of concurrently processed messages
+func WithAsyncReadGoLimit(limit int) Option {
+	return func(c *Upgrader) {
+		c.AsyncReadGoLimit = limit
+	}
+}
+
+// WithAsyncWriteCap 异步非阻塞写入的容量限制, 超过限制的消息会被丢弃
+// capacity limit for asynchronous non-blocking writes, messages exceeding the limit will be discarded
+func WithAsyncWriteCap(capacity int) Option {
+	return func(c *Upgrader) {
+		c.AsyncWriteCap = capacity
 	}
 }
 

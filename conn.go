@@ -64,9 +64,9 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		readTaskQ:       newWorkerQueue(int64(config.AsyncIOGoLimit)),
+		readTaskQ:       newWorkerQueue(int64(config.AsyncReadGoLimit)),
 		writeTaskQ:      newWorkerQueue(1),
-		writeMessageQ:   newMessageQueue(),
+		writeMessageQ:   newMessageQueue(config.AsyncWriteCap),
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor(config.CompressLevel)
