@@ -87,16 +87,16 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	if err := c.writeMessageQ.Push(opcode, payload); err != nil {
+	if err := c.writeMQ.Push(opcode, payload); err != nil {
 		return err
 	}
-	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
+	c.writeTQ.AddJob(asyncJob{Do: c.doWriteAsync})
 	return nil
 }
 
 func (c *Conn) doWriteAsync(args interface{}) error {
 	myerr := func() error {
-		msgs := c.writeMessageQ.PopAll()
+		msgs := c.writeMQ.PopAll()
 		if len(msgs) == 0 {
 			return nil
 		}
