@@ -88,7 +88,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 		var listA []string
 		var listB []string
-		var count = 1000
+		var count = 128
 
 		go func() {
 			for i := 0; i < count; i++ {
@@ -134,7 +134,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 		var listA []string
 		var listB []string
-		const count = 1000
+		const count = 128
 
 		go func() {
 			for i := 0; i < count; i++ {

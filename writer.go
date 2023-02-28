@@ -79,31 +79,36 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 // WriteAsync
 // 异步写入消息, 适合广播等需要非阻塞的场景
 // asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	// 不允许加任务了
 	if atomic.LoadUint32(&c.closed) == 1 {
-		return
+		return internal.ErrConnClosed
 	}
-	c.wChannel <- messageWrapper{opcode: opcode, payload: payload}
+	if ok := c.writeMessageQ.Push(opcode, payload); !ok {
+		return internal.ErrWriteMessageQueueCapFull
+	}
 	c.writeTaskQ.AddJob(asyncJob{Do: c.doWriteAsync})
+	return nil
 }
 
 func (c *Conn) doWriteAsync(args interface{}) error {
 	myerr := func() error {
-		c.wmu.Lock()
-		defer c.wmu.Unlock()
+		msgs := c.writeMessageQ.PopAll()
+		if len(msgs) == 0 {
+			return nil
+		}
 
-		for {
-			select {
-			case msg := <-c.wChannel:
-				if err := c.writePublic(msg.opcode, msg.payload); err != nil {
-					return err
-				}
-			default:
-				return nil
+		c.wmu.Lock()
+		for _, msg := range msgs {
+			if err := c.writePublic(msg.opcode, msg.payload); err != nil {
+				c.wmu.Unlock()
+				return err
 			}
 		}
+		c.wmu.Unlock()
+		return nil
 	}()
+
 	c.emitError(myerr)
 	return myerr
 }

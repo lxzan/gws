@@ -75,3 +75,42 @@ func (c *workerQueue) AddJob(job asyncJob) {
 		go c.do(item.(asyncJob))
 	}
 }
+
+func newMessageQueue() *messageQueue {
+	var mq = new(messageQueue)
+	mq.cap = 256
+	return mq
+}
+
+type messageQueue struct {
+	sync.Mutex
+	cap  int
+	data []messageWrapper
+}
+
+// 追加一条消息
+// 如果容量已满消息会被抛弃并返回false
+func (c *messageQueue) Push(opcode Opcode, payload []byte) (succeed bool) {
+	c.Lock()
+	defer c.Unlock()
+	if len(c.data) >= c.cap {
+		return false
+	}
+	c.data = append(c.data, messageWrapper{
+		opcode:  opcode,
+		payload: payload,
+	})
+	return true
+}
+
+// 取出所有消息
+func (c *messageQueue) PopAll() []messageWrapper {
+	c.Lock()
+	defer c.Unlock()
+	if len(c.data) == 0 {
+		return nil
+	}
+	msgs := c.data
+	c.data = []messageWrapper{}
+	return msgs
+}

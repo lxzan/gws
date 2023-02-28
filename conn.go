@@ -48,8 +48,8 @@ type Conn struct {
 	readTaskQ *workerQueue
 	// async write task queue
 	writeTaskQ *workerQueue
-	// write channel
-	wChannel chan messageWrapper
+	// write message queue
+	writeMessageQ *messageQueue
 }
 
 func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
@@ -66,7 +66,7 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		handler:         handler,
 		readTaskQ:       newWorkerQueue(int64(config.AsyncIOGoLimit)),
 		writeTaskQ:      newWorkerQueue(1),
-		wChannel:        make(chan messageWrapper, config.AsyncIOGoLimit),
+		writeMessageQ:   newMessageQueue(),
 	}
 	if c.compressEnabled {
 		c.compressor = newCompressor(config.CompressLevel)

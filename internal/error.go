@@ -1,12 +1,13 @@
 package internal
 
 var (
-	ErrCheckOrigin             = GwsError("check origin error")
-	ErrHandshake               = GwsError("connecting handshake error")
-	ErrTextEncoding            = GwsError("text frame payload must be utf8 encoding")
-	ErrUnexpectedContentLength = GwsError("unexpected content length")
-	ErrConnClosed              = GwsError("connection closed")
-	ErrGetMethodRequired       = GwsError("http method must be get")
+	ErrCheckOrigin              = GwsError("check origin error")
+	ErrHandshake                = GwsError("connecting handshake error")
+	ErrTextEncoding             = GwsError("text frame payload must be utf8 encoding")
+	ErrUnexpectedContentLength  = GwsError("unexpected content length")
+	ErrConnClosed               = GwsError("connection closed")
+	ErrGetMethodRequired        = GwsError("http method must be get")
+	ErrWriteMessageQueueCapFull = GwsError("write message queue capacity is full")
 )
 
 type GwsError string
