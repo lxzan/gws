@@ -7,10 +7,10 @@ import (
 
 type (
 	workerQueue struct {
-		mu             *sync.Mutex // 锁
-		q              []asyncJob  // 任务队列
-		maxConcurrency int64       // 最大并发
-		curConcurrency int64       // 当前并发
+		mu             sync.Mutex // 锁
+		q              []asyncJob // 任务队列
+		maxConcurrency int32      // 最大并发
+		curConcurrency int32      // 当前并发
 	}
 
 	asyncJob struct {
@@ -25,9 +25,9 @@ type (
 )
 
 // newWorkerQueue 创建一个任务队列
-func newWorkerQueue(maxConcurrency int64) *workerQueue {
+func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	c := &workerQueue{
-		mu:             &sync.Mutex{},
+		mu:             sync.Mutex{},
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
 	}
@@ -35,7 +35,7 @@ func newWorkerQueue(maxConcurrency int64) *workerQueue {
 }
 
 // 获取一个任务
-func (c *workerQueue) getJob(delta int64) interface{} {
+func (c *workerQueue) getJob(delta int32) interface{} {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -101,10 +101,11 @@ func (c *messageQueue) Push(opcode Opcode, payload []byte) error {
 func (c *messageQueue) PopAll() []messageWrapper {
 	c.Lock()
 	defer c.Unlock()
-	if len(c.data) == 0 {
+	var n = len(c.data)
+	if n == 0 {
 		return nil
 	}
-	msgs := c.data
-	c.data = []messageWrapper{}
+	msgs := c.data[:n]
+	c.data = c.data[n:]
 	return msgs
 }

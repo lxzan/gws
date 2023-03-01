@@ -69,7 +69,7 @@ func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func TestNoDelay(t *testing.T) {
 	var handler = new(webSocketMocker)
 	c := &Conn{
-		wmu:     &sync.Mutex{},
+		wmu:     sync.Mutex{},
 		handler: handler,
 		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
 	}

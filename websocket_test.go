@@ -168,7 +168,7 @@ func TestConn(t *testing.T) {
 	socket := &Conn{
 		conn:    conn,
 		handler: new(webSocketMocker),
-		wmu:     &sync.Mutex{},
+		wmu:     sync.Mutex{},
 		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
 		config:  NewUpgrader(),
 	}

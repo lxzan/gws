@@ -43,13 +43,13 @@ type Conn struct {
 	// whether server is closed
 	closed uint32
 	// write lock
-	wmu *sync.Mutex
+	wmu sync.Mutex
 	// async read task queue
-	readTQ *workerQueue
+	readTQ workerQueue
 	// async write task queue
-	writeTQ *workerQueue
+	writeTQ workerQueue
 	// write message queue
-	writeMQ *messageQueue
+	writeMQ messageQueue
 }
 
 func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
@@ -60,14 +60,15 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		conn:            netConn,
 		closed:          0,
 		wbuf:            brw.Writer,
-		wmu:             &sync.Mutex{},
+		wmu:             sync.Mutex{},
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		readTQ:          newWorkerQueue(int64(config.AsyncReadGoLimit)),
-		writeTQ:         newWorkerQueue(1),
-		writeMQ:         newMessageQueue(config.AsyncWriteCap),
+		readTQ:          workerQueue{maxConcurrency: int32(config.AsyncReadGoLimit)},
+		writeTQ:         workerQueue{maxConcurrency: 1},
+		writeMQ:         messageQueue{cap: config.AsyncWriteCap},
 	}
+
 	if c.compressEnabled {
 		c.compressor = newCompressor(config.CompressLevel)
 		c.decompressor = newDecompressor()
