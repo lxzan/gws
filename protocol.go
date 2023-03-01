@@ -27,11 +27,25 @@ func (c Opcode) IsDataFrame() bool {
 // one of onclose and onerror will be called once during the connection's lifetime.
 // 在连接的生命周期中，onclose和onerror中的一个有且只有一次被调用.
 type Event interface {
+	// 建立连接事件
 	OnOpen(socket *Conn)
+
+	// 错误事件
+	// IO错误, 协议错误, 压缩解压错误...
 	OnError(socket *Conn, err error)
+
+	// 关闭事件
+	// 另一端发送了关闭帧
 	OnClose(socket *Conn, code uint16, reason []byte)
+
+	// 心跳探测事件
 	OnPing(socket *Conn, payload []byte)
+
+	// 心跳响应事件
 	OnPong(socket *Conn, payload []byte)
+
+	// 消息事件
+	// 如果开启了AsyncReadEnabled, 可以在一个连接里面并行处理多个请求
 	OnMessage(socket *Conn, message *Message)
 }
 

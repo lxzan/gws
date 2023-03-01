@@ -70,11 +70,6 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		c.decompressor = newDecompressor()
 	}
 
-	// initialize the connection
-	c.SetDeadline(time.Time{})
-	c.SetReadDeadline(time.Time{})
-	c.SetWriteDeadline(time.Time{})
-	c.setNoDelay(c.conn)
 	return c
 }
 
@@ -193,13 +188,14 @@ func (c *Conn) NetConn() net.Conn {
 }
 
 // setNoDelay set tcp no delay
-func (c *Conn) setNoDelay(conn net.Conn) {
+func setNoDelay(conn net.Conn) error {
 	switch v := conn.(type) {
 	case *net.TCPConn:
-		c.emitError(v.SetNoDelay(false))
+		return v.SetNoDelay(false)
 	case *tls.Conn:
 		if netConn, ok := conn.(internal.NetConn); ok {
-			c.setNoDelay(netConn.NetConn())
+			return setNoDelay(netConn.NetConn())
 		}
 	}
+	return nil
 }

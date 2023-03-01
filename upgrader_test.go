@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 )
 
@@ -67,20 +66,13 @@ func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 }
 
 func TestNoDelay(t *testing.T) {
-	var handler = new(webSocketMocker)
-	c := &Conn{
-		wmu:     sync.Mutex{},
-		handler: handler,
-		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
-	}
-
 	t.Run("tls conn", func(t *testing.T) {
-		c.setNoDelay(&tls.Conn{})
+		setNoDelay(&tls.Conn{})
 	})
 
 	t.Run("other", func(t *testing.T) {
 		conn, _ := net.Pipe()
-		c.setNoDelay(conn)
+		setNoDelay(conn)
 	})
 }
 

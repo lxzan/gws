@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
@@ -28,6 +29,20 @@ func TestError(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var err error = NewError(CloseGoingAway, io.EOF)
 		as.Equal(err.Error() != "", true)
+	})
+
+	t.Run("", func(t *testing.T) {
+		err1 := Errors(func() error {
+			return nil
+		})
+		as.NoError(err1)
+
+		err2 := Errors(func() error {
+			return nil
+		}, func() error {
+			return errors.New("test")
+		})
+		as.Error(err2)
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -176,5 +177,16 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		return &Conn{conn: netConn}, err
 	}
 
+	if err := internal.Errors(func() error {
+		return netConn.SetDeadline(time.Time{})
+	}, func() error {
+		return netConn.SetReadDeadline(time.Time{})
+	}, func() error {
+		return netConn.SetWriteDeadline(time.Time{})
+	}, func() error {
+		return setNoDelay(netConn)
+	}); err != nil {
+		return nil, err
+	}
 	return serveWebSocket(c, request, netConn, brw, c.EventHandler, compressEnabled), nil
 }
