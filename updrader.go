@@ -144,21 +144,21 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	if r.Method != http.MethodGet {
 		return nil, internal.ErrGetMethodRequired
 	}
-	if version := r.Header.Get(internal.SecWebSocketVersion); version != internal.SecWebSocketVersion_Value {
+	if version := r.Header.Get(internal.SecWebSocketVersion.Key); version != internal.SecWebSocketVersion.Val {
 		msg := "websocket protocol not supported: " + version
 		return nil, errors.New(msg)
 	}
-	if val := r.Header.Get(internal.Connection); strings.ToLower(val) != strings.ToLower(internal.Connection_Value) {
+	if val := r.Header.Get(internal.Connection.Key); strings.ToLower(val) != strings.ToLower(internal.Connection.Val) {
 		return nil, internal.ErrHandshake
 	}
-	if val := r.Header.Get(internal.Upgrade); strings.ToLower(val) != internal.Upgrade_Value {
+	if val := r.Header.Get(internal.Upgrade.Key); strings.ToLower(val) != internal.Upgrade.Val {
 		return nil, internal.ErrHandshake
 	}
-	if val := r.Header.Get(internal.SecWebSocketExtensions); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
-		header.Set(internal.SecWebSocketExtensions, "permessage-deflate; server_no_context_takeover; client_no_context_takeover")
+	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, "permessage-deflate") && c.CompressEnabled {
+		header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 		compressEnabled = true
 	}
-	var websocketKey = r.Header.Get(internal.SecWebSocketKey)
+	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
 	if websocketKey == "" {
 		return nil, internal.ErrHandshake
 	}

@@ -263,3 +263,13 @@ func TestTaskQueue(t *testing.T) {
 	wg.Wait()
 	as.ElementsMatch(listA, listB)
 }
+
+func TestMessageQueue_Push(t *testing.T) {
+	var as = assert.New(t)
+	mq := newMessageQueue(1)
+	err1 := mq.Push(OpcodeText, nil)
+	err2 := mq.Push(OpcodeText, nil)
+	as.Nil(err1)
+	as.Error(err2)
+	as.Equal(len(mq.data), 1)
+}

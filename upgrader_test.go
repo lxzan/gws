@@ -181,23 +181,27 @@ func TestAccept(t *testing.T) {
 		_, err := upgrader.Accept(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
+}
 
-	t.Run("fail hijack 1", func(t *testing.T) {
-		var request = &http.Request{
-			Header: http.Header{},
-			Method: http.MethodGet,
-		}
-		request.Header.Set("Connection", "Upgrade")
-		request.Header.Set("Upgrade", "websocket")
-		request.Header.Set("Sec-WebSocket-Version", "13")
-		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
-		request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
-		_, err := upgrader.Accept(&httpWriterWrapper1{httpWriter: newHttpWriter()}, request)
-		assert.Error(t, err)
+func TestFailHijack(t *testing.T) {
+	var upgrader = NewUpgrader(
+		WithResponseHeader(http.Header{"Server": []string{"gws"}}),
+		WithEventHandler(new(webSocketMocker)),
+	)
+	var request = &http.Request{
+		Header: http.Header{},
+		Method: http.MethodGet,
+	}
+	request.Header.Set("Connection", "Upgrade")
+	request.Header.Set("Upgrade", "websocket")
+	request.Header.Set("Sec-WebSocket-Version", "13")
+	request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
+	request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
+	_, err := upgrader.Accept(&httpWriterWrapper1{httpWriter: newHttpWriter()}, request)
+	assert.Error(t, err)
 
-		_, err = upgrader.Accept(&httpWriterWrapper2{httpWriter: newHttpWriter()}, request)
-		assert.Error(t, err)
-	})
+	_, err = upgrader.Accept(&httpWriterWrapper2{httpWriter: newHttpWriter()}, request)
+	assert.Error(t, err)
 }
 
 func TestBuiltinEventEngine(t *testing.T) {
