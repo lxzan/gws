@@ -25,12 +25,8 @@ type Conn struct {
 	rbuf *bufio.Reader
 	// flate decompressor
 	decompressor *decompressor
-	// opcode for fragment frame
-	continuationOpcode Opcode
-	// continuation is compressed
-	continuationCompressed bool
 	// continuation frame
-	continuationBuffer *bytes.Buffer
+	continuationFrame continuationFrame
 	// frame header for read
 	fh frameHeader
 	// write buffer

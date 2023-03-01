@@ -93,19 +93,20 @@ func (c *Conn) readMessage() error {
 	internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
-		c.continuationCompressed = compressed
-		c.continuationOpcode = opcode
-		c.continuationBuffer = bytes.NewBuffer(make([]byte, 0, contentLength))
+		c.continuationFrame.initialized = true
+		c.continuationFrame.compressed = compressed
+		c.continuationFrame.opcode = opcode
+		c.continuationFrame.buffer = _bpool.Get(contentLength)
 	}
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
-		if c.continuationBuffer == nil {
+		if !c.continuationFrame.initialized {
 			return internal.CloseProtocolError
 		}
-		if err := internal.WriteN(c.continuationBuffer, buf.Bytes(), buf.Len()); err != nil {
+		if err := internal.WriteN(c.continuationFrame.buffer, buf.Bytes(), buf.Len()); err != nil {
 			return err
 		}
-		if c.continuationBuffer.Len() > c.config.MaxContentLength {
+		if c.continuationFrame.buffer.Len() > c.config.MaxContentLength {
 			return internal.CloseMessageTooLarge
 		}
 		if !fin {
@@ -114,17 +115,15 @@ func (c *Conn) readMessage() error {
 	}
 
 	// Send unfragmented Text Message after Continuation Frame with FIN = false
-	if c.continuationBuffer != nil && opcode != OpcodeContinuation {
+	if c.continuationFrame.initialized && opcode != OpcodeContinuation {
 		return internal.CloseProtocolError
 	}
 	switch opcode {
 	case OpcodeContinuation:
-		compressed = c.continuationCompressed
-		msg := &Message{Opcode: c.continuationOpcode, Data: c.continuationBuffer}
-		c.continuationCompressed = false
-		c.continuationOpcode = 0
-		c.continuationBuffer = nil
-		return c.emitMessage(msg, compressed)
+		msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
+		myerr := c.emitMessage(msg, c.continuationFrame.compressed)
+		c.continuationFrame.reset()
+		return myerr
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{Opcode: opcode, Data: buf}, compressed)
 	}

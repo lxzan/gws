@@ -179,3 +179,17 @@ func isTextValid(opcode Opcode, p []byte) bool {
 	}
 	return true
 }
+
+type continuationFrame struct {
+	initialized bool
+	compressed  bool
+	opcode      Opcode
+	buffer      *bytes.Buffer
+}
+
+func (c *continuationFrame) reset() {
+	c.initialized = false
+	c.compressed = false
+	c.opcode = 0
+	c.buffer = nil
+}
