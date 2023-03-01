@@ -159,18 +159,24 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 }
 
 // SetDeadline sets deadline
-func (c *Conn) SetDeadline(t time.Time) {
-	c.emitError(c.conn.SetDeadline(t))
+func (c *Conn) SetDeadline(t time.Time) error {
+	err := c.conn.SetDeadline(t)
+	c.emitError(err)
+	return err
 }
 
 // SetReadDeadline sets read deadline
-func (c *Conn) SetReadDeadline(t time.Time) {
-	c.emitError(c.conn.SetReadDeadline(t))
+func (c *Conn) SetReadDeadline(t time.Time) error {
+	err := c.conn.SetReadDeadline(t)
+	c.emitError(err)
+	return err
 }
 
 // SetWriteDeadline sets write deadline
-func (c *Conn) SetWriteDeadline(t time.Time) {
-	c.emitError(c.conn.SetWriteDeadline(t))
+func (c *Conn) SetWriteDeadline(t time.Time) error {
+	err := c.conn.SetWriteDeadline(t)
+	c.emitError(err)
+	return err
 }
 
 func (c *Conn) LocalAddr() net.Addr {
