@@ -35,6 +35,28 @@ func TestMap(t *testing.T) {
 	as.Equal(len(m1), m2.Len())
 }
 
+func TestSliceMap(t *testing.T) {
+	var as = assert.New(t)
+	var m = new(sliceMap)
+	m.Store("hong", 1)
+	m.Store("mei", 2)
+	m.Store("ming", 3)
+	{
+		v, _ := m.Load("hong")
+		as.Equal(1, v)
+	}
+	{
+		m.Delete("hong")
+		v, ok := m.Load("hong")
+		as.Equal(false, ok)
+		as.Nil(v)
+
+		m.Store("hong", 4)
+		v, _ = m.Load("hong")
+		as.Equal(4, v)
+	}
+}
+
 func TestMap_Range(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[interface{}]interface{})
@@ -139,7 +161,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	m := NewConcurrentMap(16)
+	m := NewConcurrentMap(8)
 	m.hash("1")
 
 	m.hash(int(1))
@@ -153,4 +175,9 @@ func TestHash(t *testing.T) {
 	m.hash(uint32(1))
 	m.hash(uint16(1))
 	m.hash(uint8(1))
+
+	assert.Equal(t, uint64(0), m.hash(map[string]string{}))
+
+	m = NewConcurrentMap(0)
+	assert.Equal(t, uint64(16), m.segments)
 }

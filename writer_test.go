@@ -174,3 +174,27 @@ func TestWriteClose(t *testing.T) {
 	srv, _ := testNewPeer(config)
 	srv.WriteClose(0, []byte("goodbye"))
 }
+
+func TestConn_WriteAsyncError(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("", func(t *testing.T) {
+		server, _ := testNewPeer(NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = new(BuiltinEventHandler)
+			c.AsyncWriteCap = 1
+		}))
+
+		_ = server.writeMQ.Push(OpcodeText, nil)
+		err := server.WriteAsync(OpcodeText, nil)
+		as.Equal(internal.ErrWriteMessageQueueCapFull, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		server, _ := testNewPeer(NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = new(BuiltinEventHandler)
+		}))
+		server.closed = 1
+		err := server.WriteAsync(OpcodeText, nil)
+		as.Equal(internal.ErrConnClosed, err)
+	})
+}

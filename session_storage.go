@@ -55,7 +55,9 @@ func (c *sliceMap) Delete(key string) {
 	defer c.Unlock()
 	for i, v := range c.data {
 		if v.key == key {
+			c.data[i].value = nil
 			c.data[i].deleted = true
+			return
 		}
 	}
 }
@@ -65,8 +67,9 @@ func (c *sliceMap) Store(key string, value interface{}) {
 	defer c.Unlock()
 
 	for i, v := range c.data {
-		if v.key == key && !v.deleted {
+		if v.key == key {
 			c.data[i].value = value
+			c.data[i].deleted = false
 			return
 		}
 	}

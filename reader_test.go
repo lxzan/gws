@@ -173,6 +173,31 @@ func TestSegments(t *testing.T) {
 		wg.Wait()
 	})
 
+	t.Run("long segments", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var handler = new(webSocketMocker)
+		var upgrader = NewUpgrader(func(c *Upgrader) {
+			c.EventHandler = handler
+			c.MaxContentLength = 16
+		})
+
+		var s1 = internal.AlphabetNumeric.Generate(16)
+		var s2 = internal.AlphabetNumeric.Generate(16)
+		handler.onError = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+
+		server, client := testNewPeer(upgrader)
+		go func() {
+			testClientWrite(client, false, OpcodeText, testCloneBytes(s1))
+			testClientWrite(client, true, OpcodeContinuation, testCloneBytes(s2))
+		}()
+		go server.Listen()
+		wg.Wait()
+	})
+
 	t.Run("invalid segments", func(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
