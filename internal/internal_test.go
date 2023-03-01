@@ -41,6 +41,8 @@ func TestError(t *testing.T) {
 			return nil
 		}, func() error {
 			return errors.New("test")
+		}, func() error {
+			panic("fatal error")
 		})
 		as.Error(err2)
 	})
