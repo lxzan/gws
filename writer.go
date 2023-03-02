@@ -87,9 +87,5 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	if c.writeTQ.Len() >= c.config.AsyncWriteCap {
-		return internal.ErrAsyncIOCapFull
-	}
-	c.writeTQ.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
-	return nil
+	return c.writeTQ.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
 }

@@ -244,7 +244,7 @@ func TestTaskQueue(t *testing.T) {
 	var count = 1000
 	var wg = &sync.WaitGroup{}
 	wg.Add(count)
-	var q = newWorkerQueue(8)
+	var q = newWorkerQueue(8, 1024)
 	for i := 0; i < count; i++ {
 		listA = append(listA, i)
 

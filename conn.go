@@ -58,8 +58,8 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		readTQ:          workerQueue{maxConcurrency: int32(config.AsyncReadGoLimit)},
-		writeTQ:         workerQueue{maxConcurrency: 1},
+		readTQ:          workerQueue{maxConcurrency: int32(config.AsyncReadGoLimit), capacity: config.AsyncReadCap},
+		writeTQ:         workerQueue{maxConcurrency: 1, capacity: config.AsyncWriteCap},
 	}
 
 	if c.compressEnabled {

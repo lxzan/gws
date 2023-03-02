@@ -1,26 +1,29 @@
 package gws
 
 import (
+	"github.com/lxzan/gws/internal"
 	"sync"
 )
 
 type (
 	workerQueue struct {
-		mu             sync.RWMutex // 锁
-		q              []asyncJob   // 任务队列
-		maxConcurrency int32        // 最大并发
-		curConcurrency int32        // 当前并发
+		mu             sync.Mutex // 锁
+		q              []asyncJob // 任务队列
+		maxConcurrency int32      // 最大并发
+		curConcurrency int32      // 当前并发
+		capacity       int
 	}
 
 	asyncJob func()
 )
 
 // newWorkerQueue 创建一个任务队列
-func newWorkerQueue(maxConcurrency int32) *workerQueue {
+func newWorkerQueue(maxConcurrency int32, capacity int) *workerQueue {
 	c := &workerQueue{
-		mu:             sync.RWMutex{},
+		mu:             sync.Mutex{},
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
+		capacity:       capacity,
 	}
 	return c
 }
@@ -51,19 +54,18 @@ func (c *workerQueue) do(job asyncJob) {
 	}
 }
 
-func (c *workerQueue) Len() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return len(c.q)
-}
-
 // Push 追加任务, 有资源空闲的话会立即执行
-func (c *workerQueue) Push(job asyncJob) {
+func (c *workerQueue) Push(job asyncJob) error {
 	c.mu.Lock()
-	c.q = append(c.q, job)
-	c.mu.Unlock()
-
+	if n := len(c.q); n >= c.capacity {
+		c.mu.Unlock()
+		return internal.ErrAsyncIOCapFull
+	} else {
+		c.q = append(c.q, job)
+		c.mu.Unlock()
+	}
 	if item := c.getJob(0); item != nil {
 		go c.do(item)
 	}
+	return nil
 }
