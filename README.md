@@ -25,15 +25,15 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 
-- [gws](#gws)
+- [gws](#gws) 
   - [Highlight](#highlight)
-  - [Benchmark](#benchmark)
   - [Core Interface](#core-interface)
   - [Install](#install)
   - [Examples](#examples)
   - [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
   - [TLS](#tls)
   - [Autobahn Test](#autobahn-test)
+  - [Benchmark](#benchmark)
 
 #### Highlight
 
@@ -42,13 +42,6 @@
 - Asynchronous non-blocking read and write support
 - High IOPS and low latency
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
-
-#### Benchmark
-
-- machine: `Ubuntu 20.04LTS VM (4C8T)`
-- command: `tcpkali -c 1000 --connect-rate 1000 -r 500 -T 30s -f assets/1K.txt --ws 127.0.0.1:${port}/connect`
-
-![](assets/performance.png)
 
 #### Core Interface
 
@@ -169,4 +162,32 @@ docker run -it --rm \
     -v ${PWD}/reports:/reports \
     crossbario/autobahn-testsuite \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
+```
+
+#### Benchmark
+
+- machine: `Ubuntu 20.04LTS VM (4C8T)`
+
+- High IOPS
+```
+tcpkali -c 1000 --connect-rate 1000 -r 500 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
+```
+
+![rps](assets/performance.png)
+
+
+- Low Latency
+```
+tcpkali -c 1000 --connect-rate 1000 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
+```
+
+![gws-c1000-m100](assets/gws-c1000-m100.png)
+
+![gorilla-c1000-m100](assets/gorilla-c1000-m100.png)
+
+- Low CPU Usage
+```
+PID  USER      PR   NI VIRT    RES     SHR  S %CPU    %MEM    TIME+ COMMAND
+4557 caster    20   0  720228  38524   7340 R 255.0   1.0  48:44.97 gorilla-linux-a
+4552 caster    20   0  720612  53080   7212 S 171.0   1.3  32:00.80 gws-linux-amd64
 ```
