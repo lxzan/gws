@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
 	"sync"
 )
 
@@ -14,11 +13,6 @@ type (
 	}
 
 	asyncJob func()
-
-	messageWrapper struct {
-		opcode  Opcode
-		payload []byte
-	}
 )
 
 // newWorkerQueue 创建一个任务队列
@@ -72,44 +66,4 @@ func (c *workerQueue) Push(job asyncJob) {
 	if item := c.getJob(0); item != nil {
 		go c.do(item)
 	}
-}
-
-func newMessageQueue(capacity int) *messageQueue {
-	var mq = new(messageQueue)
-	mq.cap = capacity
-	return mq
-}
-
-type messageQueue struct {
-	sync.Mutex
-	cap  int
-	data []messageWrapper
-}
-
-// 追加一条消息
-// 如果容量已满消息会被抛弃并返回错误
-func (c *messageQueue) Push(opcode Opcode, payload []byte) error {
-	c.Lock()
-	defer c.Unlock()
-	if len(c.data) >= c.cap {
-		return internal.ErrWriteMessageQueueCapFull
-	}
-	c.data = append(c.data, messageWrapper{
-		opcode:  opcode,
-		payload: payload,
-	})
-	return nil
-}
-
-// 取出所有消息
-func (c *messageQueue) PopAll() []messageWrapper {
-	c.Lock()
-	defer c.Unlock()
-	var n = len(c.data)
-	if n == 0 {
-		return nil
-	}
-	msgs := c.data[:n]
-	c.data = c.data[n:]
-	return msgs
 }

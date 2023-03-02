@@ -87,32 +87,9 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	//if err := c.writeMQ.Push(opcode, payload); err != nil {
-	//	return err
-	//}
-	//c.writeTQ.Go(c.doWriteAsync)
+	if c.writeTQ.Len() >= c.config.AsyncWriteCap {
+		return internal.ErrAsyncIOCapFull
+	}
 	c.writeTQ.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
 	return nil
-}
-
-// 如果只有任务队列一个结构, 异步写有可能会因为和同步写竞争锁, 造成阻塞
-// 所以我增加了一个消息队列
-func (c *Conn) doWriteAsync() {
-	myerr := func() error {
-		msgs := c.writeMQ.PopAll()
-		if len(msgs) == 0 {
-			return nil
-		}
-
-		c.wmu.Lock()
-		for _, msg := range msgs {
-			if err := c.writePublic(msg.opcode, msg.payload); err != nil {
-				c.wmu.Unlock()
-				return err
-			}
-		}
-		c.wmu.Unlock()
-		return nil
-	}()
-	c.emitError(myerr)
 }

@@ -143,6 +143,9 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	}
 
 	if c.config.AsyncReadEnabled {
+		if c.readTQ.Len() >= c.config.AsyncReadCap {
+			return internal.ErrAsyncIOCapFull
+		}
 		c.readTQ.Push(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)
