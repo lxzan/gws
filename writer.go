@@ -87,14 +87,17 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	if err := c.writeMQ.Push(opcode, payload); err != nil {
-		return err
-	}
-	c.writeTQ.AddJob(asyncJob{Do: c.doWriteAsync})
+	//if err := c.writeMQ.Push(opcode, payload); err != nil {
+	//	return err
+	//}
+	//c.writeTQ.Go(c.doWriteAsync)
+	c.writeTQ.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
 	return nil
 }
 
-func (c *Conn) doWriteAsync(args interface{}) error {
+// 如果只有任务队列一个结构, 异步写有可能会因为和同步写竞争锁, 造成阻塞
+// 所以我增加了一个消息队列
+func (c *Conn) doWriteAsync() {
 	myerr := func() error {
 		msgs := c.writeMQ.PopAll()
 		if len(msgs) == 0 {
@@ -111,7 +114,5 @@ func (c *Conn) doWriteAsync(args interface{}) error {
 		c.wmu.Unlock()
 		return nil
 	}()
-
 	c.emitError(myerr)
-	return myerr
 }

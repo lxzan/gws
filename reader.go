@@ -143,13 +143,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	}
 
 	if c.config.AsyncReadEnabled {
-		c.readTQ.AddJob(asyncJob{
-			Args: msg,
-			Do: func(args interface{}) error {
-				c.handler.OnMessage(c, args.(*Message))
-				return nil
-			},
-		})
+		c.readTQ.Push(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)
 	}

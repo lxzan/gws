@@ -247,17 +247,15 @@ func TestTaskQueue(t *testing.T) {
 	var q = newWorkerQueue(8)
 	for i := 0; i < count; i++ {
 		listA = append(listA, i)
-		q.AddJob(asyncJob{
-			Args: i,
-			Do: func(args interface{}) error {
-				defer wg.Done()
-				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
-				time.Sleep(latency)
-				mu.Lock()
-				listB = append(listB, args.(int))
-				mu.Unlock()
-				return nil
-			},
+
+		v := i
+		q.Go(func() {
+			defer wg.Done()
+			var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
+			time.Sleep(latency)
+			mu.Lock()
+			listB = append(listB, v)
+			mu.Unlock()
 		})
 	}
 	wg.Wait()

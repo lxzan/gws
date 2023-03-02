@@ -7,16 +7,13 @@ import (
 
 type (
 	workerQueue struct {
-		mu             sync.Mutex // 锁
-		q              []asyncJob // 任务队列
-		maxConcurrency int32      // 最大并发
-		curConcurrency int32      // 当前并发
+		mu             sync.RWMutex // 锁
+		q              []asyncJob   // 任务队列
+		maxConcurrency int32        // 最大并发
+		curConcurrency int32        // 当前并发
 	}
 
-	asyncJob struct {
-		Args interface{}
-		Do   func(args interface{}) error
-	}
+	asyncJob func()
 
 	messageWrapper struct {
 		opcode  Opcode
@@ -27,7 +24,7 @@ type (
 // newWorkerQueue 创建一个任务队列
 func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	c := &workerQueue{
-		mu:             sync.Mutex{},
+		mu:             sync.RWMutex{},
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
 	}
@@ -35,7 +32,7 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 }
 
 // 获取一个任务
-func (c *workerQueue) getJob(delta int32) interface{} {
+func (c *workerQueue) getJob(delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -54,19 +51,26 @@ func (c *workerQueue) getJob(delta int32) interface{} {
 
 // 递归地执行任务
 func (c *workerQueue) do(job asyncJob) {
-	_ = job.Do(job.Args)
+	job()
 	if nextJob := c.getJob(-1); nextJob != nil {
-		c.do(nextJob.(asyncJob))
+		c.do(nextJob)
 	}
 }
 
-// AddJob 追加任务, 有资源空闲的话会立即执行
-func (c *workerQueue) AddJob(job asyncJob) {
+func (c *workerQueue) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.q)
+}
+
+// Push 追加任务, 有资源空闲的话会立即执行
+func (c *workerQueue) Push(job asyncJob) {
 	c.mu.Lock()
 	c.q = append(c.q, job)
 	c.mu.Unlock()
+
 	if item := c.getJob(0); item != nil {
-		go c.do(item.(asyncJob))
+		go c.do(item)
 	}
 }
 
