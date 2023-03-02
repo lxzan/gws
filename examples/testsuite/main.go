@@ -12,7 +12,7 @@ func main() {
 		c.CompressEnabled = true
 		c.CheckTextEncoding = true
 		c.MaxContentLength = 32 * 1024 * 1024
-		//c.AsyncReadEnabled = true
+		c.AsyncReadEnabled = true
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {

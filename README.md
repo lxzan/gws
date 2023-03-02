@@ -166,11 +166,11 @@ docker run -it --rm \
 
 #### Benchmark
 
-- machine: `Ubuntu 20.04LTS VM (4C8T)`
+- Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
 - High IOPS
 ```
-tcpkali -c 1000 --connect-rate 1000 -r 500 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
+tcpkali -c 1000 --connect-rate 500 -r 1000 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
 ![rps](assets/performance.png)
@@ -178,7 +178,7 @@ tcpkali -c 1000 --connect-rate 1000 -r 500 -T 300s -f assets/1K.txt --ws 127.0.0
 
 - Low Latency
 ```
-tcpkali -c 1000 --connect-rate 1000 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
+tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
 ![gws-c1000-m100](assets/gws-c1000-m100.png)
