@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	defaultReadAsyncGoLimit     = 8
-	defaultReadAsyncCap         = 256
-	defaultWriteAsyncCap        = 256
-	defaultCompressLevel        = flate.BestSpeed
-	defaultReadMaxPayloadSize   = 16 * 1024 * 1024
-	defaultWriteMaxPayloadSize  = 16 * 1024 * 1024
-	defaultCompressionThreshold = 512
+	defaultReadAsyncGoLimit    = 8
+	defaultReadAsyncCap        = 256
+	defaultWriteAsyncCap       = 256
+	defaultCompressLevel       = flate.BestSpeed
+	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
+	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
+	defaultCompressThreshold   = 512
 )
 
 type (

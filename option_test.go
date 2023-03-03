@@ -52,7 +52,7 @@ func TestCompressServerOption(t *testing.T) {
 		var config = updrader.option.ToConfig()
 		as.Equal(true, config.CompressEnabled)
 		as.Equal(defaultCompressLevel, config.CompressLevel)
-		as.Equal(defaultCompressionThreshold, config.CompressThreshold)
+		as.Equal(defaultCompressThreshold, config.CompressThreshold)
 		validateUpgrader(as, updrader)
 	})
 

@@ -80,7 +80,7 @@ func (c *ServerOption) initialize() *ServerOption {
 		c.CompressLevel = defaultCompressLevel
 	}
 	if c.CompressThreshold <= 0 {
-		c.CompressThreshold = defaultCompressionThreshold
+		c.CompressThreshold = defaultCompressThreshold
 	}
 	if c.CheckOrigin == nil {
 		c.CheckOrigin = func(r *Request) bool {
