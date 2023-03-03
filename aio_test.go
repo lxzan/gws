@@ -81,7 +81,10 @@ func TestConn_WriteAsync(t *testing.T) {
 	// 关闭压缩
 	t.Run("plain text", func(t *testing.T) {
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(handler, nil)
+		var upgrader = NewUpgrader(handler, &ServerOption{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		})
 		server, client := testNewPeer(upgrader)
 
 		var listA []string

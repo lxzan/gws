@@ -13,6 +13,8 @@ func main() {
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
 		WriteMaxPayloadSize: 32 * 1024 * 1024,
 		ReadAsyncEnabled:    true,
+		ReadBufferSize:      8 * 1024,
+		WriteBufferSize:     8 * 1024,
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {

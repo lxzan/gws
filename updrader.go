@@ -1,23 +1,13 @@
 package gws
 
 import (
-	"compress/flate"
+	"bufio"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"strings"
 	"time"
-)
-
-const (
-	defaultReadAsyncGoLimit    = 8
-	defaultReadAsyncCap        = 256
-	defaultWriteAsyncCap       = 256
-	defaultCompressLevel       = flate.BestSpeed
-	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
-	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
-	defaultCompressThreshold   = 512
 )
 
 type Upgrader struct {
@@ -104,6 +94,14 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	netConn, brw, err := hj.Hijack()
 	if err != nil {
 		return &Conn{conn: netConn}, err
+	}
+	if brw.Reader.Size() != c.option.ReadBufferSize {
+		reader := bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
+		brw.Reader = reader
+	}
+	if brw.Writer.Size() != c.option.WriteBufferSize {
+		writer := bufio.NewWriterSize(netConn, c.option.WriteBufferSize)
+		brw.Writer = writer
 	}
 	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
 		return &Conn{conn: netConn}, err
