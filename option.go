@@ -3,7 +3,6 @@ package gws
 import "net/http"
 
 type (
-	// Upgrader websocket upgrader
 	Config struct {
 		// 是否开启异步读, 开启的话会并行调用OnMessage
 		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
@@ -65,7 +64,7 @@ type (
 
 		// 检查请求来源
 		// Check the origin of the request
-		CheckOrigin func(r *Request) bool
+		CheckOrigin func(r *http.Request, session SessionStorage) bool
 	}
 )
 
@@ -93,7 +92,7 @@ func (c *ServerOption) initialize() *ServerOption {
 		c.CompressThreshold = defaultCompressThreshold
 	}
 	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *Request) bool {
+		c.CheckOrigin = func(r *http.Request, session SessionStorage) bool {
 			return true
 		}
 	}

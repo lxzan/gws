@@ -20,17 +20,10 @@ const (
 	defaultCompressThreshold   = 512
 )
 
-type (
-	Request struct {
-		*http.Request                 // http request
-		SessionStorage SessionStorage // store user session
-	}
-
-	Upgrader struct {
-		option       *ServerOption
-		eventHandler Event
-	}
-)
+type Upgrader struct {
+	option       *ServerOption
+	eventHandler Event
+}
 
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	if option == nil {
@@ -74,9 +67,9 @@ func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error)
 }
 
 func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	var request = &Request{Request: r, SessionStorage: &sliceMap{}}
+	var session = new(sliceMap)
 	var header = c.option.ResponseHeader.Clone()
-	if !c.option.CheckOrigin(request) {
+	if !c.option.CheckOrigin(r, session) {
 		return nil, internal.ErrCheckOrigin
 	}
 
@@ -123,5 +116,5 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		func() error { return setNoDelay(netConn) }); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(c.option.getConfig(), request, netConn, brw, c.eventHandler, compressEnabled), nil
+	return serveWebSocket(c.option.getConfig(), session, netConn, brw, c.eventHandler, compressEnabled), nil
 }

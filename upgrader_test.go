@@ -159,7 +159,7 @@ func TestAccept(t *testing.T) {
 
 	t.Run("fail check origin", func(t *testing.T) {
 		upgrader.option.CompressEnabled = true
-		upgrader.option.CheckOrigin = func(r *Request) bool {
+		upgrader.option.CheckOrigin = func(r *http.Request, session SessionStorage) bool {
 			return false
 		}
 		var request = &http.Request{
