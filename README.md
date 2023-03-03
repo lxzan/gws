@@ -167,9 +167,7 @@ docker run -it --rm \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
 
-#### Benchmark
-
-- Machine: `Ubuntu 20.04LTS VM (4C8T)`
+#### Benchmark Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
 - High IOPS
 
@@ -192,9 +190,9 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 - Low CPU Usage
 
 ```
-PID  USER      PR   NI VIRT    RES     SHR  S %CPU    %MEM    TIME+ COMMAND
-4557 caster    20   0  720228  38524   7340 R 255.0   1.0  48:44.97 gorilla-linux-a
-4552 caster    20   0  720612  53080   7212 S 171.0   1.3  32:00.80 gws-linux-amd64
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+26054 caster    20   0  720164  39320   7340 S 246.5   1.0  48:34.38 gorilla-linux-a
+26059 caster    20   0  720852  53624   7196 S 179.4   1.3  48:39.85 gws-linux-amd64
 ```
 
 #### Acknowledgments
