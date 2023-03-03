@@ -6,9 +6,7 @@ import (
 )
 
 func main() {
-	var upgrader = gws.NewUpgrader(
-		gws.WithEventHandler(new(WebSocket)),
-	)
+	var upgrader = gws.NewUpgrader(new(WebSocket), nil)
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Accept(writer, request)
 		if err != nil {

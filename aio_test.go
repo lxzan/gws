@@ -12,16 +12,16 @@ import (
 )
 
 // 创建用于测试的对等连接
-func testNewPeer(config *Upgrader) (server, client *Conn) {
+func testNewPeer(upgrader *Upgrader) (server, client *Conn) {
 	size := 4096
 	s, c := Pipe()
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
-		server = serveWebSocket(config, &Request{}, s, brw, config.EventHandler, config.CompressEnabled)
+		server = serveWebSocket(upgrader.option.ToConfig(), &Request{}, s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
 	}
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
-		client = serveWebSocket(config, &Request{}, c, brw, new(BuiltinEventHandler), config.CompressEnabled)
+		client = serveWebSocket(upgrader.option.ToConfig(), &Request{}, c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
 	}
 	return
 }
@@ -46,7 +46,7 @@ func doTestClientWrite(client *Conn, fin bool, opcode Opcode, payload []byte) er
 	client.wmu.Lock()
 	defer client.wmu.Unlock()
 
-	var enableCompress = client.compressEnabled && opcode.IsDataFrame() && len(payload) >= client.config.CompressionThreshold
+	var enableCompress = client.compressEnabled && opcode.IsDataFrame() && len(payload) >= client.config.CompressThreshold
 	if enableCompress {
 		compressedContent, err := client.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {
@@ -81,9 +81,7 @@ func TestConn_WriteAsync(t *testing.T) {
 	// 关闭压缩
 	t.Run("plain text", func(t *testing.T) {
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-		})
+		var upgrader = NewUpgrader(handler, nil)
 		server, client := testNewPeer(upgrader)
 
 		var listA []string
@@ -125,10 +123,9 @@ func TestConn_WriteAsync(t *testing.T) {
 	// 开启压缩
 	t.Run("compressed text", func(t *testing.T) {
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-			c.CompressEnabled = true
-			c.CompressionThreshold = 1
+		var upgrader = NewUpgrader(handler, &ServerOption{
+			CompressEnabled:   true,
+			CompressThreshold: 1,
 		})
 		server, client := testNewPeer(upgrader)
 
@@ -184,9 +181,7 @@ func TestConn_WriteAsync(t *testing.T) {
 			as.Error(err)
 			wg.Done()
 		}
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-		})
+		var upgrader = NewUpgrader(handler, nil)
 		server, client := testNewPeer(upgrader)
 		client.NetConn().Close()
 		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
@@ -197,11 +192,10 @@ func TestConn_WriteAsync(t *testing.T) {
 // 测试异步读
 func TestReadAsync(t *testing.T) {
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(func(c *Upgrader) {
-		c.EventHandler = handler
-		c.CompressEnabled = true
-		c.CompressionThreshold = 512
-		c.AsyncReadEnabled = true
+	var upgrader = NewUpgrader(handler, &ServerOption{
+		CompressEnabled:   true,
+		CompressThreshold: 512,
+		ReadAsyncEnabled:  true,
 	})
 
 	var mu = &sync.Mutex{}

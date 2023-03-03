@@ -12,12 +12,12 @@ import (
 func TestConn_WriteMessage(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(WithEventHandler(handler))
+	var upgrader = NewUpgrader(handler, nil)
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, false)
+	var socket = serveWebSocket(upgrader.option.ToConfig(), &Request{}, conn, brw, handler, false)
 
 	t.Run("text v1", func(t *testing.T) {
 		handler.reset(socket, reader, writer)
@@ -93,12 +93,14 @@ func TestConn_WriteMessage(t *testing.T) {
 func TestConn_WriteMessageCompress(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(WithEventHandler(handler), WithCheckTextEncoding())
+	var upgrader = NewUpgrader(handler, &ServerOption{
+		CheckUtf8Enabled: true,
+	})
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, true)
+	var socket = serveWebSocket(upgrader.option.ToConfig(), &Request{}, conn, brw, handler, true)
 
 	// 消息长度低于阈值, 不压缩内容
 	t.Run("text v1", func(t *testing.T) {
@@ -158,20 +160,19 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 }
 
 func TestWriteBigMessage(t *testing.T) {
-	var config = NewUpgrader(func(c *Upgrader) {
-		c.MaxContentLength = 10
+	var upgrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+		WriteMaxPayloadSize: 10,
 	})
-	srv, _ := testNewPeer(config)
+	srv, _ := testNewPeer(upgrader)
 	var err = srv.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
 	assert.Error(t, err)
 }
 
 func TestWriteClose(t *testing.T) {
-	var config = NewUpgrader(func(c *Upgrader) {
-		c.MaxContentLength = 10
-		c.EventHandler = new(BuiltinEventHandler)
+	var upgrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+		WriteMaxPayloadSize: 10,
 	})
-	srv, _ := testNewPeer(config)
+	srv, _ := testNewPeer(upgrader)
 	srv.WriteClose(0, []byte("goodbye"))
 }
 
@@ -190,9 +191,8 @@ func TestConn_WriteAsyncError(t *testing.T) {
 	//})
 
 	t.Run("", func(t *testing.T) {
-		server, _ := testNewPeer(NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = new(BuiltinEventHandler)
-		}))
+		var upgrader = NewUpgrader(new(BuiltinEventHandler), nil)
+		server, _ := testNewPeer(upgrader)
 		server.closed = 1
 		err := server.WriteAsync(OpcodeText, nil)
 		as.Equal(internal.ErrConnClosed, err)

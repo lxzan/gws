@@ -1,36 +1,85 @@
 package gws
 
-//func TestNewUpgrader(t *testing.T) {
-//	var as = assert.New(t)
-//	var config = NewUpgrader()
-//	as.Equal(false, config.CompressEnabled)
-//	as.Equal(false, config.AsyncReadEnabled)
-//	as.Equal(false, config.CheckTextEncoding)
-//	as.Equal(defaultAsyncReadGoLimit, config.AsyncReadGoLimit)
-//	as.Equal(defaultMaxContentLength, config.MaxContentLength)
-//	as.Equal(defaultAsyncWriteCap, config.AsyncWriteCap)
-//	as.NotNil(config.EventHandler)
-//	as.NotNil(config.ResponseHeader)
-//	as.NotNil(config.CheckOrigin)
-//}
-//
-//func TestOptions(t *testing.T) {
-//	var as = assert.New(t)
-//	var config = NewUpgrader(
-//		WithCompress(flate.BestSpeed, 128),
-//		WithAsyncReadEnabled(),
-//		WithAsyncReadGoLimit(16),
-//		WithMaxContentLength(256),
-//		WithCheckTextEncoding(),
-//		WithAsyncWriteCap(64),
-//	)
-//	as.Equal(true, config.CompressEnabled)
-//	as.Equal(flate.BestSpeed, config.CompressLevel)
-//	as.Equal(128, config.CompressionThreshold)
-//	as.Equal(64, config.AsyncWriteCap)
-//
-//	as.Equal(true, config.AsyncReadEnabled)
-//	as.Equal(16, config.AsyncReadGoLimit)
-//	as.Equal(256, config.MaxContentLength)
-//	as.Equal(true, config.CheckTextEncoding)
-//}
+import (
+	"compress/flate"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func validateUpgrader(as *assert.Assertions, u *Upgrader) {
+	var option = u.option
+	var config = u.option.ToConfig()
+	as.Equal(config.ReadAsyncEnabled, option.ReadAsyncEnabled)
+	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
+	as.Equal(config.ReadAsyncCap, option.ReadAsyncCap)
+	as.Equal(config.ReadMaxPayloadSize, option.ReadMaxPayloadSize)
+	as.Equal(config.WriteAsyncCap, option.WriteAsyncCap)
+	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
+	as.Equal(config.CompressEnabled, option.CompressEnabled)
+	as.Equal(config.CompressLevel, option.CompressLevel)
+	as.Equal(config.CompressThreshold, option.CompressThreshold)
+	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
+}
+
+// 检查默认配置
+func TestDefaultUpgrader(t *testing.T) {
+	var as = assert.New(t)
+	var updrader = NewUpgrader(new(BuiltinEventHandler), nil)
+	var config = updrader.option.ToConfig()
+	as.Equal(false, config.CompressEnabled)
+	as.Equal(false, config.ReadAsyncEnabled)
+	as.Equal(false, config.CheckUtf8Enabled)
+	as.Equal(defaultReadAsyncGoLimit, config.ReadAsyncGoLimit)
+	as.Equal(defaultReadAsyncCap, config.ReadAsyncCap)
+	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
+	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
+	as.Equal(defaultWriteAsyncCap, config.WriteAsyncCap)
+	as.NotNil(updrader.eventHandler)
+	as.NotNil(config)
+	as.NotNil(updrader.option)
+	as.NotNil(updrader.option.ResponseHeader)
+	as.NotNil(updrader.option.CheckOrigin)
+	validateUpgrader(as, updrader)
+}
+
+func TestCompressServerOption(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("", func(t *testing.T) {
+		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+			CompressEnabled: true,
+		})
+		var config = updrader.option.ToConfig()
+		as.Equal(true, config.CompressEnabled)
+		as.Equal(defaultCompressLevel, config.CompressLevel)
+		as.Equal(defaultCompressionThreshold, config.CompressThreshold)
+		validateUpgrader(as, updrader)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+			CompressEnabled:   true,
+			CompressLevel:     flate.BestCompression,
+			CompressThreshold: 1024,
+		})
+		var config = updrader.option.ToConfig()
+		as.Equal(true, config.CompressEnabled)
+		as.Equal(flate.BestCompression, config.CompressLevel)
+		as.Equal(1024, config.CompressThreshold)
+		validateUpgrader(as, updrader)
+	})
+}
+
+func TestReadServerOption(t *testing.T) {
+	var as = assert.New(t)
+	var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+		ReadAsyncEnabled:   true,
+		ReadAsyncGoLimit:   4,
+		ReadMaxPayloadSize: 1024,
+	})
+	var config = updrader.option.ToConfig()
+	as.Equal(true, config.ReadAsyncEnabled)
+	as.Equal(4, config.ReadAsyncGoLimit)
+	as.Equal(1024, config.ReadMaxPayloadSize)
+	validateUpgrader(as, updrader)
+}

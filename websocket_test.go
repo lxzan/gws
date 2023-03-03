@@ -165,12 +165,13 @@ func BenchmarkSyncMap_Load(b *testing.B) {
 
 func TestConn(t *testing.T) {
 	conn, _ := net.Pipe()
+	upgrader := NewUpgrader(new(BuiltinEventHandler), nil)
 	socket := &Conn{
 		conn:    conn,
 		handler: new(webSocketMocker),
 		wmu:     sync.Mutex{},
 		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
-		config:  NewUpgrader(),
+		config:  upgrader.option.ToConfig(),
 	}
 	socket.SetDeadline(time.Time{})
 	socket.SetReadDeadline(time.Time{})

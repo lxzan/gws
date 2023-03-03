@@ -17,10 +17,9 @@ import (
 // 测试同步读
 func TestReadSync(t *testing.T) {
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(func(c *Upgrader) {
-		c.EventHandler = handler
-		c.CompressEnabled = true
-		c.CompressionThreshold = 512
+	var upgrader = NewUpgrader(handler, &ServerOption{
+		CompressEnabled:   true,
+		CompressThreshold: 512,
 	})
 
 	var mu = &sync.Mutex{}
@@ -96,11 +95,11 @@ func TestRead(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-			c.CompressEnabled = true
-			c.CheckTextEncoding = true
-			c.MaxContentLength = 1024 * 1024
+		var upgrader = NewUpgrader(handler, &ServerOption{
+			CompressEnabled:     true,
+			CheckUtf8Enabled:    true,
+			ReadMaxPayloadSize:  1024 * 1024,
+			WriteMaxPayloadSize: 1024 * 1024,
 		})
 
 		switch item.Expected.Event {
@@ -153,9 +152,7 @@ func TestSegments(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-		})
+		var upgrader = NewUpgrader(handler, nil)
 
 		var s1 = internal.AlphabetNumeric.Generate(16)
 		var s2 = internal.AlphabetNumeric.Generate(16)
@@ -177,9 +174,9 @@ func TestSegments(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-			c.MaxContentLength = 16
+		var upgrader = NewUpgrader(handler, &ServerOption{
+			ReadMaxPayloadSize:  16,
+			WriteMaxPayloadSize: 16,
 		})
 
 		var s1 = internal.AlphabetNumeric.Generate(16)
@@ -202,9 +199,7 @@ func TestSegments(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(1)
 		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(func(c *Upgrader) {
-			c.EventHandler = handler
-		})
+		var upgrader = NewUpgrader(handler, nil)
 
 		var s1 = internal.AlphabetNumeric.Generate(16)
 		var s2 = internal.AlphabetNumeric.Generate(16)
@@ -226,19 +221,13 @@ func TestSegments(t *testing.T) {
 func TestUnexpectedBehavior(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(
-		WithEventHandler(handler),
-		WithResponseHeader(nil),
-		WithMaxContentLength(0),
-		WithCheckOrigin(func(r *Request) bool {
-			return true
-		}),
-	)
+	var upgrader = NewUpgrader(handler, &ServerOption{})
+
 	var writer = bytes.NewBuffer(nil)
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader, &Request{}, conn, brw, handler, false)
+	var socket = serveWebSocket(upgrader.option.ToConfig(), &Request{}, conn, brw, handler, false)
 	socket.compressor = newCompressor(flate.BestSpeed)
 
 	t.Run("invalid length 1", func(t *testing.T) {

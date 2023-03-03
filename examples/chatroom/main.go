@@ -16,14 +16,13 @@ var html []byte
 
 func main() {
 	var handler = NewWebSocket()
-	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
-		c.CompressEnabled = true
-		c.EventHandler = handler
+	var upgrader = gws.NewUpgrader(handler, &gws.ServerOption{
+		CompressEnabled: true,
 
 		// 在querystring里面传入用户名
 		// 把Sec-WebSocket-Key作为连接的key
 		// 刷新页面的时候, 会触发上一个连接的OnClose/OnError事件, 这时候需要对比key并删除map里存储的连接
-		c.CheckOrigin = func(r *gws.Request) bool {
+		CheckOrigin: func(r *gws.Request) bool {
 			var name = r.URL.Query().Get("name")
 			if name == "" {
 				return false
@@ -31,7 +30,7 @@ func main() {
 			r.SessionStorage.Store("name", name)
 			r.SessionStorage.Store("key", r.Header.Get("Sec-WebSocket-Key"))
 			return true
-		}
+		},
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {

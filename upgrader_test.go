@@ -77,13 +77,14 @@ func TestNoDelay(t *testing.T) {
 }
 
 func TestAccept(t *testing.T) {
-	var upgrader = NewUpgrader(
-		WithResponseHeader(http.Header{"Server": []string{"gws"}}),
-		WithEventHandler(new(webSocketMocker)),
-	)
+	var upgrader = NewUpgrader(new(webSocketMocker), &ServerOption{
+		ResponseHeader: http.Header{
+			"Server": []string{"gws"},
+		},
+	})
 
 	t.Run("ok", func(t *testing.T) {
-		upgrader.CompressEnabled = true
+		upgrader.option.CompressEnabled = true
 		var request = &http.Request{
 			Header: http.Header{},
 			Method: http.MethodGet,
@@ -157,8 +158,8 @@ func TestAccept(t *testing.T) {
 	})
 
 	t.Run("fail check origin", func(t *testing.T) {
-		upgrader.CompressEnabled = true
-		upgrader.CheckOrigin = func(r *Request) bool {
+		upgrader.option.CompressEnabled = true
+		upgrader.option.CheckOrigin = func(r *Request) bool {
 			return false
 		}
 		var request = &http.Request{
@@ -176,10 +177,9 @@ func TestAccept(t *testing.T) {
 }
 
 func TestFailHijack(t *testing.T) {
-	var upgrader = NewUpgrader(
-		WithResponseHeader(http.Header{"Server": []string{"gws"}}),
-		WithEventHandler(new(webSocketMocker)),
-	)
+	var upgrader = NewUpgrader(new(webSocketMocker), &ServerOption{
+		ResponseHeader: http.Header{"Server": []string{"gws"}},
+	})
 	var request = &http.Request{
 		Header: http.Header{},
 		Method: http.MethodGet,

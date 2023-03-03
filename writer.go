@@ -55,7 +55,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 
 // 写入消息的公共逻辑
 func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
-	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressionThreshold
+	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {
