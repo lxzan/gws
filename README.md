@@ -24,21 +24,20 @@
 
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
-
-- [gws](#gws) 
-  - [Highlight](#highlight)
-  - [Core Interface](#core-interface)
-  - [Install](#install)
-  - [Examples](#examples)
-  - [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
-  - [TLS](#tls)
-  - [Autobahn Test](#autobahn-test)
-  - [Benchmark](#benchmark)
+- [gws](#gws)
+    - [Highlight](#highlight)
+    - [Core Interface](#core-interface)
+    - [Install](#install)
+    - [Examples](#examples)
+    - [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
+    - [TLS](#tls)
+    - [Autobahn Test](#autobahn-test)
+    - [Benchmark](#benchmark)
 
 #### Highlight
 
 - No dependency
-- No additional resident concurrent goroutine
+- No channel, no additional resident concurrent goroutine
 - Asynchronous non-blocking read and write support
 - High IOPS and low latency
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
@@ -63,6 +62,7 @@ go get -v github.com/lxzan/gws@latest
 ```
 
 #### Examples
+
 - [chat room](examples/chatroom/main.go)
 - [echo](examples/testsuite/main.go)
 
@@ -78,11 +78,14 @@ import (
 )
 
 func main() {
-	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
-		c.CompressEnabled = true
-		c.CheckTextEncoding = true
-		c.MaxContentLength = 32 * 1024 * 1024
-		c.EventHandler = new(WebSocket)
+	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
+		CompressEnabled:     true,
+		CheckUtf8Enabled:    true,
+		ReadMaxPayloadSize:  32 * 1024 * 1024,
+		WriteMaxPayloadSize: 32 * 1024 * 1024,
+		ReadAsyncEnabled:    true,
+		ReadBufferSize:      4 * 1024,
+		WriteBufferSize:     4 * 1024,
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
@@ -90,7 +93,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		go socket.Listen()
+		socket.Listen()
 	})
 
 	_ = http.ListenAndServe(":3000", nil)
@@ -118,8 +121,8 @@ func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	socket.WriteMessage(message.Typ(), message.Bytes())
-	message.Close()
+	defer message.Close()
+	socket.WriteMessage(message.Opcode, message.Data.Bytes())
 }
 ```
 
@@ -136,7 +139,7 @@ import (
 func main() {
 	app := gin.New()
 	handler := new(WebSocket)
-	upgrader := gws.NewUpgrader(gws.WithEventHandler(handler))
+	upgrader := gws.NewUpgrader(handler, nil)
 	app.GET("/connect", func(ctx *gin.Context) {
 		socket, err := upgrader.Accept(ctx.Writer, ctx.Request)
 		if err != nil {
@@ -169,14 +172,15 @@ docker run -it --rm \
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
 - High IOPS
+
 ```
 tcpkali -c 1000 --connect-rate 500 -r 1000 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
 ![rps](assets/performance.png)
 
-
 - Low Latency
+
 ```
 tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
@@ -186,8 +190,14 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 ![gorilla-c1000-m100](assets/gorilla-c1000-m100.png)
 
 - Low CPU Usage
+
 ```
 PID  USER      PR   NI VIRT    RES     SHR  S %CPU    %MEM    TIME+ COMMAND
 4557 caster    20   0  720228  38524   7340 R 255.0   1.0  48:44.97 gorilla-linux-a
 4552 caster    20   0  720612  53080   7212 S 171.0   1.3  32:00.80 gws-linux-amd64
 ```
+
+#### Acknowledgments
+The following project had particular influence on gws's design.
+
+- [lesismal/nbio](https://github.com/lxzan/gws)
