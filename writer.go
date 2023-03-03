@@ -79,13 +79,11 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 	return c.wbuf.Flush()
 }
 
-// WriteAsync
-// 异步写入消息, 适合广播等需要非阻塞的场景
-// asynchronous write messages, suitable for non-blocking scenarios such as broadcasting
+// WriteAsync 异步非阻塞地写入消息
+// Write messages asynchronously and non-blockingly
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	// 不允许加任务了
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	return c.writeTQ.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
+	return c.writeQueue.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
 }

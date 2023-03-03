@@ -171,7 +171,7 @@ func TestConn(t *testing.T) {
 		handler: new(webSocketMocker),
 		wmu:     sync.Mutex{},
 		wbuf:    bufio.NewWriter(bytes.NewBuffer(nil)),
-		config:  upgrader.option.ToConfig(),
+		config:  upgrader.option.getConfig(),
 	}
 	socket.SetDeadline(time.Time{})
 	socket.SetReadDeadline(time.Time{})

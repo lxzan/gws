@@ -123,5 +123,5 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		func() error { return setNoDelay(netConn) }); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(c.option.ToConfig(), request, netConn, brw, c.eventHandler, compressEnabled), nil
+	return serveWebSocket(c.option.getConfig(), request, netConn, brw, c.eventHandler, compressEnabled), nil
 }

@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"hash/fnv"
 	"io"
-	"net/http"
 	"strings"
 	"testing"
 )
@@ -23,24 +20,6 @@ func TestStringToBytes(t *testing.T) {
 func TestComputeAcceptKey(t *testing.T) {
 	var s = ComputeAcceptKey("PUurdSuLQj/6n4NFf/rA7A==")
 	assert.Equal(t, "HmIbwxkcLxq+A+3qnlBVtT7Bjgg=", s)
-}
-
-func TestCloneHeader(t *testing.T) {
-	var as = assert.New(t)
-	var h1 = http.Header{}
-	h1.Set("X-S1", string(AlphabetNumeric.Generate(32)))
-	h1.Set("X-S2", string(AlphabetNumeric.Generate(64)))
-	var h2 = CloneHeader(h1)
-	b1, _ := json.Marshal(h1)
-	b2, _ := json.Marshal(h2)
-	as.Equal(len(b1), len(b2))
-	as.Equal(h1.Get("X-S1"), h2.Get("X-S1"))
-	var h3 = h1
-	var p1 = fmt.Sprintf("%p", h1)
-	var p2 = fmt.Sprintf("%p", h2)
-	var p3 = fmt.Sprintf("%p", h3)
-	as.Equal(p1, p3)
-	as.NotEqual(p1, p2)
 }
 
 func TestMethodExists(t *testing.T) {

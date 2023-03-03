@@ -41,9 +41,9 @@ type Conn struct {
 	// write lock
 	wmu sync.Mutex
 	// async read task queue
-	readTQ workerQueue
+	readQueue workerQueue
 	// async write task queue
-	writeTQ workerQueue
+	writeQueue workerQueue
 }
 
 func serveWebSocket(config *Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
@@ -58,8 +58,8 @@ func serveWebSocket(config *Config, r *Request, netConn net.Conn, brw *bufio.Rea
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		readTQ:          workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
-		writeTQ:         workerQueue{maxConcurrency: 1, capacity: config.WriteAsyncCap},
+		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
+		writeQueue:      workerQueue{maxConcurrency: 1, capacity: config.WriteAsyncCap},
 	}
 
 	if c.compressEnabled {

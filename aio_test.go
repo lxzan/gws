@@ -17,11 +17,11 @@ func testNewPeer(upgrader *Upgrader) (server, client *Conn) {
 	s, c := Pipe()
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
-		server = serveWebSocket(upgrader.option.ToConfig(), &Request{}, s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
+		server = serveWebSocket(upgrader.option.getConfig(), &Request{}, s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
 	}
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
-		client = serveWebSocket(upgrader.option.ToConfig(), &Request{}, c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
+		client = serveWebSocket(upgrader.option.getConfig(), &Request{}, c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
 	}
 	return
 }

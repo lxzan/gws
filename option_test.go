@@ -8,7 +8,7 @@ import (
 
 func validateUpgrader(as *assert.Assertions, u *Upgrader) {
 	var option = u.option
-	var config = u.option.ToConfig()
+	var config = u.option.getConfig()
 	as.Equal(config.ReadAsyncEnabled, option.ReadAsyncEnabled)
 	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
 	as.Equal(config.ReadAsyncCap, option.ReadAsyncCap)
@@ -25,7 +25,7 @@ func validateUpgrader(as *assert.Assertions, u *Upgrader) {
 func TestDefaultUpgrader(t *testing.T) {
 	var as = assert.New(t)
 	var updrader = NewUpgrader(new(BuiltinEventHandler), nil)
-	var config = updrader.option.ToConfig()
+	var config = updrader.option.getConfig()
 	as.Equal(false, config.CompressEnabled)
 	as.Equal(false, config.ReadAsyncEnabled)
 	as.Equal(false, config.CheckUtf8Enabled)
@@ -49,7 +49,7 @@ func TestCompressServerOption(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
 			CompressEnabled: true,
 		})
-		var config = updrader.option.ToConfig()
+		var config = updrader.option.getConfig()
 		as.Equal(true, config.CompressEnabled)
 		as.Equal(defaultCompressLevel, config.CompressLevel)
 		as.Equal(defaultCompressThreshold, config.CompressThreshold)
@@ -62,7 +62,7 @@ func TestCompressServerOption(t *testing.T) {
 			CompressLevel:     flate.BestCompression,
 			CompressThreshold: 1024,
 		})
-		var config = updrader.option.ToConfig()
+		var config = updrader.option.getConfig()
 		as.Equal(true, config.CompressEnabled)
 		as.Equal(flate.BestCompression, config.CompressLevel)
 		as.Equal(1024, config.CompressThreshold)
@@ -77,7 +77,7 @@ func TestReadServerOption(t *testing.T) {
 		ReadAsyncGoLimit:   4,
 		ReadMaxPayloadSize: 1024,
 	})
-	var config = updrader.option.ToConfig()
+	var config = updrader.option.getConfig()
 	as.Equal(true, config.ReadAsyncEnabled)
 	as.Equal(4, config.ReadAsyncGoLimit)
 	as.Equal(1024, config.ReadMaxPayloadSize)

@@ -6,33 +6,43 @@ type (
 	// Upgrader websocket upgrader
 	Config struct {
 		// 是否开启异步读, 开启的话会并行调用OnMessage
+		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
 		ReadAsyncEnabled bool
 
 		// 异步读的最大并行协程数量
+		// Maximum number of parallel concurrent processes for asynchronous reads
 		ReadAsyncGoLimit int
 
 		// 异步读的容量限制, 容量溢出将会返回错误
+		// Capacity limit for asynchronous reads, overflow will return an error
 		ReadAsyncCap int
 
 		// 最大读取的消息内容长度
+		// Maximum read message content length
 		ReadMaxPayloadSize int
 
 		// 异步写的容量限制, 容量溢出将会返回错误
+		// Capacity limit for asynchronous writes, overflow will return an error
 		WriteAsyncCap int
 
 		// 最大写入的消息内容长度
+		// Maximum length of written message content
 		WriteMaxPayloadSize int
 
 		// 是否开启数据压缩
+		// Whether to turn on data compression
 		CompressEnabled bool
 
 		// 压缩级别
+		// Compress level
 		CompressLevel int
 
 		// 压缩阈值, 低于阈值的消息不会被压缩
+		// Compression threshold, messages below the threshold will not be compressed
 		CompressThreshold int
 
 		// 是否检查文本utf8编码, 关闭性能会好点
+		// Whether to check the text utf8 encoding, turn off the performance will be better
 		CheckUtf8Enabled bool
 	}
 
@@ -93,7 +103,8 @@ func (c *ServerOption) initialize() *ServerOption {
 	return c
 }
 
-func (c *ServerOption) ToConfig() *Config {
+// 获取通用配置
+func (c *ServerOption) getConfig() *Config {
 	return &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,

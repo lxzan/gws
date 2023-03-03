@@ -50,11 +50,7 @@ func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
 	return c.writeBuffer, nil
 }
 
-func newDecompressor() *decompressor {
-	return &decompressor{
-		fr: flate.NewReader(nil),
-	}
-}
+func newDecompressor() *decompressor { return &decompressor{fr: flate.NewReader(nil)} }
 
 type decompressor struct {
 	fr io.ReadCloser
@@ -64,9 +60,7 @@ type decompressor struct {
 func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
-	if err := resetter.Reset(payload, nil); err != nil {
-		return nil, err
-	}
+	_ = resetter.Reset(payload, nil) // must return a null pointer
 
 	var buf = _bpool.Get(3 * payload.Len())
 	_, err := io.Copy(buf, c.fr)

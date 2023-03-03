@@ -125,8 +125,9 @@ func (c *Conn) readMessage() error {
 		return myerr
 	case OpcodeText, OpcodeBinary:
 		return c.emitMessage(&Message{Opcode: opcode, Data: buf}, compressed)
+	default:
+		return internal.CloseNormalClosure
 	}
-	return internal.CloseNormalClosure
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
@@ -142,10 +143,9 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	}
 
 	if c.config.ReadAsyncEnabled {
-		return c.readTQ.Push(func() { c.handler.OnMessage(c, msg) })
+		return c.readQueue.Push(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)
+		return nil
 	}
-
-	return nil
 }

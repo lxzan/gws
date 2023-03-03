@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"io"
 	"math/rand"
-	"net/http"
 	"reflect"
 	"unsafe"
 )
@@ -36,14 +35,6 @@ func ComputeAcceptKey(challengeKey string) string {
 func NewMaskKey() [4]byte {
 	n := rand.Uint32()
 	return [4]byte{byte(n), byte(n >> 8), byte(n >> 16), byte(n >> 24)}
-}
-
-func CloneHeader(h http.Header) http.Header {
-	header := http.Header{}
-	for k, v := range h {
-		header[k] = v
-	}
-	return header
 }
 
 // MethodExists
