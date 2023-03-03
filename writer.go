@@ -63,7 +63,7 @@ func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 		}
 		payload = compressedContent.Bytes()
 	}
-	if len(payload) > c.config.MaxContentLength {
+	if len(payload) > c.config.WriteMaxPayloadSize {
 		return internal.CloseMessageTooLarge
 	}
 

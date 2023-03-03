@@ -7,12 +7,12 @@ import (
 )
 
 func main() {
-	var upgrader = gws.NewUpgrader(func(c *gws.Upgrader) {
-		c.EventHandler = new(WebSocket)
-		c.CompressEnabled = true
-		c.CheckTextEncoding = true
-		c.MaxContentLength = 32 * 1024 * 1024
-		c.AsyncReadEnabled = true
+	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
+		CompressEnabled:     true,
+		CheckUtf8Enabled:    true,
+		ReadMaxPayloadSize:  32 * 1024 * 1024,
+		WriteMaxPayloadSize: 32 * 1024 * 1024,
+		ReadAsyncEnabled:    true,
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {

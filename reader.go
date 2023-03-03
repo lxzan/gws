@@ -57,6 +57,9 @@ func (c *Conn) readMessage() error {
 	if err != nil {
 		return err
 	}
+	if contentLength > c.config.ReadMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
 
 	// RSV1, RSV2, RSV3:  1 bit each
 	//
@@ -83,10 +86,6 @@ func (c *Conn) readMessage() error {
 
 	var fin = c.fh.GetFIN()
 	var buf = _bpool.Get(contentLength)
-	if contentLength > c.config.MaxContentLength {
-		return internal.CloseMessageTooLarge
-	}
-
 	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func (c *Conn) readMessage() error {
 		if err := internal.WriteN(c.continuationFrame.buffer, buf.Bytes(), buf.Len()); err != nil {
 			return err
 		}
-		if c.continuationFrame.buffer.Len() > c.config.MaxContentLength {
+		if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
 			return internal.CloseMessageTooLarge
 		}
 		if !fin {
@@ -138,11 +137,11 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		}
 		msg.Data = data
 	}
-	if c.config.CheckTextEncoding && !isTextValid(msg.Opcode, msg.Data.Bytes()) {
+	if c.config.CheckUtf8Enabled && !isTextValid(msg.Opcode, msg.Data.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
-	if c.config.AsyncReadEnabled {
+	if c.config.ReadAsyncEnabled {
 		return c.readTQ.Push(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)

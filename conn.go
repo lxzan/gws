@@ -20,7 +20,7 @@ type Conn struct {
 	// tcp connection
 	conn net.Conn
 	// server configs
-	config *Upgrader
+	config *Config
 	// read buffer
 	rbuf *bufio.Reader
 	// flate decompressor
@@ -46,7 +46,7 @@ type Conn struct {
 	writeTQ workerQueue
 }
 
-func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(config *Config, r *Request, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		SessionStorage:  r.SessionStorage,
 		config:          config,
@@ -58,8 +58,8 @@ func serveWebSocket(config *Upgrader, r *Request, netConn net.Conn, brw *bufio.R
 		rbuf:            brw.Reader,
 		fh:              frameHeader{},
 		handler:         handler,
-		readTQ:          workerQueue{maxConcurrency: int32(config.AsyncReadGoLimit), capacity: config.AsyncReadCap},
-		writeTQ:         workerQueue{maxConcurrency: 1, capacity: config.AsyncWriteCap},
+		readTQ:          workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
+		writeTQ:         workerQueue{maxConcurrency: 1, capacity: config.WriteAsyncCap},
 	}
 
 	if c.compressEnabled {
@@ -139,7 +139,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 				responseCode = internal.StatusCode(realCode)
 			}
 		}
-		if c.config.CheckTextEncoding && !isTextValid(OpcodeCloseConnection, buf.Bytes()) {
+		if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, buf.Bytes()) {
 			responseCode = internal.CloseUnsupportedData
 		}
 	}
