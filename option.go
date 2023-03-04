@@ -2,7 +2,9 @@ package gws
 
 import (
 	"compress/flate"
+	"crypto/tls"
 	"net/http"
+	"time"
 )
 
 const (
@@ -15,6 +17,9 @@ const (
 	defaultCompressThreshold   = 512
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
+
+	defaultDialTimeout      = 5 * time.Second
+	defaultHandshakeTimeout = 5 * time.Second
 )
 
 type (
@@ -135,6 +140,79 @@ func (c *ServerOption) initialize() *ServerOption {
 
 // 获取通用配置
 func (c *ServerOption) getConfig() *Config {
+	return &Config{
+		ReadAsyncEnabled:    c.ReadAsyncEnabled,
+		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+		ReadAsyncCap:        c.ReadAsyncCap,
+		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
+		ReadBufferSize:      c.ReadBufferSize,
+		WriteAsyncCap:       c.WriteAsyncCap,
+		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
+		WriteBufferSize:     c.WriteBufferSize,
+		CompressEnabled:     c.CompressEnabled,
+		CompressLevel:       c.CompressLevel,
+		CompressThreshold:   c.CompressThreshold,
+		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+	}
+}
+
+type ClientOption struct {
+	ReadAsyncEnabled    bool
+	ReadAsyncGoLimit    int
+	ReadAsyncCap        int
+	ReadMaxPayloadSize  int
+	ReadBufferSize      int
+	WriteAsyncCap       int
+	WriteMaxPayloadSize int
+	WriteBufferSize     int
+	CompressEnabled     bool
+	CompressLevel       int
+	CompressThreshold   int
+	CheckUtf8Enabled    bool
+
+	DialTimeout      time.Duration
+	HandshakeTimeout time.Duration
+	TlsConfig        *tls.Config
+}
+
+func (c *ClientOption) initialize() *ClientOption {
+	if c.ReadMaxPayloadSize <= 0 {
+		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
+	}
+	if c.ReadAsyncGoLimit <= 0 {
+		c.ReadAsyncGoLimit = defaultReadAsyncGoLimit
+	}
+	if c.ReadAsyncCap <= 0 {
+		c.ReadAsyncCap = defaultReadAsyncCap
+	}
+	if c.ReadBufferSize <= 0 {
+		c.ReadBufferSize = defaultReadBufferSize
+	}
+	if c.WriteAsyncCap <= 0 {
+		c.WriteAsyncCap = defaultWriteAsyncCap
+	}
+	if c.WriteMaxPayloadSize <= 0 {
+		c.WriteMaxPayloadSize = defaultWriteMaxPayloadSize
+	}
+	if c.WriteBufferSize <= 0 {
+		c.WriteBufferSize = defaultWriteBufferSize
+	}
+	if c.CompressEnabled && c.CompressLevel == 0 {
+		c.CompressLevel = defaultCompressLevel
+	}
+	if c.CompressThreshold <= 0 {
+		c.CompressThreshold = defaultCompressThreshold
+	}
+	if c.DialTimeout <= 0 {
+		c.DialTimeout = defaultDialTimeout
+	}
+	if c.HandshakeTimeout <= 0 {
+		c.HandshakeTimeout = defaultHandshakeTimeout
+	}
+	return c
+}
+
+func (c *ClientOption) getConfig() *Config {
 	return &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,

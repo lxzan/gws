@@ -16,6 +16,7 @@
 .idea/
 .vscode/
 vendor/
+cmd/
 bin/
 examples/debug/
 examples/testsuite/reports
