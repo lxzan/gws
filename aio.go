@@ -11,7 +11,7 @@ type (
 		q              []asyncJob // 任务队列
 		maxConcurrency int32      // 最大并发
 		curConcurrency int32      // 当前并发
-		capacity       int
+		capacity       int        // 容量
 	}
 
 	asyncJob func()

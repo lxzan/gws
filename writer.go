@@ -48,13 +48,8 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // 关闭状态置为1后还能写, 以便发送关闭帧
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
-	err := c.writePublic(opcode, payload)
-	c.wmu.Unlock()
-	return err
-}
+	defer c.wmu.Unlock()
 
-// 写入消息的公共逻辑
-func (c *Conn) writePublic(opcode Opcode, payload []byte) error {
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
@@ -85,5 +80,5 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed
 	}
-	return c.writeQueue.Push(func() { c.emitError(c.writePublic(opcode, payload)) })
+	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
 }
