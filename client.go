@@ -169,8 +169,7 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			ws := serveWebSocket(c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled)
-			ws.isServer = false
+			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled)
 			if err := internal.Errors(
 				func() error { return c.conn.SetDeadline(time.Time{}) },
 				func() error { return c.conn.SetReadDeadline(time.Time{}) },

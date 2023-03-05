@@ -48,8 +48,9 @@ type Conn struct {
 	writeQueue workerQueue
 }
 
-func serveWebSocket(config *Config, session SessionStorage, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
+		isServer:        isServer,
 		SessionStorage:  session,
 		config:          config,
 		compressEnabled: compressEnabled,

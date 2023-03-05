@@ -19,11 +19,11 @@ func testNewPeer(upgrader *Upgrader) (server, client *Conn) {
 	s, c := Pipe()
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
-		server = serveWebSocket(upgrader.option.getConfig(), new(sliceMap), s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
+		server = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
 	}
 	{
 		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
-		client = serveWebSocket(upgrader.option.getConfig(), new(sliceMap), c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
+		client = serveWebSocket(false, upgrader.option.getConfig(), new(sliceMap), c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
 	}
 	return
 }
@@ -59,7 +59,7 @@ func doTestClientWrite(client *Conn, fin bool, opcode Opcode, payload []byte) er
 
 	var header = frameHeader{}
 	var n = len(payload)
-	var headerLength = header.GenerateServerHeader(fin, enableCompress, opcode, n)
+	var headerLength, _ = header.GenerateHeader(true, fin, enableCompress, opcode, n)
 
 	header[1] += 128
 	var key = internal.NewMaskKey()
@@ -269,10 +269,10 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		svrConn, cliConn := net.Pipe() // no reading from another side
 		var sbrw = bufio.NewReadWriter(bufio.NewReader(svrConn), bufio.NewWriter(svrConn))
-		var svrSocket = serveWebSocket(upgrader.option.getConfig(), &sliceMap{}, svrConn, sbrw, handler, false)
+		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), &sliceMap{}, svrConn, sbrw, handler, false)
 		go svrSocket.Listen()
 		var cbrw = bufio.NewReadWriter(bufio.NewReader(cliConn), bufio.NewWriter(svrConn))
-		var cliSocket = serveWebSocket(upgrader.option.getConfig(), &sliceMap{}, cliConn, cbrw, handler, false)
+		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), &sliceMap{}, cliConn, cbrw, handler, false)
 		if i == 0 { // client 0 1s后再开始读取；1s内不读取消息，则svrSocket 0在发送chan取出一个msg进行writePublic时即开始阻塞
 			time.AfterFunc(time.Second, func() {
 				cliSocket.Listen()

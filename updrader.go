@@ -114,7 +114,6 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		func() error { return setNoDelay(netConn) }); err != nil {
 		return nil, err
 	}
-	ws := serveWebSocket(c.option.getConfig(), session, netConn, brw, c.eventHandler, compressEnabled)
-	ws.isServer = true
+	ws := serveWebSocket(true, c.option.getConfig(), session, netConn, brw, c.eventHandler, compressEnabled)
 	return ws, nil
 }

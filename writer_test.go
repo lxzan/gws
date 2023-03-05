@@ -17,7 +17,7 @@ func TestConn_WriteMessage(t *testing.T) {
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, false)
+	var socket = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, false)
 
 	t.Run("text v1", func(t *testing.T) {
 		handler.reset(socket, reader, writer)
@@ -100,7 +100,7 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, true)
+	var socket = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, true)
 
 	// 消息长度低于阈值, 不压缩内容
 	t.Run("text v1", func(t *testing.T) {

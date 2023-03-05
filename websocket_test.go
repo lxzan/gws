@@ -82,7 +82,7 @@ func (c *webSocketMocker) writeToReader(conn *Conn, reader *bytes.Buffer, row te
 
 	var fh = frameHeader{}
 	var key = internal.NewMaskKey()
-	var offset = fh.GenerateServerHeader(row.Fin, compressEnabled, opcode, n)
+	var offset, _ = fh.GenerateHeader(true, row.Fin, compressEnabled, opcode, n)
 	if row.RSV2 {
 		fh[0] += 32
 	}

@@ -227,7 +227,7 @@ func TestUnexpectedBehavior(t *testing.T) {
 	var reader = bytes.NewBuffer(nil)
 	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
 	conn, _ := net.Pipe()
-	var socket = serveWebSocket(upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, false)
+	var socket = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, false)
 	socket.compressor = newCompressor(flate.BestSpeed)
 
 	t.Run("invalid length 1", func(t *testing.T) {
@@ -236,7 +236,7 @@ func TestUnexpectedBehavior(t *testing.T) {
 		wg.Add(1)
 		var fh = frameHeader{}
 		var key = internal.NewMaskKey()
-		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
 		fh.SetMask()
 		fh.SetMaskKey(offset, key)
 		reader.Write(fh[:offset+4])
@@ -260,7 +260,7 @@ func TestUnexpectedBehavior(t *testing.T) {
 		wg.Add(1)
 		var fh = frameHeader{}
 		var key = internal.NewMaskKey()
-		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
 		fh.SetMask()
 		fh.SetMaskKey(offset, key)
 		reader.Write(fh[:offset])
@@ -281,7 +281,7 @@ func TestUnexpectedBehavior(t *testing.T) {
 		wg.Add(1)
 		var fh = frameHeader{}
 		var key = internal.NewMaskKey()
-		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
 		fh.SetMask()
 		fh.SetMaskKey(offset, key)
 		reader.Write(fh[:1])
@@ -302,7 +302,7 @@ func TestUnexpectedBehavior(t *testing.T) {
 		wg.Add(1)
 		var fh = frameHeader{}
 		var key = internal.NewMaskKey()
-		var offset = fh.GenerateServerHeader(true, false, OpcodePing, 10)
+		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
 		fh.SetMask()
 		fh.SetMaskKey(offset, key)
 		reader.Write([]byte{128, 0})
