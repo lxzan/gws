@@ -117,6 +117,7 @@ func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
 }
 
 // generate frame header for writing
+// 可以考虑每个客户端连接带一个随机数发生器
 func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opcode Opcode, length int) (headerLength int, maskBytes []byte) {
 	headerLength = 2
 	var b0 = uint8(opcode)
@@ -130,15 +131,13 @@ func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opc
 	headerLength += c.SetLength(uint64(length))
 
 	if !isServer {
-		(*c)[1] += 128
+		(*c)[1] |= 128
 		maskNum := internal.AlphabetNumeric.Uint32()
 		binary.LittleEndian.PutUint32((*c)[headerLength:headerLength+4], maskNum)
-		//var key = internal.NewMaskKey()
-		//copy(header[headerLength:headerLength+4], key[:4])
+		maskBytes = (*c)[headerLength : headerLength+4]
 		headerLength += 4
 	}
-
-	return headerLength, (*c)[headerLength : headerLength+4]
+	return
 }
 
 // 解析完整协议头, 最多14byte, 返回payload长度
@@ -187,6 +186,10 @@ type Message struct {
 
 func (c *Message) Read(p []byte) (n int, err error) {
 	return c.Data.Read(p)
+}
+
+func (c *Message) Bytes() []byte {
+	return c.Data.Bytes()
 }
 
 // Close recycle buffer

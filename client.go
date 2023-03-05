@@ -15,7 +15,8 @@ import (
 	"time"
 )
 
-func Dial(handler Event, option *ClientOption) (*Conn, http.Header, error) {
+// NewClient 创建WebSocket客户端
+func NewClient(handler Event, option *ClientOption) (client *Conn, responseHeader http.Header, e error) {
 	if option == nil {
 		option = new(ClientOption)
 	}
@@ -169,6 +170,7 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 				return nil, nil, err
 			}
 			ws := serveWebSocket(c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled)
+			ws.isServer = false
 			if err := internal.Errors(
 				func() error { return c.conn.SetDeadline(time.Time{}) },
 				func() error { return c.conn.SetReadDeadline(time.Time{}) },
