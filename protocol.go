@@ -116,10 +116,9 @@ func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
 	copy((*c)[offset:offset+4], key[0:])
 }
 
-// generate server side frame header for writing
-// do not use mask
-func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcode, length int) int {
-	var headerLength = 2
+// generate frame header for writing
+func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opcode Opcode, length int) (headerLength int, maskBytes []byte) {
+	headerLength = 2
 	var b0 = uint8(opcode)
 	if fin {
 		b0 += 128
@@ -128,9 +127,18 @@ func (c *frameHeader) GenerateServerHeader(fin bool, compress bool, opcode Opcod
 		b0 += 64
 	}
 	(*c)[0] = b0
-
 	headerLength += c.SetLength(uint64(length))
-	return headerLength
+
+	if !isServer {
+		(*c)[1] += 128
+		maskNum := internal.AlphabetNumeric.Uint32()
+		binary.LittleEndian.PutUint32((*c)[headerLength:headerLength+4], maskNum)
+		//var key = internal.NewMaskKey()
+		//copy(header[headerLength:headerLength+4], key[:4])
+		headerLength += 4
+	}
+
+	return headerLength, (*c)[headerLength : headerLength+4]
 }
 
 // 解析完整协议头, 最多14byte, 返回payload长度

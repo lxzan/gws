@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
@@ -59,6 +61,7 @@ func Dial(handler Event, option *ClientOption) (*Conn, http.Header, error) {
 	dialer.conn = conn
 	dialer.host = host
 	dialer.eventHandler = handler
+	dialer.u = URL
 	return dialer.handshake()
 }
 
@@ -80,14 +83,26 @@ func (c *dialer) stradd(ss ...string) string {
 
 // 生成报文
 func (c *dialer) generateTelegram(uri string) []byte {
+	{
+		var key [16]byte
+		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
+		binary.BigEndian.PutUint64(key[8:16], internal.AlphabetNumeric.Uint64())
+		c.option.RequestHeader.Set(internal.SecWebSocketKey.Key, base64.StdEncoding.EncodeToString(key[0:]))
+	}
+	if c.option.CompressEnabled {
+		c.option.RequestHeader.Set(internal.SecWebSocketExtensions.Key, "permessage-deflate")
+	}
+
 	var buf []byte
 	buf = append(buf, c.stradd("GET ", uri, " HTTP/1.1\r\n")...)
 	buf = append(buf, c.stradd("Host: ", c.host, "\r\n")...)
 	buf = append(buf, "Connection: Upgrade\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
 	buf = append(buf, "Sec-WebSocket-Version: 13\r\n"...)
-	buf = append(buf, "Sec-WebSocket-Key: 9iA8mc0M97LEg4k+xtRd+g==\r\n"...)
-	//buf = append(buf, "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"...)
+
+	for k, _ := range c.option.RequestHeader {
+		buf = append(buf, c.stradd(k, ": ", c.option.RequestHeader.Get(k), "\r\n")...)
+	}
 	buf = append(buf, "\r\n"...)
 	return buf
 }

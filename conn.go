@@ -15,6 +15,8 @@ import (
 type Conn struct {
 	// store session information
 	SessionStorage SessionStorage
+	// is server
+	isServer bool
 	// whether to use compression
 	compressEnabled bool
 	// tcp connection

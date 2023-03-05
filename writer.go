@@ -64,7 +64,10 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 
 	var header = frameHeader{}
 	var n = len(payload)
-	var headerLength = header.GenerateServerHeader(true, useCompress, opcode, n)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, useCompress, opcode, n)
+	if !c.isServer {
+		internal.MaskXOR(payload, maskBytes)
+	}
 	if err := internal.WriteN(c.wbuf, header[:headerLength], headerLength); err != nil {
 		return err
 	}

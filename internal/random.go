@@ -51,3 +51,10 @@ func (c *RandomString) Uint32() uint32 {
 	c.mu.Unlock()
 	return x
 }
+
+func (c *RandomString) Uint64() uint64 {
+	c.mu.Lock()
+	x := c.r.Uint64()
+	c.mu.Unlock()
+	return x
+}

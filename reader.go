@@ -10,6 +10,17 @@ import (
 
 var _bpool = internal.NewBufferPool()
 
+func (c *Conn) checkMask(enabled bool) error {
+	// RFC6455: All frames sent from client to server have this bit set to 1.
+	if c.isServer && !enabled {
+		return internal.CloseProtocolError
+	}
+	if !c.isServer && enabled {
+		return internal.CloseProtocolError
+	}
+	return nil
+}
+
 // read control frame
 func (c *Conn) readControl() error {
 	//RFC6455:  Control frames themselves MUST NOT be fragmented.
@@ -72,8 +83,8 @@ func (c *Conn) readMessage() error {
 		return internal.CloseProtocolError
 	}
 
-	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if !c.fh.GetMask() {
+	maskEnabled := c.fh.GetMask()
+	if err := c.checkMask(maskEnabled); err != nil {
 		return internal.CloseProtocolError
 	}
 
@@ -89,7 +100,9 @@ func (c *Conn) readMessage() error {
 	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
 		return err
 	}
-	internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+	if maskEnabled {
+		internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+	}
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
 		c.continuationFrame.initialized = true
