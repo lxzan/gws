@@ -30,8 +30,9 @@ func (c *Conn) WritePong(payload []byte) error {
 }
 
 // WriteString write text frame
+// force convert string to []byte
 func (c *Conn) WriteString(s string) error {
-	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
+	return c.WriteMessage(OpcodeText, []byte(s))
 }
 
 // WriteMessage writes message
