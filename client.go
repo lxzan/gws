@@ -17,12 +17,12 @@ import (
 
 // NewClient 创建WebSocket客户端
 func NewClient(handler Event, option *ClientOption) (client *Conn, responseHeader http.Header, e error) {
+	var d = &dialer{eventHandler: handler}
 	if option == nil {
 		option = new(ClientOption)
 	}
 	option.initialize()
 
-	var dialer = new(dialer)
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
 		return nil, nil, err
@@ -45,8 +45,8 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, responseHeade
 			port = "443"
 		}
 		host = hostname + ":" + port
-		var d = &net.Dialer{Timeout: option.DialTimeout}
-		conn, dialError = tls.DialWithDialer(d, "tcp", host, option.TlsConfig)
+		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
+		conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
 	default:
 		return nil, nil, internal.ErrSchema
 	}
@@ -58,12 +58,11 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, responseHeade
 		return nil, nil, err
 	}
 
-	dialer.option = option
-	dialer.conn = conn
-	dialer.host = host
-	dialer.eventHandler = handler
-	dialer.u = URL
-	return dialer.handshake()
+	d.host = host
+	d.option = option
+	d.u = URL
+	d.conn = conn
+	return d.handshake()
 }
 
 type dialer struct {
@@ -84,6 +83,7 @@ func (c *dialer) stradd(ss ...string) string {
 
 // 生成报文
 func (c *dialer) generateTelegram(uri string) []byte {
+	c.option.RequestHeader.Set("X-Server", "gws")
 	{
 		var key [16]byte
 		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
@@ -100,7 +100,6 @@ func (c *dialer) generateTelegram(uri string) []byte {
 	buf = append(buf, "Connection: Upgrade\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
 	buf = append(buf, "Sec-WebSocket-Version: 13\r\n"...)
-
 	for k, _ := range c.option.RequestHeader {
 		buf = append(buf, c.stradd(k, ": ", c.option.RequestHeader.Get(k), "\r\n")...)
 	}
@@ -113,7 +112,6 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 		bufio.NewReaderSize(c.conn, c.option.ReadBufferSize),
 		bufio.NewWriterSize(c.conn, c.option.WriteBufferSize),
 	)
-
 	telegram := c.generateTelegram(c.u.RequestURI())
 	if err := internal.WriteN(brw.Writer, telegram, len(telegram)); err != nil {
 		return nil, nil, err
@@ -156,6 +154,10 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 					return
 				}
 				header.Set(arr[0], arr[1])
+			}
+			if len(header) >= 128 {
+				ch <- internal.ErrLongLine
+				return
 			}
 			index++
 		}

@@ -18,8 +18,7 @@ const (
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 
-	defaultDialTimeout      = 5 * time.Second
-	defaultHandshakeTimeout = 5 * time.Second
+	defaultDialTimeout = 5 * time.Second
 )
 
 type (
@@ -170,10 +169,18 @@ type ClientOption struct {
 	CompressThreshold   int
 	CheckUtf8Enabled    bool
 
-	Addr          string
+	// 连接地址, 例如 wss://example.com/connect
+	// service address, eg: wss://example.com/connect
+	Addr string
+	// 额外的请求头
+	// extra request header
 	RequestHeader http.Header
-	DialTimeout   time.Duration
-	TlsConfig     *tls.Config
+	// dial timeout
+	// 连接超时时间
+	DialTimeout time.Duration
+	// TLS设置
+	// tls config
+	TlsConfig *tls.Config
 }
 
 func (c *ClientOption) initialize() *ClientOption {
