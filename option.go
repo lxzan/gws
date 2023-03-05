@@ -170,9 +170,9 @@ type ClientOption struct {
 	CompressThreshold   int
 	CheckUtf8Enabled    bool
 
-	DialTimeout      time.Duration
-	HandshakeTimeout time.Duration
-	TlsConfig        *tls.Config
+	Addr        string
+	DialTimeout time.Duration
+	TlsConfig   *tls.Config
 }
 
 func (c *ClientOption) initialize() *ClientOption {
@@ -205,9 +205,6 @@ func (c *ClientOption) initialize() *ClientOption {
 	}
 	if c.DialTimeout <= 0 {
 		c.DialTimeout = defaultDialTimeout
-	}
-	if c.HandshakeTimeout <= 0 {
-		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	return c
 }

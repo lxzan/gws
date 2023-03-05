@@ -5,23 +5,24 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 )
 
-func Dial(addr string, handler Event, option *ClientOption) (*Conn, error) {
+func Dial(handler Event, option *ClientOption) (*Conn, http.Header, error) {
 	if option == nil {
 		option = new(ClientOption)
 	}
 	option.initialize()
 
 	var dialer = new(dialer)
-	URL, err := url.Parse(addr)
+	URL, err := url.Parse(option.Addr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var conn net.Conn
@@ -44,28 +45,29 @@ func Dial(addr string, handler Event, option *ClientOption) (*Conn, error) {
 		var d = &net.Dialer{Timeout: option.DialTimeout}
 		conn, dialError = tls.DialWithDialer(d, "tcp", host, option.TlsConfig)
 	default:
-		return nil, internal.ErrSchema
+		return nil, nil, internal.ErrSchema
 	}
 
 	if dialError != nil {
-		return nil, dialError
+		return nil, nil, dialError
+	}
+	if err := conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
+		return nil, nil, err
 	}
 
 	dialer.option = option
 	dialer.conn = conn
 	dialer.host = host
-	dialer.u = URL
 	dialer.eventHandler = handler
 	return dialer.handshake()
 }
 
 type dialer struct {
-	option         *ClientOption
-	conn           net.Conn
-	host           string
-	u              *url.URL
-	eventHandler   Event
-	responseHeader http.Header
+	option       *ClientOption
+	conn         net.Conn
+	host         string
+	u            *url.URL
+	eventHandler Event
 }
 
 func (c *dialer) stradd(ss ...string) string {
@@ -77,9 +79,9 @@ func (c *dialer) stradd(ss ...string) string {
 }
 
 // 生成报文
-func (c *dialer) generateTelegram() []byte {
+func (c *dialer) generateTelegram(uri string) []byte {
 	var buf []byte
-	buf = append(buf, c.stradd("GET ", c.u.RequestURI(), " HTTP/1.1\r\n")...)
+	buf = append(buf, c.stradd("GET ", uri, " HTTP/1.1\r\n")...)
 	buf = append(buf, c.stradd("Host: ", c.host, "\r\n")...)
 	buf = append(buf, "Connection: Upgrade\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -90,26 +92,26 @@ func (c *dialer) generateTelegram() []byte {
 	return buf
 }
 
-func (c *dialer) handshake() (*Conn, error) {
+func (c *dialer) handshake() (*Conn, http.Header, error) {
 	brw := bufio.NewReadWriter(
 		bufio.NewReaderSize(c.conn, c.option.ReadBufferSize),
 		bufio.NewWriterSize(c.conn, c.option.WriteBufferSize),
 	)
 
-	telegram := c.generateTelegram()
+	telegram := c.generateTelegram(c.u.RequestURI())
 	if err := internal.WriteN(brw.Writer, telegram, len(telegram)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := brw.Writer.Flush(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var header = http.Header{}
 	var ch = make(chan error)
-	ctx, cancel := context.WithTimeout(context.Background(), c.option.HandshakeTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.option.DialTimeout)
 	defer cancel()
 
 	go func() {
-		var header = http.Header{}
 		var index = 0
 		for {
 			line, isPrefix, err := brw.Reader.ReadLine()
@@ -118,27 +120,26 @@ func (c *dialer) handshake() (*Conn, error) {
 				return
 			}
 			if isPrefix {
-				ch <- errors.New("line too long")
+				ch <- internal.ErrLongLine
 				return
 			}
 			if index == 0 {
 				arr := bytes.Split(line, []byte(" "))
 				if len(arr) != 4 || !bytes.Equal(arr[1], []byte("101")) {
-					ch <- errors.New("status code error")
+					ch <- internal.ErrStatusCode
 					return
 				}
 			} else {
 				if len(line) == 0 {
-					c.responseHeader = header
 					ch <- nil
 					return
 				}
-				arr := bytes.SplitN(line, []byte(": "), 2)
+				arr := strings.Split(string(line), ": ")
 				if len(arr) != 2 {
-					ch <- errors.New("header format error")
+					ch <- internal.ErrHandshake
 					return
 				}
-				header.Set(string(arr[0]), string(arr[1]))
+				header.Set(arr[0], arr[1])
 			}
 			index++
 		}
@@ -147,12 +148,20 @@ func (c *dialer) handshake() (*Conn, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("timeout")
+			return nil, nil, internal.ErrDialTimeout
 		case err := <-ch:
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			return serveWebSocket(c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled), nil
+			ws := serveWebSocket(c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled)
+			if err := internal.Errors(
+				func() error { return c.conn.SetDeadline(time.Time{}) },
+				func() error { return c.conn.SetReadDeadline(time.Time{}) },
+				func() error { return c.conn.SetWriteDeadline(time.Time{}) },
+				func() error { return setNoDelay(c.conn) }); err != nil {
+				return nil, nil, err
+			}
+			return ws, header, nil
 		}
 	}
 }

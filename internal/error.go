@@ -8,7 +8,11 @@ var (
 	ErrConnClosed              = GwsError("connection closed")
 	ErrGetMethodRequired       = GwsError("http method must be get")
 	ErrAsyncIOCapFull          = GwsError("async io capacity is full")
-	ErrSchema                  = GwsError("protocol not supported")
+
+	ErrSchema      = GwsError("protocol not supported")
+	ErrStatusCode  = GwsError("status code error")
+	ErrDialTimeout = GwsError("dial timeout")
+	ErrLongLine    = GwsError("line is too long")
 )
 
 type GwsError string
