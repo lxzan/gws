@@ -42,6 +42,7 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
+	_ = socket.WriteString("hello, there is client")
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
