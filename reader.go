@@ -40,7 +40,13 @@ func (c *Conn) readControl() error {
 		if err := internal.CopyN(&buf, c.rbuf, int64(n)); err != nil {
 			return err
 		}
-		internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+		maskEnabled := c.fh.GetMask()
+		if err := c.checkMask(maskEnabled); err != nil {
+			return err
+		}
+		if maskEnabled {
+			internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+		}
 	}
 
 	var opcode = c.fh.GetOpcode()
@@ -85,7 +91,7 @@ func (c *Conn) readMessage() error {
 
 	maskEnabled := c.fh.GetMask()
 	if err := c.checkMask(maskEnabled); err != nil {
-		return internal.CloseProtocolError
+		return err
 	}
 
 	// read control frame

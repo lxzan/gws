@@ -35,8 +35,9 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, []byte(s))
 }
 
-// WriteMessage writes message
-// 发送消息
+// WriteMessage 发送消息
+// 如果是客户端, payload内容会被改变
+// writes message
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		return internal.ErrConnClosed

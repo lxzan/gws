@@ -148,8 +148,8 @@ func MaskXOR(b []byte, key []byte) {
 	}
 
 	for len(b) >= 8 {
-		v := binary.LittleEndian.Uint64(b)
-		binary.LittleEndian.PutUint64(b, v^key64)
+		v := binary.LittleEndian.Uint64(b[:8])
+		binary.LittleEndian.PutUint64(b[:8], v^key64)
 		b = b[8:]
 	}
 
