@@ -26,13 +26,15 @@
 
 - [gws](#gws)
     - [Highlight](#highlight)
-    - [Core Interface](#core-interface)
     - [Install](#install)
+    - [Interface](#interface)
     - [Examples](#examples)
-    - [Quick Start (Autobahn Server)](#quick-start-autobahn-server)
+    - [Server](#server)
+    - [Client](#client)
     - [TLS](#tls)
     - [Autobahn Test](#autobahn-test)
-    - [Benchmark](#benchmark)
+    - [Benchmark Machine: `Ubuntu 20.04LTS VM (4C8T)`](#benchmark-machine-ubuntu-2004lts-vm-4c8t)
+    - [Acknowledgments](#acknowledgments)
 
 #### Highlight
 
@@ -42,23 +44,23 @@
 - High IOPS and low latency
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
-#### Core Interface
-
-```go
-type Event interface {
-    OnOpen(socket *Conn)
-    OnError(socket *Conn, err error)
-    OnClose(socket *Conn, code uint16, reason []byte)
-    OnPing(socket *Conn, payload []byte)
-    OnPong(socket *Conn, payload []byte)
-    OnMessage(socket *Conn, message *Message)
-}
-```
-
 #### Install
 
 ```bash
 go get -v github.com/lxzan/gws@latest
+```
+
+#### Interface
+
+```go
+type Event interface {
+	OnOpen(socket *Conn)
+	OnError(socket *Conn, err error)
+	OnClose(socket *Conn, code uint16, reason []byte)
+	OnPing(socket *Conn, payload []byte)
+	OnPong(socket *Conn, payload []byte)
+	OnMessage(socket *Conn, message *Message)
+}
 ```
 
 #### Examples
@@ -66,7 +68,7 @@ go get -v github.com/lxzan/gws@latest
 - [chat room](examples/chatroom/main.go)
 - [echo](examples/testsuite/main.go)
 
-#### Quick Start (Autobahn Server)
+#### Server
 
 ```go
 package main
@@ -123,6 +125,37 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
 	socket.WriteMessage(message.Opcode, message.Data.Bytes())
+}
+```
+
+#### Client
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/lxzan/gws"
+	"log"
+)
+
+func main() {
+	socket, _, err := gws.NewClient(new(WebSocket), &gws.ClientOption{
+		Addr: "ws://127.0.0.1:3000/connect",
+	})
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
+	socket.Listen()
+}
+
+type WebSocket struct {
+	gws.BuiltinEventHandler
+}
+
+func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
+	fmt.Printf("recv: %s\n", message.Data.String())
 }
 ```
 
@@ -196,6 +229,7 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 ```
 
 #### Acknowledgments
+
 The following project had particular influence on gws's design.
 
 - [lesismal/nbio](https://github.com/lxzan/gws)
