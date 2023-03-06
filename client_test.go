@@ -1,7 +1,10 @@
 package gws
 
 import (
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 	"net"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -35,9 +38,11 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClientHandshake(t *testing.T) {
-	option := new(ClientOption)
+	var as = assert.New(t)
+	option := &ClientOption{RequestHeader: http.Header{}}
+	option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 	option.initialize()
-	cli, srv := net.Pipe()
+	srv, cli := net.Pipe()
 	u, _ := url.Parse("ws://127.0.0.1:3000")
 	var d = &dialer{
 		option:       option,
@@ -45,14 +50,21 @@ func TestClientHandshake(t *testing.T) {
 		host:         "127.0.0.1:3000",
 		u:            u,
 		eventHandler: new(BuiltinEventHandler),
+		resp:         &http.Response{Header: http.Header{}},
 	}
 
 	go func() {
-		var text = `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: LghwTcXaQ3YTNi3nHWs6qr3EWck=\r\n\r\n`
-		go srv.Write([]byte(text))
+		var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+		for {
+			var buf = make([]byte, 1024)
+			srv.Read(buf)
+			srv.Write([]byte(text))
+		}
 	}()
-	go func() {
-		c, h, e := d.handshake()
-		println(&c, &h, &e)
-	}()
+
+	_, _, err := d.handshake()
+	if err != nil {
+		as.NoError(err)
+		return
+	}
 }

@@ -11,13 +11,19 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // NewClient 创建WebSocket客户端
-func NewClient(handler Event, option *ClientOption) (client *Conn, responseHeader http.Header, e error) {
-	var d = &dialer{eventHandler: handler}
+func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
+	var d = &dialer{
+		eventHandler: handler,
+		resp: &http.Response{
+			Header: http.Header{},
+		},
+	}
 	if option == nil {
 		option = new(ClientOption)
 	}
@@ -71,6 +77,7 @@ type dialer struct {
 	host         string
 	u            *url.URL
 	eventHandler Event
+	resp         *http.Response
 }
 
 func (c *dialer) stradd(ss ...string) string {
@@ -84,14 +91,14 @@ func (c *dialer) stradd(ss ...string) string {
 // 生成报文
 func (c *dialer) generateTelegram(uri string) []byte {
 	c.option.RequestHeader.Set("X-Server", "gws")
-	{
+	if c.option.RequestHeader.Get(internal.SecWebSocketKey.Key) == "" {
 		var key [16]byte
 		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
 		binary.BigEndian.PutUint64(key[8:16], internal.AlphabetNumeric.Uint64())
 		c.option.RequestHeader.Set(internal.SecWebSocketKey.Key, base64.StdEncoding.EncodeToString(key[0:]))
 	}
 	if c.option.CompressEnabled {
-		c.option.RequestHeader.Set(internal.SecWebSocketExtensions.Key, "permessage-deflate")
+		c.option.RequestHeader.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 	}
 
 	var buf []byte
@@ -107,7 +114,7 @@ func (c *dialer) generateTelegram(uri string) []byte {
 	return buf
 }
 
-func (c *dialer) handshake() (*Conn, http.Header, error) {
+func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	brw := bufio.NewReadWriter(
 		bufio.NewReaderSize(c.conn, c.option.ReadBufferSize),
 		bufio.NewWriterSize(c.conn, c.option.WriteBufferSize),
@@ -120,7 +127,6 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 		return nil, nil, err
 	}
 
-	var header = http.Header{}
 	var ch = make(chan error)
 	ctx, cancel := context.WithTimeout(context.Background(), c.option.DialTimeout)
 	defer cancel()
@@ -139,7 +145,11 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 			}
 			if index == 0 {
 				arr := bytes.Split(line, []byte(" "))
-				if len(arr) != 4 || !bytes.Equal(arr[1], []byte("101")) {
+				if len(arr) >= 2 {
+					code, _ := strconv.Atoi(string(arr[1]))
+					c.resp.StatusCode = code
+				}
+				if len(arr) != 4 || c.resp.StatusCode != 101 {
 					ch <- internal.ErrStatusCode
 					return
 				}
@@ -153,9 +163,9 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 					ch <- internal.ErrHandshake
 					return
 				}
-				header.Set(arr[0], arr[1])
+				c.resp.Header.Set(arr[0], arr[1])
 			}
-			if len(header) >= 128 {
+			if len(c.resp.Header) >= 128 {
 				ch <- internal.ErrLongLine
 				return
 			}
@@ -171,7 +181,14 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, c.option.CompressEnabled)
+			if err := c.checkHeaders(); err != nil {
+				return nil, nil, err
+			}
+			var compressEnabled = c.option.CompressEnabled
+			if !strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
+				compressEnabled = false
+			}
+			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, compressEnabled)
 			if err := internal.Errors(
 				func() error { return c.conn.SetDeadline(time.Time{}) },
 				func() error { return c.conn.SetReadDeadline(time.Time{}) },
@@ -179,7 +196,23 @@ func (c *dialer) handshake() (*Conn, http.Header, error) {
 				func() error { return setNoDelay(c.conn) }); err != nil {
 				return nil, nil, err
 			}
-			return ws, header, nil
+			return ws, c.resp, nil
 		}
 	}
+}
+
+func (c *dialer) checkHeaders() error {
+	if c.resp.Header.Get(internal.Connection.Key) != internal.Connection.Val {
+		return internal.ErrHandshake
+	}
+	if c.resp.Header.Get(internal.Upgrade.Key) != internal.Upgrade.Val {
+		return internal.ErrHandshake
+	}
+
+	var expectedKey = internal.ComputeAcceptKey(c.option.RequestHeader.Get(internal.SecWebSocketKey.Key))
+	var actualKey = c.resp.Header.Get(internal.SecWebSocketAccept.Key)
+	if actualKey != expectedKey {
+		return internal.ErrHandshake
+	}
+	return nil
 }

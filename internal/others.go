@@ -18,6 +18,7 @@ var (
 	SecWebSocketExtensions = Pair{"Sec-WebSocket-Extensions", "permessage-deflate; server_no_context_takeover; client_no_context_takeover"}
 	Connection             = Pair{"Connection", "Upgrade"}
 	Upgrade                = Pair{"Upgrade", "websocket"}
+	SecWebSocketAccept     = Pair{"Sec-WebSocket-Accept", ""}
 )
 
 // Add four bytes as specified in RFC
