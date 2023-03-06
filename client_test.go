@@ -39,7 +39,10 @@ func TestNewClient(t *testing.T) {
 
 func TestClientHandshake(t *testing.T) {
 	var as = assert.New(t)
-	option := &ClientOption{RequestHeader: http.Header{}}
+	option := &ClientOption{
+		CompressEnabled: true,
+		RequestHeader:   http.Header{},
+	}
 	option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 	option.initialize()
 	srv, cli := net.Pipe()
@@ -61,10 +64,162 @@ func TestClientHandshake(t *testing.T) {
 			srv.Write([]byte(text))
 		}
 	}()
-
 	_, _, err := d.handshake()
 	if err != nil {
 		as.NoError(err)
 		return
 	}
+}
+
+func TestClientHandshakeFail(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
+		option.initialize()
+		srv, cli := net.Pipe()
+		u, _ := url.Parse("ws://127.0.0.1:3000")
+		var d = &dialer{
+			option:       option,
+			conn:         cli,
+			host:         "127.0.0.1:3000",
+			u:            u,
+			eventHandler: new(BuiltinEventHandler),
+			resp:         &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 400 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
+		option.initialize()
+		srv, cli := net.Pipe()
+		u, _ := url.Parse("ws://127.0.0.1:3000")
+		var d = &dialer{
+			option:       option,
+			conn:         cli,
+			host:         "127.0.0.1:3000",
+			u:            u,
+			eventHandler: new(BuiltinEventHandler),
+			resp:         &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upg: rade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.initialize()
+		srv, cli := net.Pipe()
+		u, _ := url.Parse("ws://127.0.0.1:3000")
+		var d = &dialer{
+			option:       option,
+			conn:         cli,
+			host:         "127.0.0.1:3000",
+			u:            u,
+			eventHandler: new(BuiltinEventHandler),
+			resp:         &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
+		option.initialize()
+		srv, cli := net.Pipe()
+		u, _ := url.Parse("ws://127.0.0.1:3000")
+		var d = &dialer{
+			option:       option,
+			conn:         cli,
+			host:         "127.0.0.1:3000",
+			u:            u,
+			eventHandler: new(BuiltinEventHandler),
+			resp:         &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket1\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.Error(err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
+		option.initialize()
+		srv, cli := net.Pipe()
+		u, _ := url.Parse("ws://127.0.0.1:3000")
+		var d = &dialer{
+			option:       option,
+			conn:         cli,
+			host:         "127.0.0.1:3000",
+			u:            u,
+			eventHandler: new(BuiltinEventHandler),
+			resp:         &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket1\r\nConnection: Upgrade1\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.Error(err)
+	})
 }

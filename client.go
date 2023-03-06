@@ -165,10 +165,6 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 				}
 				c.resp.Header.Set(arr[0], arr[1])
 			}
-			if len(c.resp.Header) >= 128 {
-				ch <- internal.ErrLongLine
-				return
-			}
 			index++
 		}
 	}()
@@ -208,7 +204,6 @@ func (c *dialer) checkHeaders() error {
 	if c.resp.Header.Get(internal.Upgrade.Key) != internal.Upgrade.Val {
 		return internal.ErrHandshake
 	}
-
 	var expectedKey = internal.ComputeAcceptKey(c.option.RequestHeader.Get(internal.SecWebSocketKey.Key))
 	var actualKey = c.resp.Header.Get(internal.SecWebSocketAccept.Key)
 	if actualKey != expectedKey {
