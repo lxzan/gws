@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lxzan/gws/internal"
-	"sync/atomic"
 )
 
 var _bpool = internal.NewBufferPool()
@@ -66,7 +65,7 @@ func (c *Conn) readControl() error {
 }
 
 func (c *Conn) readMessage() error {
-	if atomic.LoadUint32(&c.closed) == 1 {
+	if c.isClosed() {
 		return internal.CloseNormalClosure
 	}
 

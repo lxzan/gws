@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
-	"sync/atomic"
 )
 
 // WriteClose proactively close the connection
@@ -39,7 +38,7 @@ func (c *Conn) WriteString(s string) error {
 // 如果是客户端, payload内容会被改变
 // writes message
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
-	if atomic.LoadUint32(&c.closed) == 1 {
+	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
 	err := c.doWrite(opcode, payload)
@@ -82,7 +81,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blockingly
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	if atomic.LoadUint32(&c.closed) == 1 {
+	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
 	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })

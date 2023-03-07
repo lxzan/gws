@@ -87,6 +87,10 @@ func (c *Conn) Listen() {
 	}
 }
 
+func (c *Conn) isClosed() bool {
+	return atomic.LoadUint32(&c.closed) == 1
+}
+
 func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
@@ -111,6 +115,7 @@ func (c *Conn) emitError(err error) {
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.doWrite(OpcodeCloseConnection, content)
+		_ = c.conn.SetDeadline(time.Now())
 		c.handler.OnError(c, responseErr)
 	}
 }
@@ -155,6 +160,9 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 
 // SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) error {
+	if c.isClosed() {
+		return nil
+	}
 	err := c.conn.SetDeadline(t)
 	c.emitError(err)
 	return err
@@ -162,6 +170,9 @@ func (c *Conn) SetDeadline(t time.Time) error {
 
 // SetReadDeadline sets read deadline
 func (c *Conn) SetReadDeadline(t time.Time) error {
+	if c.isClosed() {
+		return nil
+	}
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(err)
 	return err
@@ -169,6 +180,9 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 
 // SetWriteDeadline sets write deadline
 func (c *Conn) SetWriteDeadline(t time.Time) error {
+	if c.isClosed() {
+		return nil
+	}
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(err)
 	return err
