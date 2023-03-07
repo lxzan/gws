@@ -31,7 +31,7 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
-		return nil, nil, err
+		return nil, d.resp, err
 	}
 
 	var conn net.Conn
@@ -54,14 +54,14 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
 		conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
 	default:
-		return nil, nil, internal.ErrSchema
+		return nil, d.resp, internal.ErrSchema
 	}
 
 	if dialError != nil {
-		return nil, nil, dialError
+		return nil, d.resp, dialError
 	}
 	if err := conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
-		return nil, nil, err
+		return nil, d.resp, err
 	}
 
 	d.host = host
@@ -121,10 +121,10 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	)
 	telegram := c.generateTelegram(c.u.RequestURI())
 	if err := internal.WriteN(brw.Writer, telegram, len(telegram)); err != nil {
-		return nil, nil, err
+		return nil, c.resp, err
 	}
 	if err := brw.Writer.Flush(); err != nil {
-		return nil, nil, err
+		return nil, c.resp, err
 	}
 
 	var ch = make(chan error)
@@ -172,26 +172,26 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil, internal.ErrDialTimeout
+			return nil, c.resp, internal.ErrDialTimeout
 		case err := <-ch:
 			if err != nil {
-				return nil, nil, err
+				return nil, c.resp, err
 			}
 			if err := c.checkHeaders(); err != nil {
-				return nil, nil, err
+				return nil, c.resp, err
 			}
 			var compressEnabled = c.option.CompressEnabled
 			if !strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
 				compressEnabled = false
 			}
-			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, compressEnabled)
 			if err := internal.Errors(
 				func() error { return c.conn.SetDeadline(time.Time{}) },
 				func() error { return c.conn.SetReadDeadline(time.Time{}) },
 				func() error { return c.conn.SetWriteDeadline(time.Time{}) },
 				func() error { return setNoDelay(c.conn) }); err != nil {
-				return nil, nil, err
+				return nil, c.resp, err
 			}
+			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, compressEnabled)
 			return ws, c.resp, nil
 		}
 	}
