@@ -156,3 +156,20 @@ func TestMask(t *testing.T) {
 		}
 	}
 }
+
+func TestSplit(t *testing.T) {
+	var sep = "/"
+	assert.ElementsMatch(t, []string{"api", "v1"}, Split("/api/v1", sep))
+	assert.ElementsMatch(t, []string{"api", "v1"}, Split("/api/v1/", sep))
+	assert.ElementsMatch(t, []string{"ming", "hong", "hu"}, Split("ming/ hong/ hu", sep))
+	assert.ElementsMatch(t, []string{"ming", "hong", "hu"}, Split("/ming/ hong/ hu/ ", sep))
+	assert.ElementsMatch(t, []string{"ming", "hong", "hu"}, Split("\nming/ hong/ hu\n", sep))
+	assert.ElementsMatch(t, []string{"ming", "hong", "hu"}, Split("\nming, hong, hu\n", ","))
+}
+
+func TestInCollection(t *testing.T) {
+	var as = assert.New(t)
+	as.Equal(true, InCollection("hong", []string{"lang", "hong"}))
+	as.Equal(true, InCollection("lang", []string{"lang", "hong"}))
+	as.Equal(false, InCollection("long", []string{"lang", "hong"}))
+}

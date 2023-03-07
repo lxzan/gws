@@ -25,7 +25,19 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	}
 }
 
-func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocketKey string) error {
+func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header, conn net.Conn, websocketKey string) error {
+	if r.Header.Get(internal.SecWebSocketProtocol.Key) != "" {
+		var subprotocolsUsed = ""
+		var arr = internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ",")
+		for _, item := range arr {
+			if internal.InCollection(item, c.option.Subprotocols) {
+				subprotocolsUsed = item
+				break
+			}
+		}
+		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocolsUsed)
+	}
+
 	var buf = make([]byte, 0, 256)
 	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -33,10 +45,10 @@ func (c *Upgrader) connectHandshake(conn net.Conn, headers http.Header, websocke
 	buf = append(buf, "Sec-WebSocket-Accept: "...)
 	buf = append(buf, internal.ComputeAcceptKey(websocketKey)...)
 	buf = append(buf, "\r\n"...)
-	for k, _ := range headers {
+	for k, _ := range responseHeader {
 		buf = append(buf, k...)
 		buf = append(buf, ": "...)
-		buf = append(buf, headers.Get(k)...)
+		buf = append(buf, responseHeader.Get(k)...)
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
@@ -103,7 +115,7 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		writer := bufio.NewWriterSize(netConn, c.option.WriteBufferSize)
 		brw.Writer = writer
 	}
-	if err := c.connectHandshake(netConn, header, websocketKey); err != nil {
+	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
 		return &Conn{conn: netConn}, err
 	}
 

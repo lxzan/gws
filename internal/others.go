@@ -19,6 +19,7 @@ var (
 	Connection             = Pair{"Connection", "Upgrade"}
 	Upgrade                = Pair{"Upgrade", "websocket"}
 	SecWebSocketAccept     = Pair{"Sec-WebSocket-Accept", ""}
+	SecWebSocketProtocol   = Pair{"Sec-WebSocket-Protocol", ""}
 )
 
 // Add four bytes as specified in RFC

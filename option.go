@@ -86,6 +86,10 @@ type (
 		CompressThreshold   int
 		CheckUtf8Enabled    bool
 
+		// WebSocket子协议, 一般不需要设置
+		// WebSocket subprotocol, usually no need to set
+		Subprotocols []string
+
 		// 连接握手时添加的额外的响应头, 如果客户端不支持就不要传
 		// https://www.rfc-editor.org/rfc/rfc6455.html#section-1.3
 		// attention: client may not support custom response header, use nil instead

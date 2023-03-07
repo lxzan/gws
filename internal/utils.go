@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"io"
 	"reflect"
+	"strings"
 	"unsafe"
 )
 
@@ -158,4 +159,26 @@ func MaskXOR(b []byte, key []byte) {
 		idx := i & 3
 		b[i] ^= key[idx]
 	}
+}
+
+func InCollection(ele string, eles []string) bool {
+	for _, item := range eles {
+		if item == ele {
+			return true
+		}
+	}
+	return false
+}
+
+// Split 分割字符串(空值将会被过滤掉)
+func Split(s string, sep string) []string {
+	var list = strings.Split(s, sep)
+	var j = 0
+	for _, v := range list {
+		if v = strings.TrimSpace(v); v != "" {
+			list[j] = v
+			j++
+		}
+	}
+	return list[:j]
 }
