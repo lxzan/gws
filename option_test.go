@@ -57,6 +57,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.NotNil(updrader.option)
 	as.NotNil(updrader.option.ResponseHeader)
 	as.NotNil(updrader.option.CheckOrigin)
+	as.Nil(updrader.option.Subprotocols)
 	validateServerOption(as, updrader)
 }
 
