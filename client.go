@@ -88,7 +88,6 @@ func (c *dialer) stradd(ss ...string) string {
 
 // 生成报文
 func (c *dialer) generateTelegram() []byte {
-	c.option.RequestHeader.Set("X-Server", "gws")
 	if c.option.RequestHeader.Get(internal.SecWebSocketKey.Key) == "" {
 		var key [16]byte
 		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
