@@ -6,6 +6,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 	"net"
+	"sync"
 	"testing"
 )
 
@@ -160,39 +161,58 @@ func TestConn_WriteMessageCompress(t *testing.T) {
 }
 
 func TestWriteBigMessage(t *testing.T) {
-	var upgrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
-		WriteMaxPayloadSize: 10,
-	})
-	srv, _ := testNewPeer(upgrader)
-	var err = srv.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{WriteMaxPayloadSize: 16}
+	var clientOption = &ClientOption{}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	go server.Listen()
+	go client.Listen()
+	var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
 	assert.Error(t, err)
 }
 
 func TestWriteClose(t *testing.T) {
-	var upgrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
-		WriteMaxPayloadSize: 10,
-	})
-	srv, _ := testNewPeer(upgrader)
-	srv.WriteClose(0, []byte("goodbye"))
+	var as = assert.New(t)
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{}
+	var clientOption = &ClientOption{}
+
+	var wg = sync.WaitGroup{}
+	wg.Add(1)
+	serverHandler.onError = func(socket *Conn, err error) {
+		as.Error(err)
+		wg.Done()
+	}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	go server.Listen()
+	go client.Listen()
+	server.WriteClose(1000, []byte("goodbye"))
+	wg.Wait()
 }
 
 func TestConn_WriteAsyncError(t *testing.T) {
 	var as = assert.New(t)
 
-	//t.Run("", func(t *testing.T) {
-	//	server, _ := testNewPeer(NewUpgrader(func(c *Upgrader) {
-	//		c.EventHandler = new(BuiltinEventHandler)
-	//		c.AsyncWriteCap = 1
-	//	}))
-	//
-	//	_ = server.writeMQ.Push(OpcodeText, nil)
-	//	err := server.WriteAsync(OpcodeText, nil)
-	//	as.Equal(internal.ErrWriteMessageQueueCapFull, err)
-	//})
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{WriteAsyncCap: 1}
+		var clientOption = &ClientOption{}
+		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		server.WriteAsync(OpcodeText, nil)
+		server.WriteAsync(OpcodeText, nil)
+		err := server.WriteAsync(OpcodeText, nil)
+		as.Equal(internal.ErrAsyncIOCapFull, err)
+	})
 
 	t.Run("", func(t *testing.T) {
-		var upgrader = NewUpgrader(new(BuiltinEventHandler), nil)
-		server, _ := testNewPeer(upgrader)
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		server.closed = 1
 		err := server.WriteAsync(OpcodeText, nil)
 		as.Equal(internal.ErrConnClosed, err)

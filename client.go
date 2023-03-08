@@ -180,9 +180,9 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 			if err := c.checkHeaders(); err != nil {
 				return nil, c.resp, err
 			}
-			var compressEnabled = c.option.CompressEnabled
-			if !strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
-				compressEnabled = false
+			var compressEnabled = false
+			if c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
+				compressEnabled = true
 			}
 			if err := internal.Errors(
 				func() error { return c.conn.SetDeadline(time.Time{}) },

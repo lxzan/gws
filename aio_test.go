@@ -28,6 +28,22 @@ func testNewPeer(upgrader *Upgrader) (server, client *Conn) {
 	return
 }
 
+func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {
+	serverOption.initialize()
+	clientOption.initialize()
+	size := 4096
+	s, c := net.Pipe()
+	{
+		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
+		server = serveWebSocket(true, serverOption.getConfig(), new(sliceMap), s, brw, serverHandler, serverOption.CompressEnabled)
+	}
+	{
+		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
+		client = serveWebSocket(false, clientOption.getConfig(), new(sliceMap), c, brw, clientHandler, clientOption.CompressEnabled)
+	}
+	return
+}
+
 func testCloneBytes(b []byte) []byte {
 	p := make([]byte, len(b))
 	copy(p, b)
@@ -82,62 +98,55 @@ func TestConn_WriteAsync(t *testing.T) {
 
 	// 关闭压缩
 	t.Run("plain text", func(t *testing.T) {
-		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(handler, &ServerOption{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		})
-		server, client := testNewPeer(upgrader)
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 		var listA []string
 		var listB []string
 		var count = 128
-
-		go func() {
-			for i := 0; i < count; i++ {
-				var n = internal.AlphabetNumeric.Intn(125)
-				var message = internal.AlphabetNumeric.Generate(n)
-				listA = append(listA, string(message))
-				server.WriteAsync(OpcodeText, message)
-			}
-		}()
-
 		var wg sync.WaitGroup
 		wg.Add(count)
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			listB = append(listB, message.Data.String())
+			wg.Done()
+		}
 
-		go func() {
-			for {
-				var header = frameHeader{}
-				_, err := client.conn.Read(header[:2])
-				if err != nil {
-					return
-				}
-				var payload = make([]byte, header.GetLengthCode())
-				if _, err := client.conn.Read(payload); err != nil {
-					return
-				}
-				listB = append(listB, string(payload))
-				wg.Done()
-			}
-		}()
-
+		go server.Listen()
+		go client.Listen()
+		for i := 0; i < count; i++ {
+			var n = internal.AlphabetNumeric.Intn(125)
+			var message = internal.AlphabetNumeric.Generate(n)
+			listA = append(listA, string(message))
+			server.WriteAsync(OpcodeText, message)
+		}
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
 	})
 
 	// 开启压缩
 	t.Run("compressed text", func(t *testing.T) {
-		var handler = new(webSocketMocker)
-		var upgrader = NewUpgrader(handler, &ServerOption{
-			CompressEnabled:   true,
-			CompressThreshold: 1,
-		})
-		server, client := testNewPeer(upgrader)
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 1}
+		var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 1}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 		var listA []string
 		var listB []string
 		const count = 128
+		var wg sync.WaitGroup
+		wg.Add(count)
 
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			listB = append(listB, message.Data.String())
+			wg.Done()
+		}
+
+		go server.Listen()
+		go client.Listen()
 		go func() {
 			for i := 0; i < count; i++ {
 				var n = internal.AlphabetNumeric.Intn(1024)
@@ -147,47 +156,24 @@ func TestConn_WriteAsync(t *testing.T) {
 			}
 		}()
 
-		var wg sync.WaitGroup
-		wg.Add(count)
-
-		go func() {
-			for {
-				var header = frameHeader{}
-				length, err := header.Parse(client.rbuf)
-				if err != nil {
-					return
-				}
-				var payload = make([]byte, length)
-				if _, err := client.rbuf.Read(payload); err != nil {
-					return
-				}
-				if header.GetRSV1() {
-					buf, err := client.decompressor.Decompress(bytes.NewBuffer(payload))
-					if err != nil {
-						return
-					}
-					payload = buf.Bytes()
-				}
-				listB = append(listB, string(payload))
-				wg.Done()
-			}
-		}()
-
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
 	})
 
 	// 往关闭的连接写数据
 	t.Run("write to closed conn", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+
 		var wg = sync.WaitGroup{}
 		wg.Add(1)
-		var handler = new(webSocketMocker)
-		handler.onError = func(socket *Conn, err error) {
+		serverHandler.onError = func(socket *Conn, err error) {
 			as.Error(err)
 			wg.Done()
 		}
-		var upgrader = NewUpgrader(handler, nil)
-		server, client := testNewPeer(upgrader)
 		client.NetConn().Close()
 		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
 		wg.Wait()
@@ -196,12 +182,11 @@ func TestConn_WriteAsync(t *testing.T) {
 
 // 测试异步读
 func TestReadAsync(t *testing.T) {
-	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(handler, &ServerOption{
-		CompressEnabled:   true,
-		CompressThreshold: 512,
-		ReadAsyncEnabled:  true,
-	})
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
+	var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 	var mu = &sync.Mutex{}
 	var listA []string
@@ -210,25 +195,21 @@ func TestReadAsync(t *testing.T) {
 	var wg = &sync.WaitGroup{}
 	wg.Add(count)
 
-	handler.onMessage = func(socket *Conn, message *Message) {
+	clientHandler.onMessage = func(socket *Conn, message *Message) {
 		mu.Lock()
 		listB = append(listB, message.Data.String())
 		mu.Unlock()
 		wg.Done()
 	}
 
-	server, client := testNewPeer(upgrader)
-
-	go func() {
-		for i := 0; i < count; i++ {
-			var n = internal.AlphabetNumeric.Intn(1024)
-			var message = internal.AlphabetNumeric.Generate(n)
-			listA = append(listA, string(message))
-			testClientWrite(client, true, OpcodeText, message)
-		}
-	}()
-
 	go server.Listen()
+	go client.Listen()
+	for i := 0; i < count; i++ {
+		var n = internal.AlphabetNumeric.Intn(1024)
+		var message = internal.AlphabetNumeric.Generate(n)
+		listA = append(listA, string(message))
+		server.WriteMessage(OpcodeText, message)
+	}
 
 	wg.Wait()
 	assert.ElementsMatch(t, listA, listB)
