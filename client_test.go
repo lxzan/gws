@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 )
@@ -46,12 +45,10 @@ func TestClientHandshake(t *testing.T) {
 	option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 	option.initialize()
 	srv, cli := net.Pipe()
-	u, _ := url.Parse("ws://127.0.0.1:3000")
 	var d = &dialer{
 		option:       option,
 		conn:         cli,
 		host:         "127.0.0.1:3000",
-		u:            u,
 		eventHandler: new(BuiltinEventHandler),
 		resp:         &http.Response{Header: http.Header{}},
 	}
@@ -82,12 +79,10 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option.initialize()
 		srv, cli := net.Pipe()
-		u, _ := url.Parse("ws://127.0.0.1:3000")
 		var d = &dialer{
 			option:       option,
 			conn:         cli,
 			host:         "127.0.0.1:3000",
-			u:            u,
 			eventHandler: new(BuiltinEventHandler),
 			resp:         &http.Response{Header: http.Header{}},
 		}
@@ -112,12 +107,10 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option.initialize()
 		srv, cli := net.Pipe()
-		u, _ := url.Parse("ws://127.0.0.1:3000")
 		var d = &dialer{
 			option:       option,
 			conn:         cli,
 			host:         "127.0.0.1:3000",
-			u:            u,
 			eventHandler: new(BuiltinEventHandler),
 			resp:         &http.Response{Header: http.Header{}},
 		}
@@ -141,12 +134,10 @@ func TestClientHandshakeFail(t *testing.T) {
 		}
 		option.initialize()
 		srv, cli := net.Pipe()
-		u, _ := url.Parse("ws://127.0.0.1:3000")
 		var d = &dialer{
 			option:       option,
 			conn:         cli,
 			host:         "127.0.0.1:3000",
-			u:            u,
 			eventHandler: new(BuiltinEventHandler),
 			resp:         &http.Response{Header: http.Header{}},
 		}
@@ -171,12 +162,10 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option.initialize()
 		srv, cli := net.Pipe()
-		u, _ := url.Parse("ws://127.0.0.1:3000")
 		var d = &dialer{
 			option:       option,
 			conn:         cli,
 			host:         "127.0.0.1:3000",
-			u:            u,
 			eventHandler: new(BuiltinEventHandler),
 			resp:         &http.Response{Header: http.Header{}},
 		}
@@ -201,12 +190,10 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option.initialize()
 		srv, cli := net.Pipe()
-		u, _ := url.Parse("ws://127.0.0.1:3000")
 		var d = &dialer{
 			option:       option,
 			conn:         cli,
 			host:         "127.0.0.1:3000",
-			u:            u,
 			eventHandler: new(BuiltinEventHandler),
 			resp:         &http.Response{Header: http.Header{}},
 		}

@@ -66,7 +66,6 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	d.host = host
 	d.option = option
-	d.u = URL
 	d.conn = conn
 	return d.handshake()
 }
@@ -75,7 +74,6 @@ type dialer struct {
 	option       *ClientOption
 	conn         net.Conn
 	host         string
-	u            *url.URL
 	eventHandler Event
 	resp         *http.Response
 }
@@ -89,7 +87,7 @@ func (c *dialer) stradd(ss ...string) string {
 }
 
 // 生成报文
-func (c *dialer) generateTelegram(uri string) []byte {
+func (c *dialer) generateTelegram() []byte {
 	c.option.RequestHeader.Set("X-Server", "gws")
 	if c.option.RequestHeader.Get(internal.SecWebSocketKey.Key) == "" {
 		var key [16]byte
@@ -102,7 +100,7 @@ func (c *dialer) generateTelegram(uri string) []byte {
 	}
 
 	var buf []byte
-	buf = append(buf, c.stradd("GET ", uri, " HTTP/1.1\r\n")...)
+	buf = append(buf, c.stradd("GET ", c.option.Addr, " HTTP/1.1\r\n")...)
 	buf = append(buf, c.stradd("Host: ", c.host, "\r\n")...)
 	buf = append(buf, "Connection: Upgrade\r\n"...)
 	buf = append(buf, "Upgrade: websocket\r\n"...)
@@ -119,7 +117,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 		bufio.NewReaderSize(c.conn, c.option.ReadBufferSize),
 		bufio.NewWriterSize(c.conn, c.option.WriteBufferSize),
 	)
-	telegram := c.generateTelegram(c.u.RequestURI())
+	telegram := c.generateTelegram()
 	if err := internal.WriteN(brw.Writer, telegram, len(telegram)); err != nil {
 		return nil, c.resp, err
 	}
