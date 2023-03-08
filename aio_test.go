@@ -2,31 +2,14 @@ package gws
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
-
-// 创建用于测试的对等连接
-func testNewPeer(upgrader *Upgrader) (server, client *Conn) {
-	size := 4096
-	s, c := Pipe()
-	{
-		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
-		server = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), s, brw, upgrader.eventHandler, upgrader.option.CompressEnabled)
-	}
-	{
-		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
-		client = serveWebSocket(false, upgrader.option.getConfig(), new(sliceMap), c, brw, new(BuiltinEventHandler), upgrader.option.CompressEnabled)
-	}
-	return
-}
 
 func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {
 	serverOption.initialize()
@@ -48,48 +31,6 @@ func testCloneBytes(b []byte) []byte {
 	p := make([]byte, len(b))
 	copy(p, b)
 	return p
-}
-
-// 模拟客户端写入
-func testClientWrite(client *Conn, fin bool, opcode Opcode, payload []byte) error {
-	if atomic.LoadUint32(&client.closed) == 1 {
-		return internal.ErrConnClosed
-	}
-	err := doTestClientWrite(client, fin, opcode, payload)
-	client.emitError(err)
-	return err
-}
-
-func doTestClientWrite(client *Conn, fin bool, opcode Opcode, payload []byte) error {
-	client.wmu.Lock()
-	defer client.wmu.Unlock()
-
-	var enableCompress = client.compressEnabled && opcode.IsDataFrame() && len(payload) >= client.config.CompressThreshold
-	if enableCompress {
-		compressedContent, err := client.compressor.Compress(bytes.NewBuffer(payload))
-		if err != nil {
-			return internal.NewError(internal.CloseInternalServerErr, err)
-		}
-		payload = compressedContent.Bytes()
-	}
-
-	var header = frameHeader{}
-	var n = len(payload)
-	var headerLength, _ = header.GenerateHeader(true, fin, enableCompress, opcode, n)
-
-	header[1] += 128
-	var key = internal.NewMaskKey()
-	copy(header[headerLength:headerLength+4], key[:4])
-	headerLength += 4
-
-	internal.MaskXOR(payload, key[:4])
-	if err := internal.WriteN(client.wbuf, header[:headerLength], headerLength); err != nil {
-		return err
-	}
-	if err := internal.WriteN(client.wbuf, payload, n); err != nil {
-		return err
-	}
-	return client.wbuf.Flush()
 }
 
 // 测试异步写入

@@ -147,9 +147,11 @@ func TestRead(t *testing.T) {
 		go client.Listen()
 		go server.Listen()
 
-		buf := bytes.NewBufferString("")
-		buf.Write(payload)
-		server.WriteAsync(Opcode(item.Opcode), buf.Bytes())
+		if item.Fin {
+			server.WriteAsync(Opcode(item.Opcode), testCloneBytes(payload))
+		} else {
+			testWrite(server, false, Opcode(item.Opcode), testCloneBytes(payload))
+		}
 		wg.Wait()
 	}
 }
