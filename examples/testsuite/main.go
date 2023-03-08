@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/lxzan/gws"
-	"github.com/lxzan/gws/internal"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	if internal.AlphabetNumeric.Uint32()&1 == 1 {
+	if time.Now().UnixNano()%2 == 0 {
 		socket.WriteAsync(message.Opcode, cloneBytes(message.Data.Bytes()))
 	} else {
 		socket.WriteMessage(message.Opcode, message.Data.Bytes())
