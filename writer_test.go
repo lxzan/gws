@@ -10,6 +10,37 @@ import (
 	"testing"
 )
 
+func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+
+	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
+	if useCompress {
+		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
+		if err != nil {
+			return internal.NewError(internal.CloseInternalServerErr, err)
+		}
+		payload = compressedContent.Bytes()
+	}
+	if len(payload) > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+
+	var header = frameHeader{}
+	var n = len(payload)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, useCompress, opcode, n)
+	if !c.isServer {
+		internal.MaskXOR(payload, maskBytes)
+	}
+	if err := internal.WriteN(c.wbuf, header[:headerLength], headerLength); err != nil {
+		return err
+	}
+	if err := internal.WriteN(c.wbuf, payload, n); err != nil {
+		return err
+	}
+	return c.wbuf.Flush()
+}
+
 func TestConn_WriteMessage(t *testing.T) {
 	var as = assert.New(t)
 	var handler = new(webSocketMocker)
