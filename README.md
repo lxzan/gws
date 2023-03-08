@@ -25,16 +25,19 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
-    - [Highlight](#highlight)
-    - [Install](#install)
-    - [Interface](#interface)
-    - [Examples](#examples)
-    - [Server](#server)
-    - [Client](#client)
-    - [TLS](#tls)
-    - [Autobahn Test](#autobahn-test)
-    - [Benchmark Machine: `Ubuntu 20.04LTS VM (4C8T)`](#benchmark-machine-ubuntu-2004lts-vm-4c8t)
-    - [Acknowledgments](#acknowledgments)
+	- [Highlight](#highlight)
+	- [Install](#install)
+	- [Interface](#interface)
+	- [Examples](#examples)
+	- [Server](#server)
+	- [Client](#client)
+	- [TLS](#tls)
+	- [Autobahn Test](#autobahn-test)
+	- [Benchmark](#benchmark)
+		- [IOPS](#iops)
+		- [Latency](#latency)
+		- [CPU](#cpu-usage)
+	- [Acknowledgments](#acknowledgments)
 
 #### Highlight
 
@@ -200,9 +203,11 @@ docker run -it --rm \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
 
-#### Benchmark Machine: `Ubuntu 20.04LTS VM (4C8T)`
+#### Benchmark 
 
-- High IOPS
+- Machine: `Ubuntu 20.04LTS VM (4C8T)`
+
+##### IOPS
 
 ```
 tcpkali -c 1000 --connect-rate 500 -r 1000 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
@@ -210,7 +215,7 @@ tcpkali -c 1000 --connect-rate 500 -r 1000 -T 300s -f assets/1K.txt --ws 127.0.0
 
 ![rps](assets/performance.png)
 
-- Low Latency
+##### Latency
 
 ```
 tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
@@ -220,7 +225,7 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 
 ![gorilla-c1000-m100](assets/gorilla-c1000-m100.png)
 
-- Low CPU Usage
+##### CPU Usage
 
 ```
   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
