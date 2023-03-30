@@ -35,7 +35,9 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 				break
 			}
 		}
-		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocolsUsed)
+		if subprotocolsUsed != "" {
+			responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocolsUsed)
+		}
 	}
 
 	var buf = make([]byte, 0, 256)
