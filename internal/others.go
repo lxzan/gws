@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"io"
 	"math"
 	"net"
@@ -56,10 +55,3 @@ type (
 		NetConn() net.Conn
 	}
 )
-
-type Buffer struct {
-	*bytes.Buffer
-}
-
-// ReadFrom in case of grow
-func (c *Buffer) ReadFrom() {}

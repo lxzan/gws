@@ -34,9 +34,10 @@ func (c *Conn) readControl() error {
 	}
 
 	// 不回收小块buffer, 控制帧一般payload长度为0
-	var buf bytes.Buffer
+	var buf = bytes.NewBuffer(nil)
 	if n > 0 {
-		if err := internal.CopyN(&buf, c.rbuf, int64(n)); err != nil {
+		buf = bytes.NewBuffer(make([]byte, n))
+		if err := internal.ReadN(c.rbuf, buf.Bytes(), int(n)); err != nil {
 			return err
 		}
 		maskEnabled := c.fh.GetMask()
@@ -57,7 +58,7 @@ func (c *Conn) readControl() error {
 		c.handler.OnPong(c, buf.Bytes())
 		return nil
 	case OpcodeCloseConnection:
-		return c.emitClose(&buf)
+		return c.emitClose(buf)
 	default:
 		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
 		return internal.NewError(internal.CloseProtocolError, err)
@@ -101,13 +102,13 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf = _bpool.Get(contentLength).Bytes()
-	buf = buf[:contentLength]
-	if err := internal.ReadN(c.rbuf, buf, contentLength); err != nil {
+	var p = _bpool.Get(contentLength).Bytes()
+	p = p[:contentLength]
+	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
 	}
 	if maskEnabled {
-		internal.MaskXOR(buf, c.fh.GetMaskKey())
+		internal.MaskXOR(p, c.fh.GetMaskKey())
 	}
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
@@ -121,7 +122,7 @@ func (c *Conn) readMessage() error {
 		if !c.continuationFrame.initialized {
 			return internal.CloseProtocolError
 		}
-		if err := internal.WriteN(c.continuationFrame.buffer, buf, len(buf)); err != nil {
+		if err := internal.WriteN(c.continuationFrame.buffer, p, len(p)); err != nil {
 			return err
 		}
 		if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
@@ -143,7 +144,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.reset()
 		return myerr
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(buf)}, compressed)
+		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
 	default:
 		return internal.CloseNormalClosure
 	}
@@ -157,7 +158,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		}
 		msg.Data = data
 	}
-	if c.config.CheckUtf8Enabled && !isTextValid(msg.Opcode, msg.Data.Bytes()) {
+	if c.config.CheckUtf8Enabled && !isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 

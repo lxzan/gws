@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"encoding/hex"
 	"errors"
 	"github.com/stretchr/testify/assert"
@@ -46,11 +45,6 @@ func TestError(t *testing.T) {
 		})
 		as.Error(err2)
 	})
-}
-
-func TestBuffer_ReadFrom(t *testing.T) {
-	var b = Buffer{Buffer: bytes.NewBuffer(nil)}
-	b.ReadFrom()
 }
 
 func TestRandomString_Uint32(t *testing.T) {

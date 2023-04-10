@@ -63,6 +63,14 @@ func (p *BufferPool) Put(b *bytes.Buffer) {
 }
 
 func (p *BufferPool) Get(n int) *bytes.Buffer {
+	buf := p.doGet(n)
+	if buf.Cap() < n {
+		buf.Grow(n)
+	}
+	return buf
+}
+
+func (p *BufferPool) doGet(n int) *bytes.Buffer {
 	if n <= Lv1 {
 		buf := p.p0.Get().(*bytes.Buffer)
 		return buf
