@@ -90,7 +90,7 @@ ReadN
 WriteN
 CopyN
 */
-func checkIOError(expectN, realN int, err error) error {
+func CheckIOError(expectN, realN int, err error) error {
 	if err != nil {
 		return NewError(CloseInternalServerErr, err)
 	}
@@ -105,7 +105,7 @@ func ReadN(reader io.Reader, data []byte, n int) error {
 		return nil
 	}
 	num, err := io.ReadFull(reader, data)
-	return checkIOError(n, num, err)
+	return CheckIOError(n, num, err)
 }
 
 func WriteN(writer io.Writer, content []byte, n int) error {
@@ -113,7 +113,7 @@ func WriteN(writer io.Writer, content []byte, n int) error {
 		return nil
 	}
 	num, err := writer.Write(content)
-	return checkIOError(n, num, err)
+	return CheckIOError(n, num, err)
 }
 
 func CopyN(dst io.Writer, src io.Reader, n int64) error {
@@ -121,7 +121,7 @@ func CopyN(dst io.Writer, src io.Reader, n int64) error {
 		return nil
 	}
 	num, err := io.CopyN(dst, src, n)
-	return checkIOError(int(n), int(num), err)
+	return CheckIOError(int(n), int(num), err)
 }
 
 func MaskXOR(b []byte, key []byte) {

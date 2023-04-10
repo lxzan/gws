@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
+	"net"
 )
 
 // WriteClose proactively close the connection
@@ -48,11 +49,10 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 
 // 关闭状态置为1后还能写, 以便发送关闭帧
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
-
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
+		//c.wmu.Lock()
+		//defer c.wmu.Unlock()
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
@@ -69,13 +69,14 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	if !c.isServer {
 		internal.MaskXOR(payload, maskBytes)
 	}
-	if err := internal.WriteN(c.wbuf, header[:headerLength], headerLength); err != nil {
-		return err
+
+	var buf = make(net.Buffers, 0, 2)
+	buf = append(buf, header[:headerLength])
+	if n > 0 {
+		buf = append(buf, payload)
 	}
-	if err := internal.WriteN(c.wbuf, payload, n); err != nil {
-		return err
-	}
-	return c.wbuf.Flush()
+	num, err := buf.WriteTo(c.conn)
+	return internal.CheckIOError(headerLength+n, int(num), err)
 }
 
 // WriteAsync 异步非阻塞地写入消息

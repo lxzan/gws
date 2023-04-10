@@ -112,15 +112,9 @@ func (c *dialer) generateTelegram() []byte {
 }
 
 func (c *dialer) handshake() (*Conn, *http.Response, error) {
-	brw := bufio.NewReadWriter(
-		bufio.NewReaderSize(c.conn, c.option.ReadBufferSize),
-		bufio.NewWriterSize(c.conn, c.option.WriteBufferSize),
-	)
+	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
 	telegram := c.generateTelegram()
-	if err := internal.WriteN(brw.Writer, telegram, len(telegram)); err != nil {
-		return nil, c.resp, err
-	}
-	if err := brw.Writer.Flush(); err != nil {
+	if err := internal.WriteN(c.conn, telegram, len(telegram)); err != nil {
 		return nil, c.resp, err
 	}
 
@@ -131,7 +125,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	go func() {
 		var index = 0
 		for {
-			line, isPrefix, err := brw.Reader.ReadLine()
+			line, isPrefix, err := br.ReadLine()
 			if err != nil {
 				ch <- err
 				return
@@ -188,7 +182,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 				func() error { return setNoDelay(c.conn) }); err != nil {
 				return nil, c.resp, err
 			}
-			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, brw, c.eventHandler, compressEnabled)
+			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled)
 			return ws, c.resp, nil
 		}
 	}

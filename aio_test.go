@@ -17,12 +17,12 @@ func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Even
 	size := 4096
 	s, c := net.Pipe()
 	{
-		brw := bufio.NewReadWriter(bufio.NewReaderSize(s, size), bufio.NewWriterSize(s, size))
-		server = serveWebSocket(true, serverOption.getConfig(), new(sliceMap), s, brw, serverHandler, serverOption.CompressEnabled)
+		br := bufio.NewReaderSize(s, size)
+		server = serveWebSocket(true, serverOption.getConfig(), new(sliceMap), s, br, serverHandler, serverOption.CompressEnabled)
 	}
 	{
-		brw := bufio.NewReadWriter(bufio.NewReaderSize(c, size), bufio.NewWriterSize(c, size))
-		client = serveWebSocket(false, clientOption.getConfig(), new(sliceMap), c, brw, clientHandler, clientOption.CompressEnabled)
+		br := bufio.NewReaderSize(c, size)
+		client = serveWebSocket(false, clientOption.getConfig(), new(sliceMap), c, br, clientHandler, clientOption.CompressEnabled)
 	}
 	return
 }
@@ -190,10 +190,10 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	allConns := map[*Conn]struct{}{}
 	for i := 0; i < 3; i++ {
 		svrConn, cliConn := net.Pipe() // no reading from another side
-		var sbrw = bufio.NewReadWriter(bufio.NewReader(svrConn), bufio.NewWriter(svrConn))
+		var sbrw = bufio.NewReader(svrConn)
 		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), &sliceMap{}, svrConn, sbrw, handler, false)
 		go svrSocket.Listen()
-		var cbrw = bufio.NewReadWriter(bufio.NewReader(cliConn), bufio.NewWriter(svrConn))
+		var cbrw = bufio.NewReader(cliConn)
 		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), &sliceMap{}, cliConn, cbrw, handler, false)
 		if i == 0 { // client 0 1s后再开始读取；1s内不读取消息，则svrSocket 0在发送chan取出一个msg进行writePublic时即开始阻塞
 			time.AfterFunc(time.Second, func() {

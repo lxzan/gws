@@ -109,13 +109,11 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	if err != nil {
 		return &Conn{conn: netConn}, err
 	}
+
+	brw.Writer = nil
 	if brw.Reader.Size() != c.option.ReadBufferSize {
 		reader := bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
 		brw.Reader = reader
-	}
-	if brw.Writer.Size() != c.option.WriteBufferSize {
-		writer := bufio.NewWriterSize(netConn, c.option.WriteBufferSize)
-		brw.Writer = writer
 	}
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
 		return &Conn{conn: netConn}, err
@@ -128,6 +126,6 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		func() error { return setNoDelay(netConn) }); err != nil {
 		return nil, err
 	}
-	ws := serveWebSocket(true, c.option.getConfig(), session, netConn, brw, c.eventHandler, compressEnabled)
+	ws := serveWebSocket(true, c.option.getConfig(), session, netConn, brw.Reader, c.eventHandler, compressEnabled)
 	return ws, nil
 }

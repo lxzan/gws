@@ -101,12 +101,13 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf = _bpool.Get(contentLength)
-	if err := internal.CopyN(internal.Buffer{Buffer: buf}, c.rbuf, int64(contentLength)); err != nil {
+	var buf = _bpool.Get(contentLength).Bytes()
+	buf = buf[:contentLength]
+	if err := internal.ReadN(c.rbuf, buf, contentLength); err != nil {
 		return err
 	}
 	if maskEnabled {
-		internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+		internal.MaskXOR(buf, c.fh.GetMaskKey())
 	}
 
 	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
@@ -120,7 +121,7 @@ func (c *Conn) readMessage() error {
 		if !c.continuationFrame.initialized {
 			return internal.CloseProtocolError
 		}
-		if err := internal.WriteN(c.continuationFrame.buffer, buf.Bytes(), buf.Len()); err != nil {
+		if err := internal.WriteN(c.continuationFrame.buffer, buf, len(buf)); err != nil {
 			return err
 		}
 		if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
@@ -142,7 +143,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.reset()
 		return myerr
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{Opcode: opcode, Data: buf}, compressed)
+		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(buf)}, compressed)
 	default:
 		return internal.CloseNormalClosure
 	}

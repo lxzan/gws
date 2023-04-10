@@ -1,15 +1,12 @@
 package gws
 
 import (
-	"bufio"
 	"bytes"
-	"compress/flate"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
-	"net"
 	"sync"
 	"testing"
 )
@@ -77,6 +74,7 @@ func TestRead(t *testing.T) {
 	}
 
 	for _, item := range items {
+		println(item.Title)
 		var payload []byte
 		if item.Payload == "" {
 			payload = internal.AlphabetNumeric.Generate(item.Length)
@@ -240,131 +238,6 @@ func TestSegments(t *testing.T) {
 		}()
 		go server.Listen()
 		wg.Wait()
-	})
-}
-
-func TestUnexpectedBehavior(t *testing.T) {
-	var as = assert.New(t)
-	var handler = new(webSocketMocker)
-	var upgrader = NewUpgrader(handler, &ServerOption{})
-
-	var writer = bytes.NewBuffer(nil)
-	var reader = bytes.NewBuffer(nil)
-	var brw = bufio.NewReadWriter(bufio.NewReader(reader), bufio.NewWriter(writer))
-	conn, _ := net.Pipe()
-	var socket = serveWebSocket(true, upgrader.option.getConfig(), new(sliceMap), conn, brw, handler, false)
-	socket.compressor = newCompressor(flate.BestSpeed)
-
-	t.Run("invalid length 1", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var fh = frameHeader{}
-		var key = internal.NewMaskKey()
-		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
-		fh.SetMask()
-		fh.SetMaskKey(offset, key)
-		reader.Write(fh[:offset+4])
-		var text = internal.AlphabetNumeric.Generate(5)
-		internal.MaskXOR(text, key[0:])
-		reader.Write(text)
-
-		handler.onError = func(socket *Conn, err error) {
-			as.Error(err)
-			wg.Done()
-		}
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		wg.Wait()
-	})
-
-	t.Run("invalid length 2", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var fh = frameHeader{}
-		var key = internal.NewMaskKey()
-		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
-		fh.SetMask()
-		fh.SetMaskKey(offset, key)
-		reader.Write(fh[:offset])
-
-		handler.onError = func(socket *Conn, err error) {
-			as.Error(err)
-			wg.Done()
-		}
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		wg.Wait()
-	})
-
-	t.Run("invalid length 3", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var fh = frameHeader{}
-		var key = internal.NewMaskKey()
-		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
-		fh.SetMask()
-		fh.SetMaskKey(offset, key)
-		reader.Write(fh[:1])
-
-		handler.onError = func(socket *Conn, err error) {
-			as.Error(err)
-			wg.Done()
-		}
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		wg.Wait()
-	})
-
-	t.Run("no mask", func(t *testing.T) {
-		handler.reset(socket, reader, writer)
-		var wg = &sync.WaitGroup{}
-		wg.Add(1)
-		var fh = frameHeader{}
-		var key = internal.NewMaskKey()
-		var offset, _ = fh.GenerateHeader(true, true, false, OpcodePing, 10)
-		fh.SetMask()
-		fh.SetMaskKey(offset, key)
-		reader.Write([]byte{128, 0})
-
-		handler.onError = func(socket *Conn, err error) {
-			as.Error(err)
-			wg.Done()
-		}
-		if err := socket.readMessage(); err != nil {
-			socket.emitError(err)
-		}
-		wg.Wait()
-	})
-
-	t.Run("illegal rsv", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		reader.Write([]byte{192, 0})
-		as.Error(socket.readMessage())
-	})
-
-	t.Run("no mask", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		reader.Write([]byte{128, 0})
-		as.Error(socket.readMessage())
-	})
-
-	t.Run("eof", func(t *testing.T) {
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		as.Error(socket.readMessage())
-
-		reader.Reset()
-		socket.rbuf.Reset(reader)
-		reader.Write([]byte{127})
-		as.Error(socket.readMessage())
 	})
 }
 

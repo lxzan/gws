@@ -31,8 +31,6 @@ type Conn struct {
 	continuationFrame continuationFrame
 	// frame header for read
 	fh frameHeader
-	// write buffer
-	wbuf *bufio.Writer
 	// flate compressor
 	compressor *compressor
 	// WebSocket Event Handler
@@ -48,7 +46,7 @@ type Conn struct {
 	writeQueue workerQueue
 }
 
-func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, brw *bufio.ReadWriter, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool) *Conn {
 	c := &Conn{
 		isServer:        isServer,
 		SessionStorage:  session,
@@ -56,9 +54,8 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		compressEnabled: compressEnabled,
 		conn:            netConn,
 		closed:          0,
-		wbuf:            brw.Writer,
 		wmu:             sync.Mutex{},
-		rbuf:            brw.Reader,
+		rbuf:            br,
 		fh:              frameHeader{},
 		handler:         handler,
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
