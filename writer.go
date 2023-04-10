@@ -52,6 +52,14 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
+	var n = len(payload)
+	var header = frameHeader{}
+	if n == 0 {
+		headerLength, _ := header.GenerateHeader(c.isServer, true, false, opcode, n)
+		num, err := c.conn.Write(header[:headerLength])
+		return internal.CheckIOError(headerLength, num, err)
+	}
+
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
@@ -64,18 +72,12 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return internal.CloseMessageTooLarge
 	}
 
-	var header = frameHeader{}
-	var n = len(payload)
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, useCompress, opcode, n)
 	if !c.isServer {
 		internal.MaskXOR(payload, maskBytes)
 	}
 
-	var buf = make(net.Buffers, 0, 2)
-	buf = append(buf, header[:headerLength])
-	if n > 0 {
-		buf = append(buf, payload)
-	}
+	var buf = net.Buffers{header[:headerLength], payload}
 	num, err := buf.WriteTo(c.conn)
 	return internal.CheckIOError(headerLength+n, int(num), err)
 }

@@ -108,12 +108,12 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	netConn, brw, err := hj.Hijack()
 	if err != nil {
 		return &Conn{conn: netConn}, err
+	} else {
+		brw.Writer = nil
 	}
 
-	brw.Writer = nil
 	if brw.Reader.Size() != c.option.ReadBufferSize {
-		reader := bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
-		brw.Reader = reader
+		brw.Reader = bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
 	}
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
 		return &Conn{conn: netConn}, err

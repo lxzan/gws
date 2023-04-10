@@ -4,18 +4,15 @@ import (
 	"fmt"
 	"github.com/lxzan/gws"
 	"net/http"
-	"time"
 )
 
 func main() {
 	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
+		ReadAsyncEnabled:    true,
 		CompressEnabled:     true,
 		CheckUtf8Enabled:    true,
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
 		WriteMaxPayloadSize: 32 * 1024 * 1024,
-		ReadAsyncEnabled:    true,
-		ReadBufferSize:      8 * 1024,
-		WriteBufferSize:     8 * 1024,
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
@@ -52,11 +49,7 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	if time.Now().UnixNano()%2 == 0 {
-		socket.WriteAsync(message.Opcode, cloneBytes(message.Data.Bytes()))
-	} else {
-		socket.WriteMessage(message.Opcode, message.Data.Bytes())
-	}
+	socket.WriteMessage(message.Opcode, message.Bytes())
 }
 
 func cloneBytes(b []byte) []byte {
