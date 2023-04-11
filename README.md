@@ -34,7 +34,7 @@
 	- [TLS](#tls)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
-		- [IOPS](#iops)
+		- [Max IOPS](#max-iops)
 		- [Latency](#latency)
 		- [CPU](#cpu)
 	- [Acknowledgments](#acknowledgments)
@@ -207,10 +207,10 @@ docker run -it --rm \
 
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
-##### IOPS
+##### Max IOPS
 
 ```
-tcpkali -c 1000 --connect-rate 500 -r 1000 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
+tcpkali -c 1000 --connect-rate 500 -r ${message_num} -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
 ![rps](assets/performance.png)
