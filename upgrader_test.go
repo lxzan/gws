@@ -66,6 +66,10 @@ func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 }
 
 func TestNoDelay(t *testing.T) {
+	t.Run("tcp conn", func(t *testing.T) {
+		setNoDelay(&net.TCPConn{})
+	})
+
 	t.Run("tls conn", func(t *testing.T) {
 		setNoDelay(&tls.Conn{})
 	})
@@ -87,6 +91,7 @@ func TestAccept(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		upgrader.option.CompressEnabled = true
+		upgrader.option.Subprotocols = []string{"chat"}
 		var request = &http.Request{
 			Header: http.Header{},
 			Method: http.MethodGet,
@@ -96,6 +101,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Version", "13")
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
+		request.Header.Set("Sec-WebSocket-Protocol", "chat")
 		_, err := upgrader.Accept(newHttpWriter(), request)
 		assert.NoError(t, err)
 	})
@@ -203,6 +209,7 @@ func TestBuiltinEventEngine(t *testing.T) {
 	_, ok := interface{}(ev).(Event)
 	assert.Equal(t, true, ok)
 
+	ev.OnOpen(nil)
 	ev.OnError(nil, nil)
 	ev.OnClose(nil, 0, nil)
 	ev.OnMessage(nil, nil)

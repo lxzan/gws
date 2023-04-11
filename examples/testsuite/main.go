@@ -20,7 +20,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		socket.Listen()
+		go socket.Listen()
 	})
 
 	_ = http.ListenAndServe(":3000", nil)

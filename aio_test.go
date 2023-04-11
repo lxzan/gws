@@ -119,6 +119,46 @@ func TestConn_WriteAsync(t *testing.T) {
 		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
 		wg.Wait()
 	})
+
+	t.Run("ping/pong", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+
+		var wg = sync.WaitGroup{}
+		wg.Add(4)
+
+		serverHandler.onPing = func(socket *Conn, payload []byte) {
+			wg.Done()
+			socket.WritePong(nil)
+		}
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			if string(message.Bytes()) == "hello" {
+				wg.Done()
+			}
+		}
+		serverHandler.onError = func(socket *Conn, err error) {
+			wg.Done()
+		}
+		clientHandler.onPong = func(socket *Conn, payload []byte) {
+			wg.Done()
+		}
+
+		go server.Listen()
+		go client.Listen()
+		client.WritePing(nil)
+		client.WriteString("hello")
+
+		{
+			var fh = frameHeader{}
+			var n, _ = fh.GenerateHeader(true, true, false, OpcodeText, 0)
+			go func() { client.conn.Write(fh[:n]) }()
+		}
+
+		wg.Wait()
+	})
 }
 
 // 测试异步读

@@ -11,10 +11,7 @@ var _bpool = internal.NewBufferPool()
 
 func (c *Conn) checkMask(enabled bool) error {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
-	if c.isServer && !enabled {
-		return internal.CloseProtocolError
-	}
-	if !c.isServer && enabled {
+	if (c.isServer && !enabled) || (!c.isServer && enabled) {
 		return internal.CloseProtocolError
 	}
 	return nil

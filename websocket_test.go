@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"net"
 	"sync"
@@ -124,7 +125,7 @@ func BenchmarkSyncMap_Load(b *testing.B) {
 	}
 }
 
-func TestConn(t *testing.T) {
+func TestOthers(t *testing.T) {
 	conn, _ := net.Pipe()
 	upgrader := NewUpgrader(new(BuiltinEventHandler), nil)
 	socket := &Conn{
@@ -139,5 +140,14 @@ func TestConn(t *testing.T) {
 	socket.LocalAddr()
 	socket.NetConn()
 	socket.RemoteAddr()
+
+	var as = assert.New(t)
+	var fh = frameHeader{}
+	fh.SetMask()
+	var maskKey [4]byte
+	copy(maskKey[:4], internal.AlphabetNumeric.Generate(4))
+	fh.SetMaskKey(10, maskKey)
+	as.Equal(true, fh.GetMask())
+	as.Equal(string(maskKey[:4]), string(fh.GetMaskKey()))
 	return
 }

@@ -173,3 +173,7 @@ func TestInCollection(t *testing.T) {
 	as.Equal(true, InCollection("lang", []string{"lang", "hong"}))
 	as.Equal(false, InCollection("long", []string{"lang", "hong"}))
 }
+
+func TestRandomString_Uint64(t *testing.T) {
+	AlphabetNumeric.Uint64()
+}

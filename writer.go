@@ -52,10 +52,9 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
-	var n = len(payload)
 	var header = frameHeader{}
-	if n == 0 {
-		headerLength, _ := header.GenerateHeader(c.isServer, true, false, opcode, n)
+	if len(payload) == 0 {
+		headerLength, _ := header.GenerateHeader(c.isServer, true, false, opcode, 0)
 		num, err := c.conn.Write(header[:headerLength])
 		return internal.CheckIOError(headerLength, num, err)
 	}
@@ -72,6 +71,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return internal.CloseMessageTooLarge
 	}
 
+	var n = len(payload)
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, useCompress, opcode, n)
 	if !c.isServer {
 		internal.MaskXOR(payload, maskBytes)
