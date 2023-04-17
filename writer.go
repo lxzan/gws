@@ -42,6 +42,9 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
+	if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, payload) {
+		return internal.CloseUnsupportedData
+	}
 	err := c.doWrite(opcode, payload)
 	c.emitError(err)
 	return err
@@ -51,13 +54,6 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-
-	var header = frameHeader{}
-	if len(payload) == 0 {
-		headerLength, _ := header.GenerateHeader(c.isServer, true, false, opcode, 0)
-		num, err := c.conn.Write(header[:headerLength])
-		return internal.CheckIOError(headerLength, num, err)
-	}
 
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
@@ -72,12 +68,16 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	var n = len(payload)
+	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, useCompress, opcode, n)
 	if !c.isServer {
 		internal.MaskXOR(payload, maskBytes)
 	}
 
 	var buf = net.Buffers{header[:headerLength], payload}
+	if n == 0 {
+		buf = buf[:1]
+	}
 	num, err := buf.WriteTo(c.conn)
 	return internal.CheckIOError(headerLength+n, int(num), err)
 }
