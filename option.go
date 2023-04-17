@@ -51,8 +51,8 @@ type (
 		// Maximum length of written message content
 		WriteMaxPayloadSize int
 
-		// 写缓冲区的大小
-		// Size of the write buffer
+		// 写缓冲区的大小, v1.4.5版本此参数被废弃
+		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 		WriteBufferSize int
 
 		// 是否开启数据压缩
@@ -73,6 +73,9 @@ type (
 	}
 
 	ServerOption struct {
+		// 写缓冲区的大小, v1.4.5版本此参数被废弃
+		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
+		WriteBufferSize     int
 		ReadAsyncEnabled    bool
 		ReadAsyncGoLimit    int
 		ReadAsyncCap        int
@@ -80,7 +83,6 @@ type (
 		ReadBufferSize      int
 		WriteAsyncCap       int
 		WriteMaxPayloadSize int
-		WriteBufferSize     int
 		CompressEnabled     bool
 		CompressLevel       int
 		CompressThreshold   int
@@ -160,6 +162,9 @@ func (c *ServerOption) getConfig() *Config {
 }
 
 type ClientOption struct {
+	// 写缓冲区的大小, v1.4.5版本此参数被废弃
+	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
+	WriteBufferSize     int
 	ReadAsyncEnabled    bool
 	ReadAsyncGoLimit    int
 	ReadAsyncCap        int
@@ -167,7 +172,6 @@ type ClientOption struct {
 	ReadBufferSize      int
 	WriteAsyncCap       int
 	WriteMaxPayloadSize int
-	WriteBufferSize     int
 	CompressEnabled     bool
 	CompressLevel       int
 	CompressThreshold   int
