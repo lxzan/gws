@@ -88,5 +88,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
+	if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, payload) {
+		return internal.CloseUnsupportedData
+	}
 	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
 }

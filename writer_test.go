@@ -99,3 +99,15 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		as.Equal(internal.ErrConnClosed, err)
 	})
 }
+
+func TestConn_WriteInvalidUTF8(t *testing.T) {
+	var as = assert.New(t)
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{CheckUtf8Enabled: true}
+	var clientOption = &ClientOption{}
+	server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	var payload = []byte{1, 2, 255}
+	as.Error(server.WriteMessage(OpcodeText, payload))
+	as.Error(server.WriteAsync(OpcodeText, payload))
+}
