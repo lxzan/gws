@@ -52,10 +52,15 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 
 // 关闭状态置为1后还能写, 以便发送关闭帧
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
-
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
+	c.wmu.Lock()
+	defer func() {
+		if useCompress {
+			c.compressor.Close()
+		}
+		c.wmu.Unlock()
+	}()
+
 	if useCompress {
 		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
 		if err != nil {

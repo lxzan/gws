@@ -11,10 +11,7 @@ import (
 
 func newCompressor(level int) *compressor {
 	fw, _ := flate.NewWriter(nil, level)
-	return &compressor{
-		writeBuffer: bytes.NewBuffer(nil),
-		fw:          fw,
-	}
+	return &compressor{fw: fw}
 }
 
 // 压缩器
@@ -23,17 +20,18 @@ type compressor struct {
 	fw          *flate.Writer
 }
 
-func (c *compressor) reset() {
-	if c.writeBuffer.Cap() > internal.Lv4 {
-		c.writeBuffer = bytes.NewBuffer(nil)
-	}
-	c.writeBuffer.Reset()
+func (c *compressor) reset(n int) {
+	c.writeBuffer = _bpool.Get(n)
 	c.fw.Reset(c.writeBuffer)
+}
+
+func (c *compressor) Close() {
+	_bpool.Put(c.writeBuffer)
 }
 
 // Compress 压缩
 func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
-	c.reset()
+	c.reset(content.Len())
 	if err := internal.WriteN(c.fw, content.Bytes(), content.Len()); err != nil {
 		return nil, err
 	}
