@@ -55,13 +55,4 @@ func TestFlate(t *testing.T) {
 		_, err = dps.Decompress(buf)
 		as.Error(err)
 	})
-
-	t.Run("compressor reset", func(t *testing.T) {
-		var cps = newCompressor(flate.BestSpeed)
-		var buf = bytes.NewBuffer(internal.AlphabetNumeric.Generate(32 * 1024))
-		cps.Compress(buf)
-		as.Equal(true, cps.writeBuffer.Cap() > 0)
-		cps.reset()
-		as.Equal(0, cps.writeBuffer.Cap())
-	})
 }

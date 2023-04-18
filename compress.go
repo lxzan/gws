@@ -20,18 +20,14 @@ type compressor struct {
 	fw          *flate.Writer
 }
 
-func (c *compressor) reset(n int) {
-	c.writeBuffer = _bpool.Get(n)
-	c.fw.Reset(c.writeBuffer)
-}
-
 func (c *compressor) Close() {
 	_bpool.Put(c.writeBuffer)
 }
 
 // Compress 压缩
 func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
-	c.reset(content.Len())
+	c.writeBuffer = _bpool.Get(content.Len())
+	c.fw.Reset(c.writeBuffer)
 	if err := internal.WriteN(c.fw, content.Bytes(), content.Len()); err != nil {
 		return nil, err
 	}

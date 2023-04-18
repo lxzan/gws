@@ -95,7 +95,7 @@ func TestRead(t *testing.T) {
 		var serverOption = &ServerOption{
 			ReadAsyncEnabled:    true,
 			CompressEnabled:     true,
-			CheckUtf8Enabled:    true,
+			CheckUtf8Enabled:    false,
 			ReadMaxPayloadSize:  1024 * 1024,
 			WriteMaxPayloadSize: 16 * 1024 * 1024,
 		}

@@ -55,10 +55,10 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	c.wmu.Lock()
 	defer func() {
+		c.wmu.Unlock()
 		if useCompress {
 			c.compressor.Close()
 		}
-		c.wmu.Unlock()
 	}()
 
 	if useCompress {
