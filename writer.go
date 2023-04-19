@@ -42,7 +42,7 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
-	if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, payload) {
+	if c.config.CheckUtf8Enabled && !isTextValid(opcode, payload) {
 		return internal.CloseUnsupportedData
 	}
 	err := c.doWrite(opcode, payload)
