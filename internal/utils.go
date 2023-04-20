@@ -182,3 +182,7 @@ func Split(s string, sep string) []string {
 	}
 	return list[:j]
 }
+
+func HttpHeaderEqual(a, b string) bool {
+	return strings.ToLower(a) == strings.ToLower(b)
+}

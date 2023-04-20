@@ -19,4 +19,4 @@ vendor/
 cmd/
 bin/
 examples/debug/
-examples/testsuite/reports
+examples/autobahn/reports

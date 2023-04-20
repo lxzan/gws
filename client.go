@@ -189,10 +189,10 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 }
 
 func (c *dialer) checkHeaders() error {
-	if c.resp.Header.Get(internal.Connection.Key) != internal.Connection.Val {
+	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return internal.ErrHandshake
 	}
-	if c.resp.Header.Get(internal.Upgrade.Key) != internal.Upgrade.Val {
+	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return internal.ErrHandshake
 	}
 	var expectedKey = internal.ComputeAcceptKey(c.option.RequestHeader.Get(internal.SecWebSocketKey.Key))
