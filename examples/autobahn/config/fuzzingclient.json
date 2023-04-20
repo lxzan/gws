@@ -3,7 +3,7 @@
     "servers": [
         {
             "agent": "gws",
-            "url": "ws://10.0.197.158:3000/connect"
+            "url": "ws://127.0.0.1:3000/connect"
         }
     ],
     "cases": [
