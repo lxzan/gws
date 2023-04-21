@@ -10,6 +10,8 @@ func TestBufferPool(t *testing.T) {
 	var as = assert.New(t)
 	var pool = NewBufferPool()
 
+	pool.Put(nil)
+	pool.Put(bytes.NewBuffer(nil))
 	pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(64)))
 	as.GreaterOrEqual(pool.Get(72).Cap(), 72)
 

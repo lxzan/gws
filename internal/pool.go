@@ -35,15 +35,12 @@ func NewBufferPool() *BufferPool {
 }
 
 func (p *BufferPool) Put(b *bytes.Buffer) {
-	if b == nil {
-		return
-	}
-	n := b.Cap()
-	if n == 0 || n > Lv5 {
+	if b == nil || b.Cap() == 0 {
 		return
 	}
 
 	b.Reset()
+	n := b.Cap()
 	if n <= Lv1 {
 		p.p0.Put(b)
 		return
@@ -72,20 +69,16 @@ func (p *BufferPool) Get(n int) *bytes.Buffer {
 
 func (p *BufferPool) doGet(n int) *bytes.Buffer {
 	if n <= Lv1 {
-		buf := p.p0.Get().(*bytes.Buffer)
-		return buf
+		return p.p0.Get().(*bytes.Buffer)
 	}
 	if n <= Lv2 {
-		buf := p.p1.Get().(*bytes.Buffer)
-		return buf
+		return p.p1.Get().(*bytes.Buffer)
 	}
 	if n <= Lv3 {
-		buf := p.p2.Get().(*bytes.Buffer)
-		return buf
+		return p.p2.Get().(*bytes.Buffer)
 	}
 	if n <= Lv4 {
-		buf := p.p3.Get().(*bytes.Buffer)
-		return buf
+		return p.p3.Get().(*bytes.Buffer)
 	}
 	return bytes.NewBuffer(make([]byte, 0, n))
 }

@@ -22,6 +22,7 @@ type compressor struct {
 
 func (c *compressor) Close() {
 	_bpool.Put(c.buffer)
+	c.buffer = nil
 }
 
 // Compress 压缩

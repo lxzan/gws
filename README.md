@@ -194,7 +194,7 @@ func main() {
 #### Autobahn Test
 
 ```bash
-cd examples/testsuite
+cd examples/autobahn
 mkdir reports
 docker run -it --rm \
     -v ${PWD}/config:/config \
