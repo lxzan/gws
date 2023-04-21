@@ -175,15 +175,13 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 			if c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
 				compressEnabled = true
 			}
-			if err := internal.Errors(
-				func() error { return c.conn.SetDeadline(time.Time{}) },
-				func() error { return c.conn.SetReadDeadline(time.Time{}) },
-				func() error { return c.conn.SetWriteDeadline(time.Time{}) },
-				func() error { return setNoDelay(c.conn) }); err != nil {
+			if err := c.conn.SetDeadline(time.Time{}); err != nil {
 				return nil, c.resp, err
 			}
-			ws := serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled)
-			return ws, c.resp, nil
+			if err := setNoDelay(c.conn); err != nil {
+				return nil, c.resp, err
+			}
+			return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
 		}
 	}
 }

@@ -177,3 +177,8 @@ func TestInCollection(t *testing.T) {
 func TestRandomString_Uint64(t *testing.T) {
 	AlphabetNumeric.Uint64()
 }
+
+func TestHttpHeaderEqual(t *testing.T) {
+	assert.Equal(t, true, HttpHeaderEqual("WebSocket", "websocket"))
+	assert.Equal(t, false, HttpHeaderEqual("WebSocket@", "websocket"))
+}

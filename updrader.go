@@ -81,14 +81,14 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	if r.Method != http.MethodGet {
 		return nil, internal.ErrGetMethodRequired
 	}
-	if version := r.Header.Get(internal.SecWebSocketVersion.Key); version != internal.SecWebSocketVersion.Val {
-		msg := "websocket protocol not supported: " + version
+	if !internal.HttpHeaderEqual(r.Header.Get(internal.SecWebSocketVersion.Key), internal.SecWebSocketVersion.Val) {
+		msg := "websocket version not supported"
 		return nil, errors.New(msg)
 	}
-	if val := r.Header.Get(internal.Connection.Key); strings.ToLower(val) != strings.ToLower(internal.Connection.Val) {
+	if !internal.HttpHeaderEqual(r.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return nil, internal.ErrHandshake
 	}
-	if val := r.Header.Get(internal.Upgrade.Key); strings.ToLower(val) != internal.Upgrade.Val {
+	if !internal.HttpHeaderEqual(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return nil, internal.ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, "permessage-deflate") && c.option.CompressEnabled {
@@ -118,14 +118,11 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
 		return &Conn{conn: netConn}, err
 	}
-
-	if err := internal.Errors(
-		func() error { return netConn.SetDeadline(time.Time{}) },
-		func() error { return netConn.SetReadDeadline(time.Time{}) },
-		func() error { return netConn.SetWriteDeadline(time.Time{}) },
-		func() error { return setNoDelay(netConn) }); err != nil {
+	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	ws := serveWebSocket(true, c.option.getConfig(), session, netConn, brw.Reader, c.eventHandler, compressEnabled)
-	return ws, nil
+	if err := setNoDelay(netConn); err != nil {
+		return nil, err
+	}
+	return serveWebSocket(true, c.option.getConfig(), session, netConn, brw.Reader, c.eventHandler, compressEnabled), nil
 }
