@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const remoteAddr = "localhost:9001"
+
 func main() {
 	const count = 517
 	for i := 1; i <= count; i++ {
@@ -16,7 +18,7 @@ func main() {
 }
 
 func testCase(id int) {
-	var url = fmt.Sprintf("ws://localhost:9001/runCase?case=%d&agent=gws/client", id)
+	var url = fmt.Sprintf("ws://%s/runCase?case=%d&agent=gws/client", remoteAddr, id)
 	var handler = &WebSocket{onexit: make(chan struct{})}
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
 		Addr:                url,
@@ -57,7 +59,7 @@ func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	_ = socket.WriteAsync(message.Opcode, message.Bytes())
 }
 
 type updateReportsHandler struct {
@@ -78,7 +80,7 @@ func (c *updateReportsHandler) OnClose(socket *gws.Conn, code uint16, reason []b
 }
 
 func updateReports() {
-	var url = fmt.Sprintf("ws://localhost:9001/updateReports?agent=gws/client")
+	var url = fmt.Sprintf("ws://%s/updateReports?agent=gws/client", remoteAddr)
 	var handler = &updateReportsHandler{onexit: make(chan struct{})}
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
 		Addr:             url,

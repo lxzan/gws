@@ -106,8 +106,34 @@ func TestConn_WriteInvalidUTF8(t *testing.T) {
 	var clientHandler = new(webSocketMocker)
 	var serverOption = &ServerOption{CheckUtf8Enabled: true}
 	var clientOption = &ClientOption{}
-	server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	go server.Listen()
+	go client.Listen()
 	var payload = []byte{1, 2, 255}
 	as.Error(server.WriteMessage(OpcodeText, payload))
-	as.Error(server.WriteAsync(OpcodeText, payload))
+}
+
+func TestConn_WriteClose(t *testing.T) {
+	var wg = sync.WaitGroup{}
+	wg.Add(3)
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{CheckUtf8Enabled: true}
+	var clientOption = &ClientOption{}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	clientHandler.onClose = func(socket *Conn, code uint16, reason []byte) {
+		wg.Done()
+	}
+	clientHandler.onMessage = func(socket *Conn, message *Message) {
+		wg.Done()
+	}
+	go server.Listen()
+	go client.Listen()
+
+	//var payload = internal.CloseGoingAway.Bytes()
+	//payload = append(payload, "goodbye"...)
+	server.WriteMessage(OpcodeText, nil)
+	server.WriteMessage(OpcodeText, []byte("hello"))
+	server.WriteMessage(OpcodeCloseConnection, []byte{1})
+	wg.Wait()
 }

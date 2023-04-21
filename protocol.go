@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"github.com/lxzan/gws/internal"
 	"io"
-	"unicode/utf8"
 )
 
 type Opcode uint8
@@ -196,13 +195,6 @@ func (c *Message) Bytes() []byte {
 func (c *Message) Close() {
 	_bpool.Put(c.Data)
 	c.Data = nil
-}
-
-func isTextValid(opcode Opcode, p []byte) bool {
-	if len(p) > 0 && (opcode == OpcodeCloseConnection || opcode == OpcodeText) {
-		return utf8.Valid(p)
-	}
-	return true
 }
 
 type continuationFrame struct {

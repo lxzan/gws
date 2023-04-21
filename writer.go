@@ -59,8 +59,8 @@ func (c *Conn) endWrite(compress bool) {
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, payload) {
-		return internal.CloseUnsupportedData
+	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
+		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
 	var compress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold

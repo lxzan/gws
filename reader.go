@@ -155,7 +155,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 		}
 		msg.Data = data
 	}
-	if c.config.CheckUtf8Enabled && !isTextValid(msg.Opcode, msg.Bytes()) {
+	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 

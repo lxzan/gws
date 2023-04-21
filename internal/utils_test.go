@@ -182,3 +182,8 @@ func TestHttpHeaderEqual(t *testing.T) {
 	assert.Equal(t, true, HttpHeaderEqual("WebSocket", "websocket"))
 	assert.Equal(t, false, HttpHeaderEqual("WebSocket@", "websocket"))
 }
+
+func TestSelectInt(t *testing.T) {
+	assert.Equal(t, 1, SelectInt(true, 1, 2))
+	assert.Equal(t, 2, SelectInt(false, 1, 2))
+}

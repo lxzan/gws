@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 type Conn struct {
@@ -84,6 +85,18 @@ func (c *Conn) Listen() {
 	}
 }
 
+func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {
+	if !c.config.CheckUtf8Enabled {
+		return true
+	}
+	switch opcode {
+	case OpcodeText, OpcodeCloseConnection:
+		return utf8.Valid(payload)
+	default:
+		return true
+	}
+}
+
 func (c *Conn) isClosed() bool {
 	return atomic.LoadUint32(&c.closed) == 1
 }
@@ -144,7 +157,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 				responseCode = internal.StatusCode(realCode)
 			}
 		}
-		if c.config.CheckUtf8Enabled && !isTextValid(OpcodeCloseConnection, buf.Bytes()) {
+		if !c.isTextValid(OpcodeCloseConnection, buf.Bytes()) {
 			responseCode = internal.CloseUnsupportedData
 		}
 	}
