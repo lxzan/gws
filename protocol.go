@@ -31,11 +31,11 @@ type Event interface {
 	OnOpen(socket *Conn)
 
 	// 错误事件
-	// IO错误, 协议错误, 压缩解压错误...
+	// IO出现错误, 协议错误, 压缩解压错误...
 	OnError(socket *Conn, err error)
 
 	// 关闭事件
-	// 另一端发送了关闭帧
+	// 接收到了另一端发送的关闭帧
 	OnClose(socket *Conn, code uint16, reason []byte)
 
 	// 心跳探测事件

@@ -19,9 +19,12 @@ func testCase(id int) {
 	var url = fmt.Sprintf("ws://localhost:9001/runCase?case=%d&agent=gws/client", id)
 	var handler = &WebSocket{onexit: make(chan struct{})}
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
-		Addr:             url,
-		CompressEnabled:  true,
-		CheckUtf8Enabled: true,
+		Addr:                url,
+		ReadAsyncEnabled:    true,
+		CompressEnabled:     true,
+		CheckUtf8Enabled:    true,
+		ReadMaxPayloadSize:  32 * 1024 * 1024,
+		WriteMaxPayloadSize: 32 * 1024 * 1024,
 	})
 	if err != nil {
 		log.Println(err.Error())

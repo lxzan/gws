@@ -2,7 +2,7 @@
     "outdir": "./reports/servers",
     "servers": [
         {
-            "agent": "gws",
+            "agent": "gws/server",
             "url": "ws://127.0.0.1:3000/connect"
         }
     ],
