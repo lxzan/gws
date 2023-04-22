@@ -8,7 +8,6 @@ import (
 
 func main() {
 	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
-		ReadAsyncEnabled:    true,
 		CompressEnabled:     true,
 		CheckUtf8Enabled:    true,
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
