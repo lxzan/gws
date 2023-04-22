@@ -44,7 +44,7 @@
 - No dependency
 - No channel, no additional resident concurrent goroutine
 - Asynchronous non-blocking read and write support
-- High IOPS and low latency
+- High IOPS and low latency, low CPU usage
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Install
@@ -89,8 +89,6 @@ func main() {
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
 		WriteMaxPayloadSize: 32 * 1024 * 1024,
 		ReadAsyncEnabled:    true,
-		ReadBufferSize:      4 * 1024,
-		WriteBufferSize:     4 * 1024,
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
@@ -221,16 +219,14 @@ tcpkali -c 1000 --connect-rate 500 -r ${message_num} -T 300s -f assets/1K.txt --
 tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
-![gws-c1000-m100](assets/gws-c1000-m100.png)
-
-![gorilla-c1000-m100](assets/gorilla-c1000-m100.png)
+![gws-c1000-m100](assets/latency.png)
 
 ##### CPU
 
 ```
-  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
-26054 caster    20   0  720164  39320   7340 S 246.5   1.0  48:34.38 gorilla-linux-a
-26059 caster    20   0  720852  53624   7196 S 179.4   1.3  48:39.85 gws-linux-amd64
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+9898 caster    20   0  721172  39648   7404 S 259.5   1.0  78:44.15 gorilla-linux-a
+9871 caster    20   0  721212  41788   7188 S 161.5   1.0  51:39.43 gws-linux-amd64
 ```
 
 #### Acknowledgments
