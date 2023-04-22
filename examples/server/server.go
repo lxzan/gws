@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/lxzan/gws"
 	"log"
 	"net/http"
@@ -25,27 +24,10 @@ func main() {
 }
 
 type Websocket struct {
-}
-
-func (w Websocket) OnOpen(socket *gws.Conn) {
-	_ = socket.WriteString("hello, there is server")
-}
-
-func (w Websocket) OnError(socket *gws.Conn, err error) {
-	fmt.Printf("onerror: err=%s\n", err.Error())
-}
-
-func (w Websocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
-}
-
-func (w Websocket) OnPing(socket *gws.Conn, payload []byte) {
-}
-
-func (w Websocket) OnPong(socket *gws.Conn, payload []byte) {
-	socket.WritePong(payload)
+	gws.BuiltinEventHandler
 }
 
 func (w Websocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	fmt.Printf("recv: %s\n", message.Data.String())
+	defer message.Close()
+	_ = socket.WriteMessage(message.Opcode, message.Bytes())
 }

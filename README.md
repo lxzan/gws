@@ -69,7 +69,7 @@ type Event interface {
 #### Examples
 
 - [chat room](examples/chatroom/main.go)
-- [echo](examples/testsuite/main.go)
+- [echo](examples/server/server.go)
 
 #### Server
 
