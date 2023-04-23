@@ -25,25 +25,25 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
-	- [Highlight](#highlight)
 	- [Install](#install)
 	- [Interface](#interface)
 	- [Examples](#examples)
-	- [Server](#server)
-	- [Client](#client)
+	- [Quick Start](#quick-start)
+	- [HeartBeat](#heartbeat)
+	- [Broadcast](#broadcast)
 	- [TLS](#tls)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
-		- [Max IOPS](#max-iops)
+		- [IOPS](#iops)
 		- [Latency](#latency)
 		- [CPU](#cpu)
 	- [Acknowledgments](#acknowledgments)
 
+
 #### Highlight
 
 - No dependency
-- No channel, no additional resident concurrent goroutine
-- Asynchronous non-blocking read and write support
+- IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
 - High IOPS and low latency, low CPU usage
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
@@ -71,65 +71,55 @@ type Event interface {
 - [chat room](examples/chatroom/main.go)
 - [echo](examples/server/server.go)
 
-#### Server
+#### Quick Start
 
+- server
+  
 ```go
 package main
 
 import (
-	"fmt"
 	"github.com/lxzan/gws"
+	"log"
 	"net/http"
 )
 
 func main() {
-	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
-		CompressEnabled:     true,
-		CheckUtf8Enabled:    true,
-		ReadMaxPayloadSize:  32 * 1024 * 1024,
-		WriteMaxPayloadSize: 32 * 1024 * 1024,
-		ReadAsyncEnabled:    true,
+	upgrader := gws.NewUpgrader(new(Websocket), &gws.ServerOption{
+		ReadAsyncEnabled: true,
+		ReadAsyncGoLimit: 4,
+		CheckOrigin: func(r *http.Request, session gws.SessionStorage) bool {
+			session.Store("username", r.URL.Query().Get("username"))
+			return true
+		},
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Accept(writer, request)
 		if err != nil {
+			log.Printf("Accept: " + err.Error())
 			return
 		}
-		socket.Listen()
+		go socket.Listen()
 	})
 
-	_ = http.ListenAndServe(":3000", nil)
+	if err := http.ListenAndServe(":3000", nil); err != nil {
+		log.Fatalf("%+v", err)
+	}
 }
 
-type WebSocket struct{}
-
-func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
+type Websocket struct {
+	gws.BuiltinEventHandler
 }
 
-func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-	fmt.Printf("onerror: err=%s\n", err.Error())
-}
-
-func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	println("connected")
-}
-
-func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
-	fmt.Printf("onping: payload=%s\n", string(payload))
-	socket.WritePong(payload)
-}
-
-func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
-
-func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
+func (w Websocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	socket.WriteMessage(message.Opcode, message.Data.Bytes())
+	_ = socket.WriteMessage(message.Opcode, message.Bytes())
 }
+
 ```
 
-#### Client
+- client
 
 ```go
 package main
@@ -160,6 +150,33 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
+#### HeartBeat
+```go
+const PingInterval = 5 * time.Second
+
+type Websocket struct {
+	gws.BuiltinEventHandler
+}
+
+func (w Websocket) OnOpen(socket *gws.Conn) {
+	_ = socket.SetDeadline(time.Now().Add(3 * PingInterval))
+}
+
+func (w Websocket) OnPing(socket *gws.Conn, payload []byte) {
+	_ = socket.WritePong(nil)
+	_ = socket.SetDeadline(time.Now().Add(3 * PingInterval))
+}
+```
+
+#### Broadcast
+```go
+func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
+	for _, item := range conns {
+		_ = item.WriteAsync(opcode, payload)
+	}
+}
+```
+
 #### TLS
 
 ```go
@@ -172,8 +189,7 @@ import (
 
 func main() {
 	app := gin.New()
-	handler := new(WebSocket)
-	upgrader := gws.NewUpgrader(handler, nil)
+	upgrader := gws.NewUpgrader(handler := new(WebSocket), nil)
 	app.GET("/connect", func(ctx *gin.Context) {
 		socket, err := upgrader.Accept(ctx.Writer, ctx.Request)
 		if err != nil {
@@ -205,9 +221,10 @@ docker run -it --rm \
 
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
-##### Max IOPS
+##### IOPS
 
 ```
+// ${message_num} depends on the maximum load capacity of each package
 tcpkali -c 1000 --connect-rate 500 -r ${message_num} -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
