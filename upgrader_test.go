@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 )
 
@@ -218,20 +219,35 @@ func TestNewServer(t *testing.T) {
 
 	t.Run("tls", func(t *testing.T) {
 		var server = NewServer(new(BuiltinEventHandler), nil)
-		go server.RunTLS(":12346", nil)
+		go server.RunTLS(":12346", "", "")
 	})
 
-	t.Run("fail", func(t *testing.T) {
+	t.Run("fail 1", func(t *testing.T) {
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
 		var server = NewServer(new(BuiltinEventHandler), nil)
-		server.OnConnect = func(conn net.Conn) error {
-			return errors.New("fail")
+		server.OnError = func(conn net.Conn, err error) {
+			wg.Done()
 		}
-
 		go server.Run(":12347")
-		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
-			Addr: "ws://localhost:12347",
-		})
-		as.Error(err)
+		client, err := net.Dial("tcp", "localhost:12347")
+		as.NoError(err)
+		client.Write([]byte("POST ws://localhost:12347 HTTP/1.1\r\n\r\n"))
+		wg.Wait()
+	})
+
+	t.Run("fail 2", func(t *testing.T) {
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		server.OnError = func(conn net.Conn, err error) {
+			wg.Done()
+		}
+		go server.Run(":12347")
+		client, err := net.Dial("tcp", "localhost:12347")
+		as.NoError(err)
+		client.Write([]byte("GET ws://localhost:12347 HTTP/1.1 GWS\r\n\r\n"))
+		wg.Wait()
 	})
 }
 

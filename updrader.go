@@ -138,10 +138,6 @@ func (c *Upgrader) doAccept(r *http.Request, netConn net.Conn, br *bufio.Reader)
 type Server struct {
 	upgrader *Upgrader
 
-	// OnConnect listener.Accept()之后会被调用, 一般用于处理安全问题
-	// called after listener.Accept() for handling security issues
-	OnConnect func(conn net.Conn) error
-
 	// OnError 接收握手过程中产生的错误回调
 	// Receive error callbacks generated during the handshake
 	OnError func(conn net.Conn, err error)
@@ -151,7 +147,6 @@ type Server struct {
 // create a websocket server
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
-	c.OnConnect = func(conn net.Conn) error { return nil }
 	c.OnError = func(conn net.Conn, err error) {}
 	return c
 }
@@ -241,12 +236,6 @@ func (c *Server) serve(listener net.Listener) error {
 		}
 
 		go func() {
-			if err := c.OnConnect(conn); err != nil {
-				_ = conn.Close()
-				c.OnError(conn, err)
-				return
-			}
-
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
 			r, err := c.parseRequest(conn, br)
 			if err != nil {
