@@ -217,7 +217,12 @@ func (c *Server) Run(addr string) error {
 // RunTLS runs wss server
 // addr: Address of the listener
 // config: tls config
-func (c *Server) RunTLS(addr string, config *tls.Config) error {
+func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return err
+	}
+	config := &tls.Config{Certificates: []tls.Certificate{cert}, NextProtos: []string{"http/1.1"}}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
