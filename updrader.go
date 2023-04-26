@@ -124,7 +124,7 @@ func (c *Upgrader) doAccept(r *http.Request, netConn net.Conn, br *bufio.Reader)
 	}
 
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
-		return &Conn{conn: netConn}, err
+		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
@@ -137,11 +137,21 @@ func (c *Upgrader) doAccept(r *http.Request, netConn net.Conn, br *bufio.Reader)
 
 type Server struct {
 	upgrader *Upgrader
-	OnError  func(conn net.Conn, err error)
+
+	// OnConnect listener.Accept()之后会被调用, 一般用于处理安全问题
+	// called after listener.Accept() for handling security issues
+	OnConnect func(conn net.Conn) error
+
+	// OnError 接收握手过程中产生的错误回调
+	// Receive error callbacks generated during the handshake
+	OnError func(conn net.Conn, err error)
 }
 
+// NewServer 创建websocket服务器
+// create a websocket server
 func NewServer(eventHandler Event, option *ServerOption) (*Server, error) {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
+	c.OnConnect = func(conn net.Conn) error { return nil }
 	c.OnError = func(conn net.Conn, err error) {}
 	return c, nil
 }
@@ -187,6 +197,8 @@ func (c *Server) parseRequest(br *bufio.Reader) (*http.Request, error) {
 	return request, nil
 }
 
+// Run runs ws server
+// addr: Address of the listener
 func (c *Server) Run(addr string) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -195,6 +207,9 @@ func (c *Server) Run(addr string) error {
 	return c.serve(listener)
 }
 
+// RunTLS runs wss server
+// addr: Address of the listener
+// config: tls config
 func (c *Server) RunTLS(addr string, config *tls.Config) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -214,6 +229,11 @@ func (c *Server) serve(listener net.Listener) error {
 		}
 
 		go func() {
+			if err := c.OnConnect(conn); err != nil {
+				c.OnError(conn, err)
+				return
+			}
+
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
 			r, err := c.parseRequest(br)
 			if err != nil {
