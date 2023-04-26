@@ -21,11 +21,7 @@ func main() {
 		return
 	}
 
-	srv, err := gws.NewServer(new(Websocket), &gws.ServerOption{CheckUtf8Enabled: true})
-	if err != nil {
-		log.Printf(err.Error())
-		return
-	}
+	srv := gws.NewServer(new(Websocket), &gws.ServerOption{CheckUtf8Enabled: true})
 
 	srv.OnError = func(conn net.Conn, err error) {
 		println(err.Error())

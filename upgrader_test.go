@@ -204,6 +204,37 @@ func TestFailHijack(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestNewServer(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("ok", func(t *testing.T) {
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		go server.Run(":12345")
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost:12345",
+		})
+		as.NoError(err)
+	})
+
+	t.Run("tls", func(t *testing.T) {
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		go server.RunTLS(":12346", nil)
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		server.OnConnect = func(conn net.Conn) error {
+			return errors.New("fail")
+		}
+
+		go server.Run(":12347")
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost:12347",
+		})
+		as.Error(err)
+	})
+}
+
 func TestBuiltinEventEngine(t *testing.T) {
 	var ev = new(BuiltinEventHandler)
 	_, ok := interface{}(ev).(Event)

@@ -149,18 +149,25 @@ type Server struct {
 
 // NewServer 创建websocket服务器
 // create a websocket server
-func NewServer(eventHandler Event, option *ServerOption) (*Server, error) {
+func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.OnConnect = func(conn net.Conn) error { return nil }
 	c.OnError = func(conn net.Conn, err error) {}
-	return c, nil
+	return c
 }
 
-func (c *Server) parseRequest(br *bufio.Reader) (*http.Request, error) {
+func (c *Server) parseRequest(conn net.Conn, br *bufio.Reader) (*http.Request, error) {
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return nil, err
+	}
+
 	index := 0
 	request := &http.Request{Header: http.Header{}}
 	for {
 		index++
+		if index >= 128 {
+			return nil, internal.ErrHandshake
+		}
 		line, isPrefix, err := br.ReadLine()
 		if isPrefix {
 			return nil, internal.ErrLongLine
@@ -230,13 +237,15 @@ func (c *Server) serve(listener net.Listener) error {
 
 		go func() {
 			if err := c.OnConnect(conn); err != nil {
+				_ = conn.Close()
 				c.OnError(conn, err)
 				return
 			}
 
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
-			r, err := c.parseRequest(br)
+			r, err := c.parseRequest(conn, br)
 			if err != nil {
+				_ = conn.Close()
 				c.OnError(conn, err)
 				return
 			}
