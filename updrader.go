@@ -204,6 +204,8 @@ func (c *Server) RunTLS(addr string, config *tls.Config) error {
 }
 
 func (c *Server) serve(listener net.Listener) error {
+	defer listener.Close()
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
