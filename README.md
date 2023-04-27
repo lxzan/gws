@@ -92,12 +92,12 @@ func main() {
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Accept(writer, request)
+		socket, err := upgrader.Upgrade(writer, request)
 		if err != nil {
 			log.Printf("Accept: " + err.Error())
 			return
 		}
-		go socket.Listen()
+		socket.ReadLoop()
 	})
 
 	if err := http.ListenAndServe(":3000", nil); err != nil {
@@ -135,7 +135,7 @@ func main() {
 		log.Printf(err.Error())
 		return
 	}
-	socket.Listen()
+	socket.ReadLoop()
 }
 
 type WebSocket struct {
@@ -175,11 +175,11 @@ func main() {
 	app := gin.New()
 	upgrader := gws.NewUpgrader(new(WebSocket), nil)
 	app.GET("/connect", func(ctx *gin.Context) {
-		socket, err := upgrader.Accept(ctx.Writer, ctx.Request)
+		socket, err := upgrader.Upgrade(ctx.Writer, ctx.Request)
 		if err != nil {
 			return
 		}
-		go upgrader.Listen(socket)
+		go upgrader.ReadLoop(socket)
 	})
 	if err := app.Run(":8080"); err != nil {
 		panic(err)
@@ -190,7 +190,7 @@ func main() {
 - HeartBeat
 
 ```go
-const PingInterval = 5 * time.Second
+const PingInterval = 10 * time.Second
 
 type Websocket struct {
 	gws.BuiltinEventHandler

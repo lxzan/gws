@@ -71,12 +71,19 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 	return c
 }
 
-// Listen listening to websocket messages through a dead loop
-// 监听websocket消息
+// Listen 监听websocket消息
+// Deprecated: Listen will be deprecated in future versions, please use ReadLoop instead.
 func (c *Conn) Listen() {
+	c.ReadLoop()
+}
+
+// ReadLoop start a read message loop
+// 启动一个读消息的死循环
+func (c *Conn) ReadLoop() {
 	defer c.conn.Close()
 
 	c.handler.OnOpen(c)
+
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)

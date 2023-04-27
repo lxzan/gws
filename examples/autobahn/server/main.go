@@ -15,11 +15,11 @@ func main() {
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Accept(writer, request)
+		socket, err := upgrader.Upgrade(writer, request)
 		if err != nil {
 			return
 		}
-		go socket.Listen()
+		socket.ReadLoop()
 	})
 
 	_ = http.ListenAndServe(":3000", nil)

@@ -62,13 +62,19 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 }
 
 // Accept http upgrade to websocket protocol
+// Deprecated: Accept will be deprecated in future versions, please use Upgrade instead.
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	return c.Upgrade(w, r)
+}
+
+// Upgrade http upgrade to websocket protocol
+func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	netConn, br, err := c.hijack(w)
 	if err != nil {
 		return nil, err
 	}
 
-	socket, err := c.doAccept(r, netConn, br)
+	socket, err := c.doUpgrade(r, netConn, br)
 	if err != nil {
 		_ = netConn.Close()
 		return nil, err
@@ -93,7 +99,7 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	return netConn, brw.Reader, nil
 }
 
-func (c *Upgrader) doAccept(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
+func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
 	var session = new(sliceMap)
 	var header = c.option.ResponseHeader.Clone()
 	if !c.option.CheckOrigin(r, session) {
@@ -255,7 +261,7 @@ func (c *Server) serve(listener net.Listener) error {
 				return
 			}
 
-			socket, err := c.upgrader.doAccept(r, conn, br)
+			socket, err := c.upgrader.doUpgrade(r, conn, br)
 			if err != nil {
 				_ = conn.Close()
 				c.OnError(conn, err)
