@@ -25,26 +25,23 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
-	- [Install](#install)
-	- [Interface](#interface)
-	- [Examples](#examples)
-	- [Quick Start](#quick-start)
-	- [HeartBeat](#heartbeat)
-	- [Broadcast](#broadcast)
-	- [TLS](#tls)
-	- [Autobahn Test](#autobahn-test)
-	- [Benchmark](#benchmark)
-		- [IOPS](#iops)
-		- [Latency](#latency)
-		- [CPU](#cpu)
-	- [Acknowledgments](#acknowledgments)
-
+	- [event-driven go websocket server](#event-driven-go-websocket-server)
+		- [Highlight](#highlight)
+		- [Install](#install)
+		- [Event](#event)
+		- [Examples](#examples)
+		- [Quick Start](#quick-start)
+		- [Advanced](#advanced)
+		- [Autobahn Test](#autobahn-test)
+		- [Benchmark](#benchmark)
+		- [Acknowledgments](#acknowledgments)
 
 #### Highlight
 
 - No dependency
 - IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
 - High IOPS and low latency, low CPU usage
+- Support fast parsing WebSocket protocol directly from TCP, faster handshake, 30% lower memory usage
 - Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 
 #### Install
@@ -53,7 +50,7 @@
 go get -v github.com/lxzan/gws@latest
 ```
 
-#### Interface
+#### Event
 
 ```go
 type Event interface {
@@ -69,12 +66,12 @@ type Event interface {
 #### Examples
 
 - [chat room](examples/chatroom/main.go)
-- [echo](examples/server/server.go)
+- [echo](examples/wss-server/server.go)
 
 #### Quick Start
 
 - server
-  
+
 ```go
 package main
 
@@ -150,7 +147,48 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
-#### HeartBeat
+#### Advanced
+
+- WebSocket over TCP
+
+```go
+// compared to hijacking http, handshake is faster and more memory efficient
+func main() {
+	srv := gws.NewServer(new(Websocket), nil)
+	if err := srv.Run(":3000"); err != nil {
+		log.Fatalln(err.Error())
+	}
+}
+```
+
+- Gin
+```go
+
+package main
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/lxzan/gws"
+)
+
+func main() {
+	app := gin.New()
+	upgrader := gws.NewUpgrader(new(WebSocket), nil)
+	app.GET("/connect", func(ctx *gin.Context) {
+		socket, err := upgrader.Accept(ctx.Writer, ctx.Request)
+		if err != nil {
+			return
+		}
+		go upgrader.Listen(socket)
+	})
+	if err := app.Run(":8080"); err != nil {
+		panic(err)
+	}
+}
+```
+
+- HeartBeat
+
 ```go
 const PingInterval = 5 * time.Second
 
@@ -168,39 +206,12 @@ func (w Websocket) OnPing(socket *gws.Conn, payload []byte) {
 }
 ```
 
-#### Broadcast
+- Broadcast
+
 ```go
 func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 	for _, item := range conns {
 		_ = item.WriteAsync(opcode, payload)
-	}
-}
-```
-
-#### TLS
-
-```go
-package main
-
-import (
-	"github.com/gin-gonic/gin"
-	"github.com/lxzan/gws"
-)
-
-func main() {
-	app := gin.New()
-	upgrader := gws.NewUpgrader(handler := new(WebSocket), nil)
-	app.GET("/connect", func(ctx *gin.Context) {
-		socket, err := upgrader.Accept(ctx.Writer, ctx.Request)
-		if err != nil {
-			return
-		}
-		upgrader.Listen(socket)
-	})
-	cert := "server.crt"
-	key := "server.key"
-	if err := app.RunTLS(":8443", cert, key); err != nil {
-		panic(err)
 	}
 }
 ```
@@ -217,28 +228,28 @@ docker run -it --rm \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
 
-#### Benchmark 
+#### Benchmark
 
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
 
-##### IOPS
+- IOPS
 
 ```
 // ${message_num} depends on the maximum load capacity of each package
 tcpkali -c 1000 --connect-rate 500 -r ${message_num} -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
-![rps](assets/performance.png)
+![iops](assets/performance.png)
 
-##### Latency
+- Latency
 
 ```
 tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
 ```
 
-![gws-c1000-m100](assets/latency.png)
+![latency](assets/latency.png)
 
-##### CPU
+- CPU
 
 ```
  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND

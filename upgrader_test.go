@@ -5,11 +5,22 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
+
+var _port = int64(9999)
+
+func nextPort() string {
+	port := atomic.AddInt64(&_port, 1)
+	return strconv.Itoa(int(port))
+}
 
 func newHttpWriter() *httpWriter {
 	server, client := net.Pipe()
@@ -202,6 +213,58 @@ func TestFailHijack(t *testing.T) {
 
 	_, err = upgrader.Accept(&httpWriterWrapper2{httpWriter: newHttpWriter()}, request)
 	assert.Error(t, err)
+}
+
+func TestNewServer(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("ok", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		go server.Run(addr)
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+		})
+		as.NoError(err)
+	})
+
+	t.Run("tls", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		go server.RunTLS(addr, "", "")
+	})
+
+	t.Run("fail 1", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		server.OnError = func(conn net.Conn, err error) {
+			wg.Done()
+		}
+		go server.Run(addr)
+		client, err := net.Dial("tcp", "localhost"+addr)
+		as.NoError(err)
+		var payload = fmt.Sprintf("POST ws://localhost%s HTTP/1.1\r\n\r\n", addr)
+		client.Write([]byte(payload))
+		wg.Wait()
+	})
+
+	t.Run("fail 2", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		server.OnError = func(conn net.Conn, err error) {
+			wg.Done()
+		}
+		go server.Run(addr)
+		client, err := net.Dial("tcp", "localhost"+addr)
+		as.NoError(err)
+		var payload = fmt.Sprintf("GET ws://localhost%s HTTP/1.1 GWS\r\n\r\n", addr)
+		client.Write([]byte(payload))
+		wg.Wait()
+	})
 }
 
 func TestBuiltinEventEngine(t *testing.T) {

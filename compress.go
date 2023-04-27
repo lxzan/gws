@@ -27,7 +27,7 @@ func (c *compressor) Close() {
 
 // Compress 压缩
 func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
-	c.buffer = _bpool.Get(content.Len())
+	c.buffer = _bpool.Get(content.Len() / 3)
 	c.fw.Reset(c.buffer)
 	if err := internal.WriteN(c.fw, content.Bytes(), content.Len()); err != nil {
 		return nil, err

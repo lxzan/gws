@@ -2,10 +2,13 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/tls"
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -60,17 +63,37 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 
 // Accept http upgrade to websocket protocol
 func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	socket, err := c.doAccept(w, r)
+	netConn, br, err := c.hijack(w)
 	if err != nil {
-		if socket != nil && socket.conn != nil {
-			_ = socket.conn.Close()
-		}
+		return nil, err
+	}
+
+	socket, err := c.doAccept(r, netConn, br)
+	if err != nil {
+		_ = netConn.Close()
 		return nil, err
 	}
 	return socket, err
 }
 
-func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error) {
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		return nil, nil, internal.CloseInternalServerErr
+	}
+	netConn, brw, err := hj.Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	brw.Writer = nil
+	if brw.Reader.Size() != c.option.ReadBufferSize {
+		brw.Reader = bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
+	}
+	return netConn, brw.Reader, nil
+}
+
+func (c *Upgrader) doAccept(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
 	var session = new(sliceMap)
 	var header = c.option.ResponseHeader.Clone()
 	if !c.option.CheckOrigin(r, session) {
@@ -100,23 +123,8 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 		return nil, internal.ErrHandshake
 	}
 
-	// Hijack
-	hj, ok := w.(http.Hijacker)
-	if !ok {
-		return nil, internal.CloseInternalServerErr
-	}
-	netConn, brw, err := hj.Hijack()
-	if err != nil {
-		return &Conn{conn: netConn}, err
-	} else {
-		brw.Writer = nil
-	}
-
-	if brw.Reader.Size() != c.option.ReadBufferSize {
-		brw.Reader = bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
-	}
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
-		return &Conn{conn: netConn}, err
+		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
@@ -124,5 +132,125 @@ func (c *Upgrader) doAccept(w http.ResponseWriter, r *http.Request) (*Conn, erro
 	if err := setNoDelay(netConn); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(true, c.option.getConfig(), session, netConn, brw.Reader, c.eventHandler, compressEnabled), nil
+	return serveWebSocket(true, c.option.getConfig(), session, netConn, br, c.eventHandler, compressEnabled), nil
+}
+
+type Server struct {
+	upgrader *Upgrader
+
+	// OnError 接收握手过程中产生的错误回调
+	// Receive error callbacks generated during the handshake
+	OnError func(conn net.Conn, err error)
+}
+
+// NewServer 创建websocket服务器
+// create a websocket server
+func NewServer(eventHandler Event, option *ServerOption) *Server {
+	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
+	c.OnError = func(conn net.Conn, err error) {}
+	return c
+}
+
+func (c *Server) parseRequest(conn net.Conn, br *bufio.Reader) (*http.Request, error) {
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return nil, err
+	}
+
+	index := 0
+	request := &http.Request{Header: http.Header{}}
+	for {
+		index++
+		if index >= 128 {
+			return nil, internal.ErrHandshake
+		}
+		line, isPrefix, err := br.ReadLine()
+		if isPrefix {
+			return nil, internal.ErrLongLine
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if len(line) == 0 {
+			break
+		}
+		if index == 1 {
+			arr := bytes.Split(line, []byte(" "))
+			if len(arr) == 3 {
+				request.Method = string(arr[0])
+				URL, err := url.Parse(string(arr[1]))
+				if err != nil {
+					return nil, err
+				}
+				request.URL = URL
+				request.Proto = string(arr[2])
+			} else {
+				return nil, internal.ErrHandshake
+			}
+			continue
+		}
+
+		arr := strings.Split(string(line), ": ")
+		if len(arr) != 2 {
+			return nil, internal.ErrHandshake
+		}
+		request.Header.Set(arr[0], arr[1])
+	}
+	return request, nil
+}
+
+// Run runs ws server
+// addr: Address of the listener
+func (c *Server) Run(addr string) error {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return c.serve(listener)
+}
+
+// RunTLS runs wss server
+// addr: Address of the listener
+// config: tls config
+func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return err
+	}
+	config := &tls.Config{Certificates: []tls.Certificate{cert}, NextProtos: []string{"http/1.1"}}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return c.serve(tls.NewListener(listener, config))
+}
+
+func (c *Server) serve(listener net.Listener) error {
+	defer listener.Close()
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			c.OnError(conn, err)
+			continue
+		}
+
+		go func() {
+			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
+			r, err := c.parseRequest(conn, br)
+			if err != nil {
+				_ = conn.Close()
+				c.OnError(conn, err)
+				return
+			}
+
+			socket, err := c.upgrader.doAccept(r, conn, br)
+			if err != nil {
+				_ = conn.Close()
+				c.OnError(conn, err)
+				return
+			}
+			socket.Listen()
+		}()
+	}
 }
