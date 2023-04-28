@@ -9,8 +9,6 @@ import (
 
 const frameHeaderSize = 14
 
-var frameHeaderPadding = frameHeader{}
-
 type Opcode uint8
 
 const (

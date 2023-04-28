@@ -55,33 +55,34 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
-	var compress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
-	if !compress {
-		var n = len(payload)
-		if n > c.config.WriteMaxPayloadSize {
-			return internal.CloseMessageTooLarge
-		}
-		var header = frameHeader{}
-		headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, n)
-		if !c.isServer {
-			internal.MaskXOR(payload, maskBytes)
-		}
-		var totalSize = n + headerLength
-		var buf = _bpool.Get(totalSize)
-		buf.Write(header[:headerLength])
-		buf.Write(payload)
-		var err = internal.WriteN(c.conn, buf.Bytes(), totalSize)
-		_bpool.Put(buf)
-		return err
+	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
+		return c.writeCompressedContents(opcode, payload)
 	}
-	return c.writeCompressedContents(opcode, payload)
+
+	var n = len(payload)
+	if n > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+	var header = frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
+	if !c.isServer {
+		internal.MaskXOR(payload, maskBytes)
+	}
+	var totalSize = n + headerLength
+	var buf = _bpool.Get(totalSize)
+	buf.Write(header[:headerLength])
+	buf.Write(payload)
+	var err = internal.WriteN(c.conn, buf.Bytes(), totalSize)
+	_bpool.Put(buf)
+	return err
 }
 
 func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
 	var buf = _bpool.Get(len(payload) / 3)
 	defer _bpool.Put(buf)
 
-	buf.Write(frameHeaderPadding[0:])
+	var header = frameHeader{}
+	buf.Write(header[0:])
 	if err := c.compressor.Compress(payload, buf); err != nil {
 		return err
 	}
@@ -92,7 +93,6 @@ func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
 		return internal.CloseMessageTooLarge
 	}
 
-	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
 	var offset = frameHeaderSize - headerLength
 	if !c.isServer {
