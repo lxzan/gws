@@ -267,7 +267,7 @@ func (c *Server) serve(listener net.Listener) error {
 				c.OnError(conn, err)
 				return
 			}
-			socket.Listen()
+			socket.ReadLoop()
 		}()
 	}
 }
