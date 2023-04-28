@@ -16,33 +16,25 @@ func newCompressor(level int) *compressor {
 
 // 压缩器
 type compressor struct {
-	buffer *bytes.Buffer
-	fw     *flate.Writer
-}
-
-func (c *compressor) Close() {
-	_bpool.Put(c.buffer)
-	c.buffer = nil
+	fw *flate.Writer
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content *bytes.Buffer) (*bytes.Buffer, error) {
-	c.buffer = _bpool.Get(content.Len() / 3)
-	c.fw.Reset(c.buffer)
-	if err := internal.WriteN(c.fw, content.Bytes(), content.Len()); err != nil {
-		return nil, err
+func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
+	c.fw.Reset(buf)
+	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
+		return err
 	}
 	if err := c.fw.Flush(); err != nil {
-		return nil, err
+		return err
 	}
-
-	if n := c.buffer.Len(); n >= 4 {
-		compressedContent := c.buffer.Bytes()
+	if n := buf.Len(); n >= 4 {
+		compressedContent := buf.Bytes()
 		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			c.buffer.Truncate(n - 4)
+			buf.Truncate(n - 4)
 		}
 	}
-	return c.buffer, nil
+	return nil
 }
 
 func newDecompressor() *decompressor { return &decompressor{fr: flate.NewReader(nil)} }

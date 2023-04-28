@@ -1,10 +1,8 @@
 package gws
 
 import (
-	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
-	"net"
 )
 
 // WriteClose proactively close the connection
@@ -47,50 +45,61 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	return err
 }
 
-// 解锁并回收资源
-// Unlock and recover resources
-func (c *Conn) endWrite(compress bool) {
-	c.wmu.Unlock()
-	if compress {
-		c.compressor.Close()
-	}
-}
-
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
 	var compress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
-	c.wmu.Lock()
-	defer c.endWrite(compress)
-
-	if compress {
-		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
-		if err != nil {
-			return internal.NewError(internal.CloseInternalServerErr, err)
+	if !compress {
+		var n = len(payload)
+		if n > c.config.WriteMaxPayloadSize {
+			return internal.CloseMessageTooLarge
 		}
-		payload = compressedContent.Bytes()
+		var header = frameHeader{}
+		headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, n)
+		if !c.isServer {
+			internal.MaskXOR(payload, maskBytes)
+		}
+		var totalSize = n + headerLength
+		var buf = _bpool.Get(totalSize)
+		buf.Write(header[:headerLength])
+		buf.Write(payload)
+		var err = internal.WriteN(c.conn, buf.Bytes(), totalSize)
+		_bpool.Put(buf)
+		return err
 	}
-	if len(payload) > c.config.WriteMaxPayloadSize {
+	return c.writeCompressedContents(opcode, payload)
+}
+
+func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
+	var buf = _bpool.Get(len(payload) / 3)
+	defer _bpool.Put(buf)
+
+	buf.Write(frameHeaderPadding[0:])
+	if err := c.compressor.Compress(payload, buf); err != nil {
+		return err
+	}
+
+	var contents = buf.Bytes()
+	var payloadSize = buf.Len() - frameHeaderSize
+	if payloadSize > c.config.WriteMaxPayloadSize {
 		return internal.CloseMessageTooLarge
 	}
 
-	var n = len(payload)
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, n)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
+	var offset = frameHeaderSize - headerLength
 	if !c.isServer {
-		internal.MaskXOR(payload, maskBytes)
+		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
-
-	var buffers = net.Buffers{header[:headerLength], payload}
-	if n == 0 {
-		buffers = buffers[:1]
-	}
-	num, err := buffers.WriteTo(c.conn)
-	return internal.CheckIOError(headerLength+n, int(num), err)
+	copy(contents[offset:frameHeaderSize], header[:headerLength])
+	return internal.WriteN(c.conn, contents[offset:], payloadSize+headerLength)
 }
 
 // WriteAsync 异步非阻塞地写入消息
