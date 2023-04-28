@@ -66,7 +66,7 @@ type Event interface {
 #### Examples
 
 - [chat room](examples/chatroom/main.go)
-- [echo](examples/wss-server/server.go)
+- [echo](examples/echo/main.go)
 
 #### Quick Start
 
