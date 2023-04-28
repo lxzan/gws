@@ -1,10 +1,8 @@
 package gws
 
 import (
-	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
-	"net"
 )
 
 // WriteClose proactively close the connection
@@ -36,8 +34,6 @@ func (c *Conn) WriteString(s string) error {
 }
 
 // WriteMessage 发送消息
-// 如果是客户端, payload内容会因为异或计算而被改变
-// If it is a client, the payload content will be changed due to heterogeneous computation
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
@@ -47,50 +43,63 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	return err
 }
 
-// 解锁并回收资源
-// Unlock and recover resources
-func (c *Conn) endWrite(compress bool) {
-	c.wmu.Unlock()
-	if compress {
-		c.compressor.Close()
-	}
-}
-
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
-	var compress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
-	c.wmu.Lock()
-	defer c.endWrite(compress)
-
-	if compress {
-		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
-		if err != nil {
-			return internal.NewError(internal.CloseInternalServerErr, err)
-		}
-		payload = compressedContent.Bytes()
-	}
-	if len(payload) > c.config.WriteMaxPayloadSize {
-		return internal.CloseMessageTooLarge
+	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
+		return c.writeCompressedContents(opcode, payload)
 	}
 
 	var n = len(payload)
-	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, n)
-	if !c.isServer {
-		internal.MaskXOR(payload, maskBytes)
+	if n > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
 	}
 
-	var buffers = net.Buffers{header[:headerLength], payload}
-	if n == 0 {
-		buffers = buffers[:1]
+	var header = frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
+	var totalSize = n + headerLength
+	var buf = _bpool.Get(totalSize)
+	buf.Write(header[:headerLength])
+	buf.Write(payload)
+	var contents = buf.Bytes()
+	if !c.isServer {
+		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
-	num, err := buffers.WriteTo(c.conn)
-	return internal.CheckIOError(headerLength+n, int(num), err)
+	var err = internal.WriteN(c.conn, contents, totalSize)
+	_bpool.Put(buf)
+	return err
+}
+
+func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
+	var buf = _bpool.Get(len(payload) / 3)
+	defer _bpool.Put(buf)
+
+	var header = frameHeader{}
+	buf.Write(header[0:])
+	if err := c.compressor.Compress(payload, buf); err != nil {
+		return err
+	}
+
+	var contents = buf.Bytes()
+	var payloadSize = buf.Len() - frameHeaderSize
+	if payloadSize > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
+	if !c.isServer {
+		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
+	}
+	contents = contents[frameHeaderSize-headerLength:]
+	copy(contents[:headerLength], header[:headerLength])
+	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
 }
 
 // WriteAsync 异步非阻塞地写入消息

@@ -15,11 +15,12 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
-		compressedContent, err := c.compressor.Compress(bytes.NewBuffer(payload))
+		var buf = bytes.NewBufferString("")
+		err := c.compressor.Compress(payload, buf)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		payload = compressedContent.Bytes()
+		payload = buf.Bytes()
 	}
 	if len(payload) > c.config.WriteMaxPayloadSize {
 		return internal.CloseMessageTooLarge

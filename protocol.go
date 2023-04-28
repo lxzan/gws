@@ -7,6 +7,8 @@ import (
 	"io"
 )
 
+const frameHeaderSize = 14
+
 type Opcode uint8
 
 const (
@@ -62,7 +64,7 @@ func (b BuiltinEventHandler) OnPong(socket *Conn, payload []byte) {}
 
 func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
 
-type frameHeader [internal.FrameHeaderSize]byte
+type frameHeader [frameHeaderSize]byte
 
 func (c *frameHeader) GetFIN() bool {
 	return ((*c)[0] >> 7) == 1

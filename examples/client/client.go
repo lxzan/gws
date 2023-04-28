@@ -15,7 +15,7 @@ func main() {
 		log.Printf(err.Error())
 		return
 	}
-	go socket.Listen()
+	go socket.ReadLoop()
 
 	for {
 		var text = ""
