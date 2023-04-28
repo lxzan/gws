@@ -34,8 +34,6 @@ func (c *Conn) WriteString(s string) error {
 }
 
 // WriteMessage 发送消息
-// 如果是客户端, payload内容会因为异或计算而被改变
-// If it is a client, the payload content will be changed due to heterogeneous computation
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
@@ -63,16 +61,18 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	if n > c.config.WriteMaxPayloadSize {
 		return internal.CloseMessageTooLarge
 	}
+
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
-	if !c.isServer {
-		internal.MaskXOR(payload, maskBytes)
-	}
 	var totalSize = n + headerLength
 	var buf = _bpool.Get(totalSize)
 	buf.Write(header[:headerLength])
 	buf.Write(payload)
-	var err = internal.WriteN(c.conn, buf.Bytes(), totalSize)
+	var contents = buf.Bytes()
+	if !c.isServer {
+		internal.MaskXOR(contents[headerLength:], maskBytes)
+	}
+	var err = internal.WriteN(c.conn, contents, totalSize)
 	_bpool.Put(buf)
 	return err
 }
@@ -94,12 +94,12 @@ func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
 	}
 
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
-	var offset = frameHeaderSize - headerLength
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
-	copy(contents[offset:frameHeaderSize], header[:headerLength])
-	return internal.WriteN(c.conn, contents[offset:], payloadSize+headerLength)
+	contents = contents[frameHeaderSize-headerLength:]
+	copy(contents[:headerLength], header[:headerLength])
+	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
 }
 
 // WriteAsync 异步非阻塞地写入消息
