@@ -3,7 +3,6 @@ package gws
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
@@ -18,6 +17,12 @@ import (
 
 // NewClient 创建WebSocket客户端
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
+	defer func() {
+		if e != nil && client != nil {
+			_ = client.conn.Close()
+		}
+	}()
+
 	var d = &dialer{
 		eventHandler: handler,
 		resp: &http.Response{
@@ -98,7 +103,7 @@ func (c *dialer) generateTelegram() []byte {
 		c.option.RequestHeader.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 	}
 
-	var buf []byte
+	var buf = make([]byte, 0, 256)
 	buf = append(buf, c.stradd("GET ", c.option.Addr, " HTTP/1.1\r\n")...)
 	buf = append(buf, c.stradd("Host: ", c.host, "\r\n")...)
 	buf = append(buf, "Connection: Upgrade\r\n"...)
@@ -111,6 +116,44 @@ func (c *dialer) generateTelegram() []byte {
 	return buf
 }
 
+func (c *dialer) getResponse(br *bufio.Reader, ch chan error) {
+	var index = 0
+	for {
+		index++
+		line, isPrefix, err := br.ReadLine()
+		if err != nil {
+			ch <- err
+			return
+		}
+		if isPrefix {
+			ch <- internal.ErrLongLine
+			return
+		}
+		if index == 1 {
+			arr := bytes.Split(line, []byte(" "))
+			if len(arr) >= 2 {
+				code, _ := strconv.Atoi(string(arr[1]))
+				c.resp.StatusCode = code
+			}
+			if len(arr) != 4 || c.resp.StatusCode != 101 {
+				ch <- internal.ErrStatusCode
+				return
+			}
+		} else {
+			if len(line) == 0 {
+				ch <- nil
+				return
+			}
+			arr := strings.Split(string(line), ": ")
+			if len(arr) != 2 {
+				ch <- internal.ErrHandshake
+				return
+			}
+			c.resp.Header.Set(arr[0], arr[1])
+		}
+	}
+}
+
 func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
 	telegram := c.generateTelegram()
@@ -119,71 +162,24 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	}
 
 	var ch = make(chan error)
-	ctx, cancel := context.WithTimeout(context.Background(), c.option.DialTimeout)
-	defer cancel()
-
-	go func() {
-		var index = 0
-		for {
-			line, isPrefix, err := br.ReadLine()
-			if err != nil {
-				ch <- err
-				return
-			}
-			if isPrefix {
-				ch <- internal.ErrLongLine
-				return
-			}
-			if index == 0 {
-				arr := bytes.Split(line, []byte(" "))
-				if len(arr) >= 2 {
-					code, _ := strconv.Atoi(string(arr[1]))
-					c.resp.StatusCode = code
-				}
-				if len(arr) != 4 || c.resp.StatusCode != 101 {
-					ch <- internal.ErrStatusCode
-					return
-				}
-			} else {
-				if len(line) == 0 {
-					ch <- nil
-					return
-				}
-				arr := strings.Split(string(line), ": ")
-				if len(arr) != 2 {
-					ch <- internal.ErrHandshake
-					return
-				}
-				c.resp.Header.Set(arr[0], arr[1])
-			}
-			index++
-		}
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, c.resp, internal.ErrDialTimeout
-		case err := <-ch:
-			if err != nil {
-				return nil, c.resp, err
-			}
-			if err := c.checkHeaders(); err != nil {
-				return nil, c.resp, err
-			}
-			var compressEnabled = false
-			if c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
-				compressEnabled = true
-			}
-			if err := c.conn.SetDeadline(time.Time{}); err != nil {
-				return nil, c.resp, err
-			}
-			if err := setNoDelay(c.conn); err != nil {
-				return nil, c.resp, err
-			}
-			return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
-		}
+	go c.getResponse(br, ch)
+	if err := <-ch; err != nil {
+		return nil, c.resp, err
 	}
+	if err := c.checkHeaders(); err != nil {
+		return nil, c.resp, err
+	}
+	var compressEnabled = false
+	if c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate") {
+		compressEnabled = true
+	}
+	if err := c.conn.SetDeadline(time.Time{}); err != nil {
+		return nil, c.resp, err
+	}
+	if err := setNoDelay(c.conn); err != nil {
+		return nil, c.resp, err
+	}
+	return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
 }
 
 func (c *dialer) checkHeaders() error {
