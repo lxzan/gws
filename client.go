@@ -17,18 +17,13 @@ import (
 
 // NewClient 创建WebSocket客户端
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
+	var d = &dialer{eventHandler: handler, resp: &http.Response{Header: http.Header{}}}
 	defer func() {
-		if e != nil && client != nil {
-			_ = client.conn.Close()
+		if e != nil && d.conn != nil {
+			_ = d.conn.Close()
 		}
 	}()
 
-	var d = &dialer{
-		eventHandler: handler,
-		resp: &http.Response{
-			Header: http.Header{},
-		},
-	}
 	if option == nil {
 		option = new(ClientOption)
 	}
