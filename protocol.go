@@ -32,7 +32,7 @@ type Event interface {
 	OnOpen(socket *Conn)
 
 	// 错误事件
-	// IO出现错误, 协议错误, 压缩解压错误...
+	// IO错误, 协议错误, 压缩解压错误...
 	OnError(socket *Conn, err error)
 
 	// 关闭事件
@@ -46,7 +46,7 @@ type Event interface {
 	OnPong(socket *Conn, payload []byte)
 
 	// 消息事件
-	// 如果开启了AsyncReadEnabled, 可以在一个连接里面并行处理多个请求
+	// 如果开启了ReadAsyncEnabled, 会并行调用OnMessage
 	OnMessage(socket *Conn, message *Message)
 }
 
