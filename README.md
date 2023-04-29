@@ -25,16 +25,18 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
-		- [event-driven go websocket server](#event-driven-go-websocket-server)
-			- [Highlight](#highlight)
-			- [Install](#install)
-			- [Event](#event)
-			- [Examples](#examples)
-			- [Quick Start](#quick-start)
-			- [Advanced](#advanced)
-			- [Autobahn Test](#autobahn-test)
-			- [Benchmark](#benchmark)
-			- [Acknowledgments](#acknowledgments)
+	- [Highlight](#highlight)
+	- [Install](#install)
+	- [Event](#event)
+	- [Quick Start](#quick-start)
+	- [Best Practice](#best-practice)
+	- [Usage](#usage)
+		- [Upgrade from HTTP](#upgrade-from-http)
+		- [Client](#client)
+		- [Broadcast](#broadcast)
+	- [Autobahn Test](#autobahn-test)
+	- [Benchmark](#benchmark)
+	- [Acknowledgments](#acknowledgments)
 
 ### Highlight
 
@@ -42,7 +44,7 @@
 - IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
 - High IOPS and low latency, low CPU usage
 - Support fast parsing WebSocket protocol directly from TCP, faster handshake, 30% lower memory usage
-- Fully passes the WebSocket [autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
+- Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Install
 
@@ -136,7 +138,7 @@ func main() {
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
 		if err != nil {
-			log.Printf("Accept: " + err.Error())
+			log.Printf(err.Error())
 			return
 		}
 		socket.ReadLoop()
@@ -148,7 +150,7 @@ func main() {
 }
 ```
 
-#### WebSocket Client
+#### Client
 
 ```go
 package main
