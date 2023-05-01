@@ -9,6 +9,7 @@ import (
 	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
@@ -17,7 +18,7 @@ import (
 
 // NewClient 创建WebSocket客户端
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
-	var d = &dialer{eventHandler: handler, resp: &http.Response{Header: http.Header{}}}
+	var d = &dialer{eventHandler: handler, resp: &http.Response{}}
 	defer func() {
 		if e != nil && d.conn != nil {
 			_ = d.conn.Close()
@@ -111,42 +112,29 @@ func (c *dialer) generateTelegram() []byte {
 	return buf
 }
 
-func (c *dialer) getResponse(br *bufio.Reader, ch chan error) {
-	var index = 0
-	for {
-		index++
-		line, isPrefix, err := br.ReadLine()
-		if err != nil {
-			ch <- err
-			return
-		}
-		if isPrefix {
-			ch <- internal.ErrLongLine
-			return
-		}
-		if index == 1 {
-			arr := bytes.Split(line, []byte(" "))
-			if len(arr) >= 2 {
-				code, _ := strconv.Atoi(string(arr[1]))
-				c.resp.StatusCode = code
-			}
-			if len(arr) != 4 || c.resp.StatusCode != 101 {
-				ch <- internal.ErrStatusCode
-				return
-			}
-		} else {
-			if len(line) == 0 {
-				ch <- nil
-				return
-			}
-			arr := strings.Split(string(line), ": ")
-			if len(arr) != 2 {
-				ch <- internal.ErrHandshake
-				return
-			}
-			c.resp.Header.Set(arr[0], arr[1])
-		}
+func (c *dialer) getResponse(br *bufio.Reader) error {
+	line, isPrefix, err := br.ReadLine()
+	if err != nil {
+		return err
 	}
+	if isPrefix {
+		return internal.ErrLongLine
+	}
+	arr := bytes.Split(line, []byte(" "))
+	if len(arr) >= 2 {
+		code, _ := strconv.Atoi(string(arr[1]))
+		c.resp.StatusCode = code
+		c.resp.Proto = string(arr[0])
+	}
+	if len(arr) != 4 || c.resp.StatusCode != 101 {
+		return internal.ErrStatusCode
+	}
+	header, err := textproto.NewReader(br).ReadMIMEHeader()
+	if err != nil {
+		return err
+	}
+	c.resp.Header = http.Header(header)
+	return nil
 }
 
 func (c *dialer) handshake() (*Conn, *http.Response, error) {
@@ -157,7 +145,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	}
 
 	var ch = make(chan error)
-	go c.getResponse(br, ch)
+	go func() { ch <- c.getResponse(br) }()
 	if err := <-ch; err != nil {
 		return nil, c.resp, err
 	}
