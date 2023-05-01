@@ -36,6 +36,7 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
+	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
 ### Highlight
@@ -222,6 +223,10 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 9898 caster    20   0  721172  39648   7404 S 259.5   1.0  78:44.15 gorilla-linux-a
 9871 caster    20   0  721212  41788   7188 S 161.5   1.0  51:39.43 gws-linux-amd64
 ```
+
+### Communication
+
+<img src="assets/qq.jpg" alt="QQ" width="300"/>
 
 ### Acknowledgments
 
