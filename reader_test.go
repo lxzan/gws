@@ -208,7 +208,6 @@ func TestSegments(t *testing.T) {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))
 			testWrite(client, true, OpcodeContinuation, testCloneBytes(s2))
 		}()
-		go server.Listen()
 		wg.Wait()
 	})
 
@@ -236,7 +235,6 @@ func TestSegments(t *testing.T) {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))
 			testWrite(client, true, OpcodeText, testCloneBytes(s2))
 		}()
-		go server.Listen()
 		wg.Wait()
 	})
 }
