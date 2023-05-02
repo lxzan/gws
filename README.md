@@ -32,7 +32,7 @@
 	- [Best Practice](#best-practice)
 	- [Usage](#usage)
 		- [Upgrade from HTTP](#upgrade-from-http)
-		- [Client](#client)
+		- [Unix Domain Socket](#unix-domain-socket)
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
@@ -151,22 +151,46 @@ func main() {
 }
 ```
 
-#### Client
-
+#### Unix Domain Socket
+- server
 ```go
 package main
 
 import (
 	"github.com/lxzan/gws"
 	"log"
+	"net"
+)
+
+func main() {
+	listener, err := net.Listen("unix", "/run/gws.sock")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	var app = gws.NewServer(new(gws.BuiltinEventHandler), nil)
+	if err := app.RunListener(listener); err != nil {
+		log.Println(err.Error())
+	}
+}
+```
+
+- client
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/lxzan/gws"
+	"log"
 )
 
 func main() {
 	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
-		Addr: "ws://127.0.0.1:6666/connect",
+		Addr: "unix://localhost/run/gws.sock",
 	})
 	if err != nil {
-		log.Printf(err.Error())
+		log.Println(err.Error())
 		return
 	}
 	socket.ReadLoop()

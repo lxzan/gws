@@ -2,15 +2,14 @@ package gws
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"errors"
-	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type Upgrader struct {
@@ -162,54 +161,6 @@ func NewServer(eventHandler Event, option *ServerOption) *Server {
 	return c
 }
 
-func (c *Server) parseRequest(conn net.Conn, br *bufio.Reader) (*http.Request, error) {
-	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		return nil, err
-	}
-
-	index := 0
-	request := &http.Request{Header: http.Header{}}
-	for {
-		index++
-		if index >= 128 {
-			return nil, internal.ErrHandshake
-		}
-		line, isPrefix, err := br.ReadLine()
-		if isPrefix {
-			return nil, internal.ErrLongLine
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if len(line) == 0 {
-			break
-		}
-		if index == 1 {
-			arr := bytes.Split(line, []byte(" "))
-			if len(arr) == 3 {
-				request.Method = string(arr[0])
-				URL, err := url.Parse(string(arr[1]))
-				if err != nil {
-					return nil, err
-				}
-				request.URL = URL
-				request.Proto = string(arr[2])
-			} else {
-				return nil, internal.ErrHandshake
-			}
-			continue
-		}
-
-		arr := strings.Split(string(line), ": ")
-		if len(arr) != 2 {
-			return nil, internal.ErrHandshake
-		}
-		request.Header.Set(arr[0], arr[1])
-	}
-	return request, nil
-}
-
 // Run runs ws server
 // addr: Address of the listener
 func (c *Server) Run(addr string) error {
@@ -217,7 +168,7 @@ func (c *Server) Run(addr string) error {
 	if err != nil {
 		return err
 	}
-	return c.serve(listener)
+	return c.RunListener(listener)
 }
 
 // RunTLS runs wss server
@@ -233,10 +184,10 @@ func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
-	return c.serve(tls.NewListener(listener, config))
+	return c.RunListener(tls.NewListener(listener, config))
 }
 
-func (c *Server) serve(listener net.Listener) error {
+func (c *Server) RunListener(listener net.Listener) error {
 	defer listener.Close()
 
 	for {
@@ -254,7 +205,7 @@ func (c *Server) serve(listener net.Listener) error {
 			}
 
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
-			r, err := c.parseRequest(conn, br)
+			r, err := http.ReadRequest(br)
 			if err != nil {
 				_ = conn.Close()
 				c.OnError(conn, err)
