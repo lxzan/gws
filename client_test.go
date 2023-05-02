@@ -46,11 +46,11 @@ func TestClientHandshake(t *testing.T) {
 	option.initialize()
 	srv, cli := net.Pipe()
 	var d = &dialer{
-		option:       option,
-		conn:         cli,
-		host:         "127.0.0.1:3000",
-		eventHandler: new(BuiltinEventHandler),
-		resp:         &http.Response{Header: http.Header{}},
+		option:          option,
+		conn:            cli,
+		eventHandler:    new(BuiltinEventHandler),
+		resp:            &http.Response{Header: http.Header{}},
+		secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 	}
 
 	go func() {
@@ -80,11 +80,11 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.initialize()
 		srv, cli := net.Pipe()
 		var d = &dialer{
-			option:       option,
-			conn:         cli,
-			host:         "127.0.0.1:3000",
-			eventHandler: new(BuiltinEventHandler),
-			resp:         &http.Response{Header: http.Header{}},
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -108,11 +108,11 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.initialize()
 		srv, cli := net.Pipe()
 		var d = &dialer{
-			option:       option,
-			conn:         cli,
-			host:         "127.0.0.1:3000",
-			eventHandler: new(BuiltinEventHandler),
-			resp:         &http.Response{Header: http.Header{}},
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -135,15 +135,15 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.initialize()
 		srv, cli := net.Pipe()
 		var d = &dialer{
-			option:       option,
-			conn:         cli,
-			host:         "127.0.0.1:3000",
-			eventHandler: new(BuiltinEventHandler),
-			resp:         &http.Response{Header: http.Header{}},
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
-			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: _ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
 			for {
 				var buf = make([]byte, 1024)
 				srv.Read(buf)
@@ -163,11 +163,11 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.initialize()
 		srv, cli := net.Pipe()
 		var d = &dialer{
-			option:       option,
-			conn:         cli,
-			host:         "127.0.0.1:3000",
-			eventHandler: new(BuiltinEventHandler),
-			resp:         &http.Response{Header: http.Header{}},
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -191,11 +191,11 @@ func TestClientHandshakeFail(t *testing.T) {
 		option.initialize()
 		srv, cli := net.Pipe()
 		var d = &dialer{
-			option:       option,
-			conn:         cli,
-			host:         "127.0.0.1:3000",
-			eventHandler: new(BuiltinEventHandler),
-			resp:         &http.Response{Header: http.Header{}},
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -30,7 +31,7 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	var d = &dialer{eventHandler: handler, option: option}
 	defer func() {
-		if e != nil && d.conn != nil {
+		if e != nil && !d.isNil(d.conn) {
 			_ = d.conn.Close()
 		}
 	}()
@@ -71,6 +72,13 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	return d.handshake()
 }
 
+func (c *dialer) isNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	return reflect.ValueOf(v).IsNil()
+}
+
 func (c *dialer) writeRequest() (*http.Request, error) {
 	r, err := http.NewRequest(http.MethodGet, c.option.Addr, nil)
 	if err != nil {
@@ -83,7 +91,7 @@ func (c *dialer) writeRequest() (*http.Request, error) {
 	if c.option.CompressEnabled {
 		r.Header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 	}
-	{
+	if c.secWebsocketKey == "" {
 		var key [16]byte
 		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
 		binary.BigEndian.PutUint64(key[8:16], internal.AlphabetNumeric.Uint64())
