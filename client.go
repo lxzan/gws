@@ -22,7 +22,8 @@ type dialer struct {
 	secWebsocketKey string
 }
 
-// NewClient 创建WebSocket客户端
+// NewClient 创建WebSocket客户端; 支持ws, wss, unix三种协议
+// Create WebSocket client, support ws, wss, unix three protocols
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
 	if option == nil {
 		option = new(ClientOption)
@@ -59,6 +60,8 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 		host = hostname + ":" + port
 		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
 		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
+	case "unix":
+		d.conn, dialError = net.DialTimeout("unix", URL.Path, option.DialTimeout)
 	default:
 		return nil, d.resp, internal.ErrSchema
 	}

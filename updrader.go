@@ -168,7 +168,7 @@ func (c *Server) Run(addr string) error {
 	if err != nil {
 		return err
 	}
-	return c.serve(listener)
+	return c.RunListener(listener)
 }
 
 // RunTLS runs wss server
@@ -184,10 +184,10 @@ func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
-	return c.serve(tls.NewListener(listener, config))
+	return c.RunListener(tls.NewListener(listener, config))
 }
 
-func (c *Server) serve(listener net.Listener) error {
+func (c *Server) RunListener(listener net.Listener) error {
 	defer listener.Close()
 
 	for {

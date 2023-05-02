@@ -29,6 +29,14 @@ func TestNewClient(t *testing.T) {
 
 	{
 		var option = &ClientOption{
+			Addr:        "unix:///",
+			DialTimeout: time.Second,
+		}
+		NewClient(new(BuiltinEventHandler), option)
+	}
+
+	{
+		var option = &ClientOption{
 			Addr:        "tls://127.0.0.1",
 			DialTimeout: time.Millisecond,
 		}
