@@ -20,15 +20,16 @@ type compressors struct {
 }
 
 func (c *compressors) Select(level int) *compressor {
-	var index = atomic.AddUint64(&c.serial, 1) & (numCompressor - 1)
+	var i = level + 2
+	var j = atomic.AddUint64(&c.serial, 1) & (numCompressor - 1)
 	c.RLock()
-	var cps = c.compressors[level][index]
+	var cps = c.compressors[i][j]
 	c.RUnlock()
 
 	if cps == nil {
 		c.Lock()
 		cps = newCompressor(level)
-		c.compressors[level][index] = cps
+		c.compressors[i][j] = cps
 		c.Unlock()
 	}
 	return cps
@@ -87,24 +88,20 @@ func (c *compressor) CompressAny(codec Codec, v interface{}, buf *bytes.Buffer) 
 }
 
 type decompressors struct {
-	sync.RWMutex
 	serial        uint64
 	decompressors [numCompressor]*decompressor
 }
 
+func (c *decompressors) init() *decompressors {
+	for i, _ := range c.decompressors {
+		c.decompressors[i] = newDecompressor()
+	}
+	return c
+}
+
 func (c *decompressors) Select() *decompressor {
 	var index = atomic.AddUint64(&c.serial, 1) & (numCompressor - 1)
-	c.RLock()
-	var dps = c.decompressors[index]
-	c.RUnlock()
-
-	if dps == nil {
-		c.Lock()
-		dps = newDecompressor()
-		c.decompressors[index] = dps
-		c.Unlock()
-	}
-	return dps
+	return c.decompressors[index]
 }
 
 func newDecompressor() *decompressor {
