@@ -114,6 +114,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 
 // WriteAny 以特定编码写入数据
 // 使用此方法时, CheckUtf8Enabled=false且CompressThreshold选项无效
+// Write data in a specific encoding
+// When using this method, CheckUtf8Enabled=false and CompressThreshold option is disabled
 func (c *Conn) WriteAny(codec Codec, opcode Opcode, v interface{}) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
