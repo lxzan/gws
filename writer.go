@@ -84,7 +84,7 @@ func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
 
 	var header = frameHeader{}
 	buf.Write(header[0:])
-	if err := c.compressor.Compress(payload, buf); err != nil {
+	if err := _cps.Select(c.config.CompressLevel).Compress(payload, buf); err != nil {
 		return err
 	}
 
@@ -113,8 +113,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 }
 
 // WriteAny 以特定编码写入数据
-// 使用此方法时, CompressThreshold选项无效
-func (c *Conn) WriteAny(opcode Opcode, v interface{}, codec Codec) error {
+// 使用此方法时, CheckUtf8Enabled=false且CompressThreshold选项无效
+func (c *Conn) WriteAny(codec Codec, opcode Opcode, v interface{}) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
@@ -135,7 +135,7 @@ func (c *Conn) doWriteAny(opcode Opcode, v interface{}, codec Codec, buf *bytes.
 	var compress = c.compressEnabled && opcode.IsDataFrame()
 	var encodeErr error
 	if compress {
-		encodeErr = c.compressor.CompressAny(v, codec, buf)
+		encodeErr = _cps.Select(c.config.CompressLevel).CompressAny(codec, v, buf)
 	} else {
 		encodeErr = codec.NewEncoder(buf).Encode(v)
 	}
