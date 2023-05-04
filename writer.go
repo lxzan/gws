@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
 )
@@ -109,4 +110,49 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		return internal.ErrConnClosed
 	}
 	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+}
+
+// WriteAny 以特定编码写入数据
+// 使用此方法时, CompressThreshold选项无效
+func (c *Conn) WriteAny(opcode Opcode, v interface{}, codec Codec) error {
+	if c.isClosed() {
+		return internal.ErrConnClosed
+	}
+
+	var buf = _bpool.Get(internal.Lv3)
+	c.wmu.Lock()
+	err := c.doWriteAny(opcode, v, codec, buf)
+	c.wmu.Unlock()
+	_bpool.Put(buf)
+
+	c.emitError(err)
+	return err
+}
+
+func (c *Conn) doWriteAny(opcode Opcode, v interface{}, codec Codec, buf *bytes.Buffer) error {
+	var header = frameHeader{}
+	buf.Write(header[0:])
+	var compress = c.compressEnabled && opcode.IsDataFrame()
+	var encodeErr error
+	if compress {
+		encodeErr = c.compressor.CompressAny(v, codec, buf)
+	} else {
+		encodeErr = codec.NewEncoder(buf).Encode(v)
+	}
+	if encodeErr != nil {
+		return encodeErr
+	}
+
+	var contents = buf.Bytes()
+	var payloadSize = buf.Len() - frameHeaderSize
+	if payloadSize > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, payloadSize)
+	if !c.isServer {
+		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
+	}
+	contents = contents[frameHeaderSize-headerLength:]
+	copy(contents[:headerLength], header[:headerLength])
+	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
 }

@@ -37,6 +37,23 @@ func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
 	return nil
 }
 
+func (c *compressor) CompressAny(v interface{}, codec Codec, buf *bytes.Buffer) error {
+	c.fw.Reset(buf)
+	if err := codec.NewEncoder(c.fw).Encode(v); err != nil {
+		return err
+	}
+	if err := c.fw.Flush(); err != nil {
+		return err
+	}
+	if n := buf.Len(); n >= 4 {
+		compressedContent := buf.Bytes()
+		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
+			buf.Truncate(n - 4)
+		}
+	}
+	return nil
+}
+
 func newDecompressor() *decompressor { return &decompressor{fr: flate.NewReader(nil)} }
 
 type decompressor struct {
