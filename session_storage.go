@@ -100,18 +100,18 @@ used to store websocket connections in the IM server
 用来存储IM等服务的连接
 */
 type (
-	ConcurrentMap struct {
+	ConcurrentMap[K comparable, V any] struct {
 		segments uint64
-		buckets  []*bucket
+		buckets  []*bucket[K, V]
 	}
 
-	bucket struct {
+	bucket[K comparable, V any] struct {
 		sync.RWMutex
-		m map[interface{}]interface{}
+		m map[K]V
 	}
 )
 
-func NewConcurrentMap(segments uint64) *ConcurrentMap {
+func NewConcurrentMap[K comparable, V any](segments uint64) *ConcurrentMap[K, V] {
 	if segments == 0 {
 		segments = 16
 	} else {
@@ -121,14 +121,14 @@ func NewConcurrentMap(segments uint64) *ConcurrentMap {
 		}
 		segments = num
 	}
-	var cm = &ConcurrentMap{segments: segments, buckets: make([]*bucket, segments, segments)}
+	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments, segments)}
 	for i, _ := range cm.buckets {
-		cm.buckets[i] = &bucket{m: make(map[interface{}]interface{})}
+		cm.buckets[i] = &bucket[K, V]{m: make(map[K]V)}
 	}
 	return cm
 }
 
-func (c *ConcurrentMap) hash(key interface{}) uint64 {
+func (c *ConcurrentMap[K, V]) hash(key interface{}) uint64 {
 	switch k := key.(type) {
 	case string:
 		return internal.FNV64(k)
@@ -157,13 +157,13 @@ func (c *ConcurrentMap) hash(key interface{}) uint64 {
 	}
 }
 
-func (c *ConcurrentMap) getBucket(key interface{}) *bucket {
+func (c *ConcurrentMap[K, V]) getBucket(key K) *bucket[K, V] {
 	var hashCode = c.hash(key)
 	var index = hashCode & (c.segments - 1)
 	return c.buckets[index]
 }
 
-func (c *ConcurrentMap) Len() int {
+func (c *ConcurrentMap[K, V]) Len() int {
 	var length = 0
 	for _, b := range c.buckets {
 		b.RLock()
@@ -173,7 +173,7 @@ func (c *ConcurrentMap) Len() int {
 	return length
 }
 
-func (c *ConcurrentMap) Load(key interface{}) (value interface{}, exist bool) {
+func (c *ConcurrentMap[K, V]) Load(key K) (value V, exist bool) {
 	var b = c.getBucket(key)
 	b.RLock()
 	value, exist = b.m[key]
@@ -181,14 +181,14 @@ func (c *ConcurrentMap) Load(key interface{}) (value interface{}, exist bool) {
 	return
 }
 
-func (c *ConcurrentMap) Delete(key interface{}) {
+func (c *ConcurrentMap[K, V]) Delete(key K) {
 	var b = c.getBucket(key)
 	b.Lock()
 	delete(b.m, key)
 	b.Unlock()
 }
 
-func (c *ConcurrentMap) Store(key interface{}, value interface{}) {
+func (c *ConcurrentMap[K, V]) Store(key K, value V) {
 	var b = c.getBucket(key)
 	b.Lock()
 	b.m[key] = value
@@ -197,7 +197,7 @@ func (c *ConcurrentMap) Store(key interface{}, value interface{}) {
 
 // Range calls f sequentially for each key and value present in the map.
 // If f returns false, range stops the iteration.
-func (c *ConcurrentMap) Range(f func(key interface{}, value interface{}) bool) {
+func (c *ConcurrentMap[K, V]) Range(f func(key K, value V) bool) {
 	for _, b := range c.buckets {
 		b.RLock()
 		for k, v := range b.m {

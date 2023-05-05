@@ -12,7 +12,7 @@
 
 [4]: LICENSE
 
-[5]: https://img.shields.io/badge/go-%3E%3D1.16-30dff3?style=flat-square&logo=go
+[5]: https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go
 
 [6]: https://github.com/lxzan/gws
 
