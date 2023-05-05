@@ -96,8 +96,8 @@ func TestMap_Range(t *testing.T) {
 
 func TestConcurrentMap(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[interface{}]interface{})
-	var m2 = NewConcurrentMap(5)
+	var m1 = make(map[string]interface{})
+	var m2 = NewConcurrentMap[string, uint32](5)
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -106,7 +106,7 @@ func TestConcurrentMap(t *testing.T) {
 		m2.Store(key, val)
 	}
 
-	var keys = make([]interface{}, 0)
+	var keys = make([]string, 0)
 	for k, _ := range m1 {
 		keys = append(keys, k)
 	}
@@ -126,7 +126,7 @@ func TestConcurrentMap(t *testing.T) {
 func TestConcurrentMap_Range(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[interface{}]interface{})
-	var m2 = NewConcurrentMap(13)
+	var m2 = NewConcurrentMap[string, uint32](13)
 	var count = 1000
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -137,7 +137,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 
 	{
 		var keys []interface{}
-		m2.Range(func(key interface{}, value interface{}) bool {
+		m2.Range(func(key string, value uint32) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)
@@ -149,7 +149,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 
 	{
 		var keys []interface{}
-		m2.Range(func(key interface{}, value interface{}) bool {
+		m2.Range(func(key string, value uint32) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)
@@ -161,7 +161,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	m := NewConcurrentMap(8)
+	m := NewConcurrentMap[string, uint32](8)
 	m.hash("1")
 
 	m.hash(int(1))
@@ -178,6 +178,6 @@ func TestHash(t *testing.T) {
 
 	assert.Equal(t, uint64(0), m.hash(map[string]string{}))
 
-	m = NewConcurrentMap(0)
+	m = NewConcurrentMap[string, uint32](0)
 	assert.Equal(t, uint64(16), m.segments)
 }

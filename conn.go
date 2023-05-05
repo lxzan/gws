@@ -26,14 +26,10 @@ type Conn struct {
 	config *Config
 	// read buffer
 	rbuf *bufio.Reader
-	// flate decompressor
-	decompressor *decompressor
 	// continuation frame
 	continuationFrame continuationFrame
 	// frame header for read
 	fh frameHeader
-	// flate compressor
-	compressor *compressor
 	// WebSocket Event Handler
 	handler Event
 
@@ -62,12 +58,6 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
 		writeQueue:      workerQueue{maxConcurrency: 1, capacity: config.WriteAsyncCap},
 	}
-
-	if c.compressEnabled {
-		c.compressor = newCompressor(config.CompressLevel)
-		c.decompressor = newDecompressor()
-	}
-
 	return c
 }
 

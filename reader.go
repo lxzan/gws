@@ -7,8 +7,6 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-var _bpool = internal.NewBufferPool()
-
 func (c *Conn) checkMask(enabled bool) error {
 	// RFC6455: All frames sent from client to server have this bit set to 1.
 	if (c.isServer && !enabled) || (!c.isServer && enabled) {
@@ -149,7 +147,7 @@ func (c *Conn) readMessage() error {
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if compressed {
-		data, err := c.decompressor.Decompress(msg.Data)
+		data, err := _dps.Select().Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

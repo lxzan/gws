@@ -46,17 +46,17 @@ func main() {
 		_, _ = writer.Write(html)
 	})
 
-	if err := http.ListenAndServe(":3000", nil); err != nil {
+	if err := http.ListenAndServe(":8000", nil); err != nil {
 		log.Fatalf("%+v", err)
 	}
 }
 
 func NewWebSocket() *WebSocket {
-	return &WebSocket{sessions: gws.NewConcurrentMap(16)}
+	return &WebSocket{sessions: gws.NewConcurrentMap[string, *gws.Conn](16)}
 }
 
 type WebSocket struct {
-	sessions *gws.ConcurrentMap // 使用内置的ConcurrentMap存储连接, 可以减少锁冲突
+	sessions *gws.ConcurrentMap[string, *gws.Conn] // 使用内置的ConcurrentMap存储连接, 可以减少锁冲突
 }
 
 func (c *WebSocket) getName(socket *gws.Conn) string {
@@ -69,21 +69,11 @@ func (c *WebSocket) getKey(socket *gws.Conn) string {
 	return name.(string)
 }
 
-// 根据用户名获取WebSocket连接
-func (c *WebSocket) GetSocket(name string) (*gws.Conn, bool) {
-	if v0, ok0 := c.sessions.Load(name); ok0 {
-		if v1, ok1 := v0.(*gws.Conn); ok1 {
-			return v1, true
-		}
-	}
-	return nil, false
-}
-
 // RemoveSocket 移除WebSocket连接
 func (c *WebSocket) RemoveSocket(socket *gws.Conn) {
 	name := c.getName(socket)
 	key := c.getKey(socket)
-	if mSocket, ok := c.GetSocket(name); ok {
+	if mSocket, ok := c.sessions.Load(name); ok {
 		if mKey := c.getKey(mSocket); mKey == key {
 			c.sessions.Delete(name)
 		}
@@ -92,8 +82,7 @@ func (c *WebSocket) RemoveSocket(socket *gws.Conn) {
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	name := c.getName(socket)
-	if v, ok := c.sessions.Load(name); ok {
-		var conn = v.(*gws.Conn)
+	if conn, ok := c.sessions.Load(name); ok {
 		conn.WriteClose(1000, []byte("connection replaced"))
 	}
 	socket.SetDeadline(time.Now().Add(3 * PingInterval))
@@ -134,7 +123,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 	var input = &Input{}
 	_ = json.Unmarshal(message.Data.Bytes(), input)
-	if v, ok := c.sessions.Load(input.To); ok {
-		v.(*gws.Conn).WriteMessage(gws.OpcodeText, message.Data.Bytes())
+	if conn, ok := c.sessions.Load(input.To); ok {
+		conn.WriteMessage(gws.OpcodeText, message.Data.Bytes())
 	}
 }

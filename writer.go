@@ -1,9 +1,28 @@
 package gws
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/lxzan/gws/internal"
+	"io"
 )
+
+type (
+	Codec interface {
+		NewEncoder(io.Writer) Encoder
+	}
+
+	Encoder interface {
+		Encode(v interface{}) error
+	}
+
+	jsonCodec struct{}
+)
+
+func (c jsonCodec) NewEncoder(writer io.Writer) Encoder {
+	return json.NewEncoder(writer)
+}
 
 // WriteClose proactively close the connection
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
@@ -54,7 +73,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
-		return c.writeCompressedContents(opcode, payload)
+		return c.compressAndWrite(opcode, payload)
 	}
 
 	var n = len(payload)
@@ -77,31 +96,6 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	return err
 }
 
-func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
-	var buf = _bpool.Get(len(payload) / 3)
-	defer _bpool.Put(buf)
-
-	var header = frameHeader{}
-	buf.Write(header[0:])
-	if err := c.compressor.Compress(payload, buf); err != nil {
-		return err
-	}
-
-	var contents = buf.Bytes()
-	var payloadSize = buf.Len() - frameHeaderSize
-	if payloadSize > c.config.WriteMaxPayloadSize {
-		return internal.CloseMessageTooLarge
-	}
-
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
-	if !c.isServer {
-		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
-	}
-	contents = contents[frameHeaderSize-headerLength:]
-	copy(contents[:headerLength], header[:headerLength])
-	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
-}
-
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blockingly
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
@@ -109,4 +103,64 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		return internal.ErrConnClosed
 	}
 	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+}
+
+// WriteAny 以特定编码写入数据
+// 使用此方法时, CheckUtf8Enabled=false且CompressThreshold选项无效
+// Write data in a specific encoding
+// When using this method, CheckUtf8Enabled=false and CompressThreshold option is disabled
+func (c *Conn) WriteAny(codec Codec, opcode Opcode, v interface{}) error {
+	if c.isClosed() {
+		return internal.ErrConnClosed
+	}
+
+	var buf = _bpool.Get(internal.Lv3)
+	c.wmu.Lock()
+	err := c.doWriteAny(opcode, v, codec, buf)
+	c.wmu.Unlock()
+	_bpool.Put(buf)
+
+	c.emitError(err)
+	return err
+}
+
+func (c *Conn) doWriteAny(opcode Opcode, v interface{}, codec Codec, buf *bytes.Buffer) error {
+	buf.Write(_padding[0:])
+	var compress = c.compressEnabled && opcode.IsDataFrame()
+	var err error
+	if compress {
+		err = _cps.Select(c.config.CompressLevel).CompressAny(codec, v, buf)
+	} else {
+		err = codec.NewEncoder(buf).Encode(v)
+	}
+	if err != nil {
+		return err
+	}
+	return c.leftTrimAndWrite(opcode, buf, compress)
+}
+
+func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
+	var buf = _bpool.Get(len(payload) / 2)
+	defer _bpool.Put(buf)
+	buf.Write(_padding[0:])
+	if err := _cps.Select(c.config.CompressLevel).Compress(payload, buf); err != nil {
+		return err
+	}
+	return c.leftTrimAndWrite(opcode, buf, true)
+}
+
+func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *bytes.Buffer, compress bool) error {
+	var contents = buf.Bytes()
+	var payloadSize = buf.Len() - frameHeaderSize
+	if payloadSize > c.config.WriteMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+	var header = frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, payloadSize)
+	if !c.isServer {
+		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
+	}
+	contents = contents[frameHeaderSize-headerLength:]
+	copy(contents[:headerLength], header[:headerLength])
+	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
 }
