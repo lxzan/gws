@@ -6,13 +6,14 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var _port = int64(9999)

@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
-	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type dialer struct {

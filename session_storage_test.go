@@ -1,9 +1,10 @@
 package gws
 
 import (
+	"testing"
+
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMap(t *testing.T) {

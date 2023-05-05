@@ -3,9 +3,10 @@ package internal
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestError(t *testing.T) {

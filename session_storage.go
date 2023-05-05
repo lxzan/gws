@@ -1,8 +1,9 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
 	"sync"
+
+	"github.com/lxzan/gws/internal"
 )
 
 // SessionStorage because sync.Map is not easy to debug, so I implemented my own map.

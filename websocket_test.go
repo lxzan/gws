@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/binary"
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 type webSocketMocker struct {

@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
-	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type Conn struct {

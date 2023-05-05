@@ -3,9 +3,10 @@ package gws
 import (
 	"bytes"
 	"compress/flate"
+	"testing"
+
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestFlate(t *testing.T) {

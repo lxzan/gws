@@ -5,10 +5,11 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 // 测试同步读

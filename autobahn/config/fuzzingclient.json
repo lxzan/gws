@@ -1,0 +1,24 @@
+{
+	"outdir": "./reports/server",
+	"servers": [
+		{
+			"agent": "non-tls",
+			"url": "ws://localhost:3000/connect",
+			"options": {
+				"version": 18
+			}
+		},
+		{
+			"agent": "tls",
+			"url": "wss://localhost:3001/connect",
+			"options": {
+				"version": 18
+			}
+		}
+	],
+	"cases": [
+		"*"
+	],
+	"exclude-cases": ["1[1-4].*"],
+	"exclude-agent-cases": {}
+}
