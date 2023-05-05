@@ -73,7 +73,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
-		return c.writeCompressedContents(opcode, payload)
+		return c.compressAndWrite(opcode, payload)
 	}
 
 	var n = len(payload)
@@ -94,31 +94,6 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	var err = internal.WriteN(c.conn, contents, totalSize)
 	_bpool.Put(buf)
 	return err
-}
-
-func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
-	var buf = _bpool.Get(len(payload) / 2)
-	defer _bpool.Put(buf)
-
-	var header = frameHeader{}
-	buf.Write(header[0:])
-	if err := _cps.Select(c.config.CompressLevel).Compress(payload, buf); err != nil {
-		return err
-	}
-
-	var contents = buf.Bytes()
-	var payloadSize = buf.Len() - frameHeaderSize
-	if payloadSize > c.config.WriteMaxPayloadSize {
-		return internal.CloseMessageTooLarge
-	}
-
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
-	if !c.isServer {
-		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
-	}
-	contents = contents[frameHeaderSize-headerLength:]
-	copy(contents[:headerLength], header[:headerLength])
-	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
 }
 
 // WriteAsync 异步非阻塞地写入消息
@@ -150,24 +125,37 @@ func (c *Conn) WriteAny(codec Codec, opcode Opcode, v interface{}) error {
 }
 
 func (c *Conn) doWriteAny(opcode Opcode, v interface{}, codec Codec, buf *bytes.Buffer) error {
-	var header = frameHeader{}
-	buf.Write(header[0:])
+	buf.Write(_padding[0:])
 	var compress = c.compressEnabled && opcode.IsDataFrame()
-	var encodeErr error
+	var err error
 	if compress {
-		encodeErr = _cps.Select(c.config.CompressLevel).CompressAny(codec, v, buf)
+		err = _cps.Select(c.config.CompressLevel).CompressAny(codec, v, buf)
 	} else {
-		encodeErr = codec.NewEncoder(buf).Encode(v)
+		err = codec.NewEncoder(buf).Encode(v)
 	}
-	if encodeErr != nil {
-		return encodeErr
+	if err != nil {
+		return err
 	}
+	return c.leftTrimAndWrite(opcode, buf, compress)
+}
 
+func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
+	var buf = _bpool.Get(len(payload) / 2)
+	defer _bpool.Put(buf)
+	buf.Write(_padding[0:])
+	if err := _cps.Select(c.config.CompressLevel).Compress(payload, buf); err != nil {
+		return err
+	}
+	return c.leftTrimAndWrite(opcode, buf, true)
+}
+
+func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *bytes.Buffer, compress bool) error {
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {
 		return internal.CloseMessageTooLarge
 	}
+	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, payloadSize)
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
