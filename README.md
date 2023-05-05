@@ -34,6 +34,7 @@
 		- [Upgrade from HTTP](#upgrade-from-http)
 		- [Unix Domain Socket](#unix-domain-socket)
 		- [Broadcast](#broadcast)
+		- [Write JSON](#write-json)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
 	- [Communication](#communication)
@@ -41,7 +42,7 @@
 
 ### Highlight
 
-- No dependency
+- Single dependency
 - IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
 - High IOPS and low latency, low CPU usage
 - Support fast parsing WebSocket protocol directly from TCP, faster handshake, 30% lower memory usage
@@ -205,6 +206,11 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 		_ = item.WriteAsync(opcode, payload)
 	}
 }
+```
+
+#### Write JSON
+```go
+socket.WriteAny(gws.JsonCodec, gws.OpcodeText, data)
 ```
 
 ### Autobahn Test

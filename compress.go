@@ -2,8 +2,8 @@ package gws
 
 import (
 	"bytes"
-	"compress/flate"
 	"encoding/binary"
+	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
 	"io"
 	"math"
