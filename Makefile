@@ -3,7 +3,7 @@ PACKAGES=           $(shell $(GO) list ./... | grep -v 'examples')
 PACKAGE_DIRS=       $(shell $(GO) list -f '{{ .Dir }}' ./... | grep -v 'examples')
 .PHONY: all vet lint
 
-all: vet lint test bench cover autobahn
+all: vet autobahn
 
 vet:
 	$(GO) vet $(PACKAGES)
@@ -18,7 +18,7 @@ bench:
 	go test -benchmem  -bench ^Benchmark github.com/lxzan/gws
 
 cover:
-	go test -coverprofile=./bin/cover.out --cover ./...
+	go test -coverprofile=./cover.out --cover ./...
 
 autobahn: clean
 	mkdir -p ./autobahn/bin
