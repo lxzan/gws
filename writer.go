@@ -2,9 +2,27 @@ package gws
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/lxzan/gws/internal"
+	"io"
 )
+
+type (
+	Codec interface {
+		NewEncoder(io.Writer) Encoder
+	}
+
+	Encoder interface {
+		Encode(v interface{}) error
+	}
+
+	jsonCodec struct{}
+)
+
+func (c jsonCodec) NewEncoder(writer io.Writer) Encoder {
+	return json.NewEncoder(writer)
+}
 
 // WriteClose proactively close the connection
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
@@ -79,7 +97,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 }
 
 func (c *Conn) writeCompressedContents(opcode Opcode, payload []byte) error {
-	var buf = _bpool.Get(len(payload) / 3)
+	var buf = _bpool.Get(len(payload) / 2)
 	defer _bpool.Put(buf)
 
 	var header = frameHeader{}
