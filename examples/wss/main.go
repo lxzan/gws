@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/lxzan/gws"
 	"log"
 	"path/filepath"
+
+	"github.com/lxzan/gws"
 )
 
 var dir string
