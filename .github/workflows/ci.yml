@@ -35,5 +35,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: autobahn report ${{ matrix.go }} ${{ matrix.os }}
-        path: autobahn/report
+        path: autobahn/reports
         retention-days: 7
