@@ -24,6 +24,7 @@ autobahn: clean
 	mkdir -p ./autobahn/bin
 	$(GO) build -o ./autobahn/bin/autobahn_server ./autobahn/server
 	$(GO) build -o ./autobahn/bin/autobahn_reporter ./autobahn/reporter
+	chmod a+x ./autobahn/script/run_autobahn.sh
 	./autobahn/script/run_autobahn.sh
 
 clean:
