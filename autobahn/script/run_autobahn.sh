@@ -8,7 +8,7 @@ rm -rf ${PWD}/autobahn/reports
 mkdir -p ${PWD}/autobahn/reports/server
 mkdir -p ${PWD}/autobahn/reports/client
 
-docker run -it --rm \
+docker run --rm \
     -v ${PWD}/autobahn/config:/config \
     -v ${PWD}/autobahn/reports:/reports \
     --network host \
