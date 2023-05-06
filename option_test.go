@@ -2,8 +2,9 @@ package gws
 
 import (
 	"compress/flate"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func validateServerOption(as *assert.Assertions, u *Upgrader) {

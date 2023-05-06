@@ -3,8 +3,9 @@ package gws
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/lxzan/gws/internal"
 	"io"
+
+	"github.com/lxzan/gws/internal"
 )
 
 const frameHeaderSize = 14

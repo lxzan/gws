@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/lxzan/gws"
 	"log"
 	"time"
+
+	"github.com/lxzan/gws"
 )
 
 const remoteAddr = "localhost:9001"

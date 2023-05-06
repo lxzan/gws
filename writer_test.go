@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/json"
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"math"
 	"net"
 	"sync"
 	"testing"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {

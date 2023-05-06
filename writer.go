@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/lxzan/gws/internal"
 	"io"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type (
