@@ -3,16 +3,20 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var _port = int64(9999)
@@ -231,7 +235,10 @@ func TestNewServer(t *testing.T) {
 	t.Run("tls", func(t *testing.T) {
 		var addr = ":" + nextPort()
 		var server = NewServer(new(BuiltinEventHandler), nil)
-		go server.RunTLS(addr, "", "")
+		var dir = os.Getenv("PWD")
+		go server.RunTLS(addr, dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem")
+		ctx, _ := context.WithTimeout(context.Background(), time.Second)
+		<-ctx.Done()
 	})
 
 	t.Run("fail 1", func(t *testing.T) {

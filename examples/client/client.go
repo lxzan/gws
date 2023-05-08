@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/lxzan/gws"
 	"log"
 	"strings"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {

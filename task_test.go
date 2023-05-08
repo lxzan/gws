@@ -3,12 +3,13 @@ package gws
 import (
 	"bufio"
 	"fmt"
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {

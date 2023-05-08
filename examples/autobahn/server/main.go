@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/lxzan/gws"
 	"net/http"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {

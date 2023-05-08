@@ -26,6 +26,7 @@
 
 - [gws](#gws)
 	- [Highlight](#highlight)
+	- [Attention](#attention)
 	- [Install](#install)
 	- [Event](#event)
 	- [Quick Start](#quick-start)
@@ -35,6 +36,7 @@
 		- [Unix Domain Socket](#unix-domain-socket)
 		- [Broadcast](#broadcast)
 		- [Write JSON](#write-json)
+		- [Customize Codec](#customize-codec)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
 	- [Communication](#communication)
@@ -47,6 +49,11 @@
 - High IOPS and low latency, low CPU usage
 - Support fast parsing WebSocket protocol directly from TCP, faster handshake, 30% lower memory usage
 - Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+
+### Attention
+
+- The errors returned by the gws.Conn export methods are ignored, and are handled internally
+- Transferring large files with gws tends to block the connection
 
 ### Install
 
@@ -80,6 +87,7 @@ func main() {
 ```
 
 ### Best Practice
+
 ```go
 package main
 
@@ -92,7 +100,7 @@ const PingInterval = 10 * time.Second
 
 func main() {
 	options := &gws.ServerOption{ReadAsyncEnabled: true, ReadAsyncGoLimit: 4}
-	gws.NewServer(new(Handler), options).Run(":6666") 
+	gws.NewServer(new(Handler), options).Run(":6666")
 }
 
 type Handler struct{}
@@ -114,7 +122,6 @@ func (c *Handler) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {}
 ```
-
 
 ### Usage
 
@@ -153,7 +160,9 @@ func main() {
 ```
 
 #### Unix Domain Socket
+
 - server
+
 ```go
 package main
 
@@ -177,6 +186,7 @@ func main() {
 ```
 
 - client
+
 ```go
 package main
 
@@ -209,8 +219,23 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 ```
 
 #### Write JSON
+
 ```go
 socket.WriteAny(gws.JsonCodec, gws.OpcodeText, data)
+```
+
+#### Customize Codec
+
+```go
+import json "github.com/json-iterator/go"
+
+var JsonCodec = new(jsonCodec)
+
+type jsonCodec struct{}
+
+func (c jsonCodec) NewEncoder(writer io.Writer) Encoder {
+	return json.NewEncoder(writer)
+}
 ```
 
 ### Autobahn Test

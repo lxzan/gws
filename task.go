@@ -1,8 +1,9 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
 	"sync"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type (

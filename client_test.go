@@ -1,12 +1,13 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewClient(t *testing.T) {
