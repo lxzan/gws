@@ -23,6 +23,7 @@ linters:
     - goimports
     - gocognit
     - ifshort
+    - gochecknoinits
   # Enable presets.
   # https://golangci-lint.run/usage/linters
   # Run only fast linters from enabled linters set (first run won't be fast)
