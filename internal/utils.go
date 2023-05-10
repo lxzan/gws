@@ -184,7 +184,7 @@ func Split(s string, sep string) []string {
 }
 
 func HttpHeaderEqual(a, b string) bool {
-	return strings.EqualFold(a, b)
+	return strings.ToLower(a) == strings.ToLower(b)
 }
 
 func SelectInt(ok bool, a, b int) int {
