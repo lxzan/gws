@@ -19,7 +19,7 @@ type Handler struct {
 }
 
 func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
-	socket.WritePong(payload)
+	_ = socket.WritePong(payload)
 }
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
