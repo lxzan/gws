@@ -35,7 +35,7 @@ type Websocket struct {
 }
 
 func (c *Websocket) OnPing(socket *gws.Conn, payload []byte) {
-	socket.WritePong(payload)
+	_ = socket.WritePong(payload)
 }
 
 func (c *Websocket) OnMessage(socket *gws.Conn, message *gws.Message) {
