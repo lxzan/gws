@@ -97,9 +97,9 @@ type (
 		// attention: client may not support custom response header, use nil instead
 		ResponseHeader http.Header
 
-		// 检查请求来源
-		// Check the origin of the request
-		CheckOrigin func(r *http.Request, session SessionStorage) bool
+		// 鉴权
+		// Authentication of requests for connection establishment
+		Authorize func(r *http.Request, session SessionStorage) bool
 	}
 )
 
@@ -132,8 +132,8 @@ func (c *ServerOption) initialize() *ServerOption {
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
-	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *http.Request, session SessionStorage) bool {
+	if c.Authorize == nil {
+		c.Authorize = func(r *http.Request, session SessionStorage) bool {
 			return true
 		}
 	}

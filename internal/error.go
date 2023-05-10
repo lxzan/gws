@@ -1,18 +1,15 @@
 package internal
 
 var (
-	ErrCheckOrigin             = GwsError("check origin error")
+	ErrUnauthorized            = GwsError("unauthorized")
 	ErrHandshake               = GwsError("connecting handshake error")
 	ErrTextEncoding            = GwsError("text frame payload must be utf8 encoding")
 	ErrUnexpectedContentLength = GwsError("unexpected content length")
 	ErrConnClosed              = GwsError("connection closed")
 	ErrGetMethodRequired       = GwsError("http method must be get")
 	ErrAsyncIOCapFull          = GwsError("async io capacity is full")
-
-	ErrSchema      = GwsError("protocol not supported")
-	ErrStatusCode  = GwsError("status code error")
-	ErrDialTimeout = GwsError("dial timeout")
-	ErrLongLine    = GwsError("line is too long")
+	ErrSchema                  = GwsError("protocol not supported")
+	ErrStatusCode              = GwsError("status code error")
 )
 
 type GwsError string

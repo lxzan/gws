@@ -101,8 +101,8 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
 	var session = new(sliceMap)
 	var header = c.option.ResponseHeader.Clone()
-	if !c.option.CheckOrigin(r, session) {
-		return nil, internal.ErrCheckOrigin
+	if !c.option.Authorize(r, session) {
+		return nil, internal.ErrUnauthorized
 	}
 
 	var compressEnabled = false

@@ -100,18 +100,22 @@ used to store websocket connections in the IM server
 用来存储IM等服务的连接
 */
 type (
-	ConcurrentMap[K comparable, V any] struct {
+	Comparable interface {
+		string | int | int64 | int32 | uint | uint64 | uint32
+	}
+
+	ConcurrentMap[K Comparable, V any] struct {
 		segments uint64
 		buckets  []*bucket[K, V]
 	}
 
-	bucket[K comparable, V any] struct {
-		sync.RWMutex
+	bucket[K Comparable, V any] struct {
+		sync.Mutex
 		m map[K]V
 	}
 )
 
-func NewConcurrentMap[K comparable, V any](segments uint64) *ConcurrentMap[K, V] {
+func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V] {
 	if segments == 0 {
 		segments = 16
 	} else {
@@ -138,19 +142,11 @@ func (c *ConcurrentMap[K, V]) hash(key interface{}) uint64 {
 		return uint64(k)
 	case int32:
 		return uint64(k)
-	case int16:
-		return uint64(k)
-	case int8:
-		return uint64(k)
 	case uint:
 		return uint64(k)
 	case uint64:
 		return k
 	case uint32:
-		return uint64(k)
-	case uint16:
-		return uint64(k)
-	case uint8:
 		return uint64(k)
 	default:
 		return 0
@@ -166,18 +162,18 @@ func (c *ConcurrentMap[K, V]) getBucket(key K) *bucket[K, V] {
 func (c *ConcurrentMap[K, V]) Len() int {
 	var length = 0
 	for _, b := range c.buckets {
-		b.RLock()
+		b.Lock()
 		length += len(b.m)
-		b.RUnlock()
+		b.Unlock()
 	}
 	return length
 }
 
 func (c *ConcurrentMap[K, V]) Load(key K) (value V, exist bool) {
 	var b = c.getBucket(key)
-	b.RLock()
+	b.Lock()
 	value, exist = b.m[key]
-	b.RUnlock()
+	b.Unlock()
 	return
 }
 
@@ -199,13 +195,13 @@ func (c *ConcurrentMap[K, V]) Store(key K, value V) {
 // If f returns false, range stops the iteration.
 func (c *ConcurrentMap[K, V]) Range(f func(key K, value V) bool) {
 	for _, b := range c.buckets {
-		b.RLock()
+		b.Lock()
 		for k, v := range b.m {
 			if !f(k, v) {
-				b.RUnlock()
+				b.Unlock()
 				return
 			}
 		}
-		b.RUnlock()
+		b.Unlock()
 	}
 }
