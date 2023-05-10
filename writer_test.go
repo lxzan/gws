@@ -76,6 +76,13 @@ func TestWriteClose(t *testing.T) {
 	go client.Listen()
 	server.WriteClose(1000, []byte("goodbye"))
 	wg.Wait()
+
+	t.Run("", func(t *testing.T) {
+		var socket = &Conn{closed: 1}
+		as.Error(socket.WriteMessage(OpcodeText, nil))
+		as.Error(socket.WriteAsync(OpcodeText, nil))
+		as.Error(socket.WriteAny(JsonCodec, OpcodeText, nil))
+	})
 }
 
 func TestConn_WriteAsyncError(t *testing.T) {

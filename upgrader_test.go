@@ -289,6 +289,22 @@ func TestNewServer(t *testing.T) {
 		as.NoError(err)
 		wg.Wait()
 	})
+
+	t.Run("fail 3", func(t *testing.T) {
+		var server = NewServer(new(BuiltinEventHandler), nil)
+		var addr = ":" + nextPort()
+		go server.Run(addr)
+		time.Sleep(100 * time.Millisecond)
+		as.Error(NewServer(new(BuiltinEventHandler), nil).Run(addr))
+		as.Error(NewServer(new(BuiltinEventHandler), nil).RunTLS(addr, "", ""))
+		{
+			server := NewServer(new(BuiltinEventHandler), nil)
+			var dir = os.Getenv("PWD")
+			go server.RunTLS(":"+nextPort(), dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem")
+			time.Sleep(100 * time.Millisecond)
+			as.Error(server.RunTLS(addr, dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem"))
+		}
+	})
 }
 
 func TestBuiltinEventEngine(t *testing.T) {
