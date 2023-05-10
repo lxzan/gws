@@ -76,17 +76,16 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 // NewClientFromConn
 func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, e error) {
-	d := &dialer{
-		option:       option,
-		conn:         conn,
-		eventHandler: handler,
+	if option == nil {
+		option = new(ClientOption)
 	}
+	option.initialize()
+	d := &dialer{option: option, conn: conn, eventHandler: handler}
 	defer func() {
 		if e != nil && !internal.IsNil(d.conn) {
 			_ = d.conn.Close()
 		}
 	}()
-
 	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
 		return nil, d.resp, err
 	}

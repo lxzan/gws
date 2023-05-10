@@ -34,12 +34,12 @@ func main() {
 	})
 
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Accept(writer, request)
+		socket, err := upgrader.Upgrade(writer, request)
 		if err != nil {
 			log.Printf("Accept: " + err.Error())
 			return
 		}
-		socket.Listen()
+		socket.ReadLoop()
 	})
 
 	http.HandleFunc("/index.html", func(writer http.ResponseWriter, request *http.Request) {
