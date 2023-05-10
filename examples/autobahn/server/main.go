@@ -37,7 +37,7 @@ func (c *WebSocket) OnError(socket *gws.Conn, err error) {
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	fmt.Println("onopen")
+	fmt.Println("connected")
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
