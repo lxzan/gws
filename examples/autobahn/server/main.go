@@ -37,19 +37,19 @@ func (c *WebSocket) OnError(socket *gws.Conn, err error) {
 }
 
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	println("connected")
+	fmt.Println("connected")
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 	fmt.Printf("onping: payload=%s\n", string(payload))
-	socket.WritePong(payload)
+	_ = socket.WritePong(payload)
 }
 
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	socket.WriteMessage(message.Opcode, message.Bytes())
+	_ = socket.WriteMessage(message.Opcode, message.Bytes())
 }
 
 func cloneBytes(b []byte) []byte {
