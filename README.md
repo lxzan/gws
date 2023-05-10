@@ -198,7 +198,7 @@ import (
 
 func main() {
 	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
-		Addr: "unix://localhost/run/gws.sock",
+		Addr: "unix://run/gws.sock",
 	})
 	if err != nil {
 		log.Println(err.Error())
