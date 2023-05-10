@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"hash/fnv"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -187,4 +188,16 @@ func TestHttpHeaderEqual(t *testing.T) {
 func TestSelectInt(t *testing.T) {
 	assert.Equal(t, 1, SelectInt(true, 1, 2))
 	assert.Equal(t, 2, SelectInt(false, 1, 2))
+}
+
+func TestIsNil(t *testing.T) {
+	{
+		var v io.Reader
+		assert.True(t, IsNil(v))
+	}
+	{
+		var v *http.Request
+		var v1 interface{} = v
+		assert.True(t, IsNil(v1))
+	}
 }

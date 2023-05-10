@@ -193,3 +193,10 @@ func SelectInt(ok bool, a, b int) int {
 	}
 	return b
 }
+
+func IsNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	return reflect.ValueOf(v).IsNil()
+}

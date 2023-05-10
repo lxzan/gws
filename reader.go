@@ -30,9 +30,8 @@ func (c *Conn) readControl() error {
 	}
 
 	// 不回收小块buffer, 控制帧一般payload长度为0
-	var buf = bytes.NewBuffer(nil)
+	var buf = bytes.NewBuffer(make([]byte, n))
 	if n > 0 {
-		buf = bytes.NewBuffer(make([]byte, n))
 		if err := internal.ReadN(c.rbuf, buf.Bytes(), int(n)); err != nil {
 			return err
 		}

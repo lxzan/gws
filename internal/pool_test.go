@@ -48,4 +48,6 @@ func TestBufferPool(t *testing.T) {
 	pool.Put(nil)
 	pool.Put(NewBufferWithCap(0))
 	pool.Get(17 * 1024)
+	pool.Put(bytes.NewBuffer(make([]byte, 32*1024)))
+	as.GreaterOrEqual(pool.Get(128*1024).Cap(), 128*1024)
 }

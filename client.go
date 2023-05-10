@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -33,7 +32,7 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	var d = &dialer{eventHandler: handler, option: option}
 	defer func() {
-		if e != nil && !d.isNil(d.conn) {
+		if e != nil && !internal.IsNil(d.conn) {
 			_ = d.conn.Close()
 		}
 	}()
@@ -75,11 +74,23 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	return d.handshake()
 }
 
-func (c *dialer) isNil(v interface{}) bool {
-	if v == nil {
-		return true
+// NewClientFromConn
+func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, e error) {
+	d := &dialer{
+		option:       option,
+		conn:         conn,
+		eventHandler: handler,
 	}
-	return reflect.ValueOf(v).IsNil()
+	defer func() {
+		if e != nil && !internal.IsNil(d.conn) {
+			_ = d.conn.Close()
+		}
+	}()
+
+	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
+		return nil, d.resp, err
+	}
+	return d.handshake()
 }
 
 func (c *dialer) writeRequest() (*http.Request, error) {
