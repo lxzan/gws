@@ -46,19 +46,18 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	var dialError error
 	var hostname = URL.Hostname()
 	var port = URL.Port()
-	var host = ""
 	switch URL.Scheme {
 	case "ws":
 		if port == "" {
 			port = "80"
 		}
-		host = hostname + ":" + port
+		host := hostname + ":" + port
 		d.conn, dialError = net.DialTimeout("tcp", host, option.DialTimeout)
 	case "wss":
 		if port == "" {
 			port = "443"
 		}
-		host = hostname + ":" + port
+		host := hostname + ":" + port
 		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
 		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
 	case "unix":
@@ -133,7 +132,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 }
 
 func (c *dialer) checkHeaders() error {
-	if c.resp.StatusCode != 101 {
+	if c.resp.StatusCode != http.StatusSwitchingProtocols {
 		return internal.ErrStatusCode
 	}
 	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {

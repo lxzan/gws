@@ -70,8 +70,7 @@ func TestClientHandshake(t *testing.T) {
 			srv.Write([]byte(text))
 		}
 	}()
-	_, _, err := d.handshake()
-	if err != nil {
+	if _, _, err := d.handshake(); err != nil {
 		as.NoError(err)
 		return
 	}

@@ -161,9 +161,9 @@ func MaskXOR(b []byte, key []byte) {
 	}
 }
 
-func InCollection(ele string, eles []string) bool {
-	for _, item := range eles {
-		if item == ele {
+func InCollection(elem string, elems []string) bool {
+	for _, item := range elems {
+		if item == elem {
 			return true
 		}
 	}
@@ -184,7 +184,7 @@ func Split(s string, sep string) []string {
 }
 
 func HttpHeaderEqual(a, b string) bool {
-	return strings.ToLower(a) == strings.ToLower(b)
+	return strings.EqualFold(a, b)
 }
 
 func SelectInt(ok bool, a, b int) int {
