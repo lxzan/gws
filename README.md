@@ -167,13 +167,14 @@ func main() {
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"log"
 	"net"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
-	listener, err := net.Listen("unix", "/run/gws.sock")
+	listener, err := net.Listen("unix", "/tmp/gws.sock")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -191,19 +192,26 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"github.com/lxzan/gws"
 	"log"
+	"net"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
-	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
-		Addr: "unix://localhost/run/gws.sock",
-	})
+	conn, err := net.Dial("unix", "/tmp/gws.sock")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
+
+	option := gws.ClientOption{}
+	socket, httpResp, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	_ = httpResp
 	socket.ReadLoop()
 }
 ```
