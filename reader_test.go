@@ -34,8 +34,8 @@ func TestReadSync(t *testing.T) {
 	}
 
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 
 	for i := 0; i < count; i++ {
 		var n = internal.AlphabetNumeric.Intn(1024)
@@ -143,8 +143,8 @@ func TestRead(t *testing.T) {
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-		go client.Listen()
-		go server.Listen()
+		go client.ReadLoop()
+		go server.ReadLoop()
 
 		if item.Fin {
 			server.WriteAsync(Opcode(item.Opcode), testCloneBytes(payload))
@@ -175,8 +175,8 @@ func TestSegments(t *testing.T) {
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 
 		go func() {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))
@@ -202,8 +202,8 @@ func TestSegments(t *testing.T) {
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 
 		go func() {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))
@@ -229,8 +229,8 @@ func TestSegments(t *testing.T) {
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 
 		go func() {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))

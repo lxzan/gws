@@ -60,12 +60,6 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 	return err
 }
 
-// Accept http upgrade to websocket protocol
-// Deprecated: Accept will be deprecated in future versions, please use Upgrade instead.
-func (c *Upgrader) Accept(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	return c.Upgrade(w, r)
-}
-
 // Upgrade http upgrade to websocket protocol
 func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	netConn, br, err := c.hijack(w)

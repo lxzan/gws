@@ -56,8 +56,8 @@ func TestConn_WriteAsync(t *testing.T) {
 			wg.Done()
 		}
 
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 		for i := 0; i < count; i++ {
 			var n = internal.AlphabetNumeric.Intn(125)
 			var message = internal.AlphabetNumeric.Generate(n)
@@ -87,8 +87,8 @@ func TestConn_WriteAsync(t *testing.T) {
 			wg.Done()
 		}
 
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 		go func() {
 			for i := 0; i < count; i++ {
 				var n = internal.AlphabetNumeric.Intn(1024)
@@ -147,8 +147,8 @@ func TestConn_WriteAsync(t *testing.T) {
 			wg.Done()
 		}
 
-		go server.Listen()
-		go client.Listen()
+		go server.ReadLoop()
+		go client.ReadLoop()
 		client.WritePing(nil)
 		client.WriteString("hello")
 
@@ -184,8 +184,8 @@ func TestReadAsync(t *testing.T) {
 		wg.Done()
 	}
 
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 	for i := 0; i < count; i++ {
 		var n = internal.AlphabetNumeric.Intn(1024)
 		var message = internal.AlphabetNumeric.Generate(n)
@@ -233,15 +233,15 @@ func TestWriteAsyncBlocking(t *testing.T) {
 		svrConn, cliConn := net.Pipe() // no reading from another side
 		var sbrw = bufio.NewReader(svrConn)
 		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), &sliceMap{}, svrConn, sbrw, handler, false)
-		go svrSocket.Listen()
+		go svrSocket.ReadLoop()
 		var cbrw = bufio.NewReader(cliConn)
 		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), &sliceMap{}, cliConn, cbrw, handler, false)
 		if i == 0 { // client 0 1s后再开始读取；1s内不读取消息，则svrSocket 0在发送chan取出一个msg进行writePublic时即开始阻塞
 			time.AfterFunc(time.Second, func() {
-				cliSocket.Listen()
+				cliSocket.ReadLoop()
 			})
 		} else {
-			go cliSocket.Listen()
+			go cliSocket.ReadLoop()
 		}
 		allConns[svrSocket] = struct{}{}
 	}

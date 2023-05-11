@@ -49,8 +49,8 @@ func TestWriteBigMessage(t *testing.T) {
 	var serverOption = &ServerOption{WriteMaxPayloadSize: 16}
 	var clientOption = &ClientOption{}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 	var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
 	assert.Error(t, err)
 }
@@ -69,8 +69,8 @@ func TestWriteClose(t *testing.T) {
 		wg.Done()
 	}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 	server.WriteClose(1000, []byte("goodbye"))
 	wg.Wait()
 
@@ -115,8 +115,8 @@ func TestConn_WriteInvalidUTF8(t *testing.T) {
 	var serverOption = &ServerOption{CheckUtf8Enabled: true}
 	var clientOption = &ClientOption{}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 	var payload = []byte{1, 2, 255}
 	as.Error(server.WriteMessage(OpcodeText, payload))
 }
@@ -135,8 +135,8 @@ func TestConn_WriteClose(t *testing.T) {
 	clientHandler.onMessage = func(socket *Conn, message *Message) {
 		wg.Done()
 	}
-	go server.Listen()
-	go client.Listen()
+	go server.ReadLoop()
+	go client.ReadLoop()
 
 	server.WriteMessage(OpcodeText, nil)
 	server.WriteMessage(OpcodeText, []byte("hello"))

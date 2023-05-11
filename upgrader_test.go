@@ -117,7 +117,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
 		request.Header.Set("Sec-WebSocket-Protocol", "chat")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.NoError(t, err)
 	})
 
@@ -131,7 +131,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Version", "14")
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "client_max_window_bits")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 
@@ -140,7 +140,7 @@ func TestAccept(t *testing.T) {
 			Header: http.Header{},
 			Method: http.MethodPost,
 		}
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 
@@ -152,7 +152,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Connection", "up")
 		request.Header.Set("Upgrade", "websocket")
 		request.Header.Set("Sec-WebSocket-Version", "13")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 
@@ -164,7 +164,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Connection", "Upgrade")
 		request.Header.Set("Upgrade", "ws")
 		request.Header.Set("Sec-WebSocket-Version", "13")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 
@@ -176,7 +176,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Connection", "Upgrade")
 		request.Header.Set("Upgrade", "websocket")
 		request.Header.Set("Sec-WebSocket-Version", "13")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 
@@ -194,7 +194,7 @@ func TestAccept(t *testing.T) {
 		request.Header.Set("Sec-WebSocket-Version", "13")
 		request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 		request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
-		_, err := upgrader.Accept(newHttpWriter(), request)
+		_, err := upgrader.Upgrade(newHttpWriter(), request)
 		assert.Error(t, err)
 	})
 }
@@ -212,10 +212,10 @@ func TestFailHijack(t *testing.T) {
 	request.Header.Set("Sec-WebSocket-Version", "13")
 	request.Header.Set("Sec-WebSocket-Key", "3tTS/Y+YGaM7TTnPuafHng==")
 	request.Header.Set("Sec-WebSocket-Extensions", "permessage-deflate")
-	_, err := upgrader.Accept(&httpWriterWrapper1{httpWriter: newHttpWriter()}, request)
+	_, err := upgrader.Upgrade(&httpWriterWrapper1{httpWriter: newHttpWriter()}, request)
 	assert.Error(t, err)
 
-	_, err = upgrader.Accept(&httpWriterWrapper2{httpWriter: newHttpWriter()}, request)
+	_, err = upgrader.Upgrade(&httpWriterWrapper2{httpWriter: newHttpWriter()}, request)
 	assert.Error(t, err)
 }
 
