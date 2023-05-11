@@ -196,7 +196,7 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() {
-	_bpool.Put(c.Data)
+	myBufferPool.Put(c.Data)
 	c.Data = nil
 }
 

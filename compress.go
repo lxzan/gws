@@ -9,6 +9,10 @@ import (
 	"math"
 )
 
+func getCompressor(level int) *compressor {
+	return myCompressorPools[level+2].Get().(*compressor)
+}
+
 func newCompressor(level int) *compressor {
 	fw, _ := flate.NewWriter(nil, level)
 	return &compressor{fw: fw, level: level}
@@ -21,7 +25,7 @@ type compressor struct {
 }
 
 func (c *compressor) Close() {
-	_compressorPools[c.level+2].Put(c)
+	myCompressorPools[c.level+2].Put(c)
 }
 
 // Compress 压缩
@@ -56,8 +60,8 @@ func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) 
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(payload, nil) // must return a null pointer
-	var buf = _bpool.Get(3 * payload.Len())
+	var buf = myBufferPool.Get(3 * payload.Len())
 	_, err := io.CopyBuffer(buf, c.fr, c.buffer[0:])
-	_bpool.Put(payload)
+	myBufferPool.Put(payload)
 	return buf, err
 }

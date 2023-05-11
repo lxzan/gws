@@ -97,7 +97,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var p = _bpool.Get(contentLength).Bytes()
+	var p = myBufferPool.Get(contentLength).Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
@@ -110,7 +110,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.initialized = true
 		c.continuationFrame.compressed = compressed
 		c.continuationFrame.opcode = opcode
-		c.continuationFrame.buffer = _bpool.Get(contentLength)
+		c.continuationFrame.buffer = myBufferPool.Get(contentLength)
 	}
 
 	if !fin || (fin && opcode == OpcodeContinuation) {

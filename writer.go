@@ -66,7 +66,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
 	var totalSize = n + headerLength
-	var buf = _bpool.Get(totalSize)
+	var buf = myBufferPool.Get(totalSize)
 	buf.Write(header[:headerLength])
 	buf.Write(payload)
 	var contents = buf.Bytes()
@@ -74,7 +74,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
 	var err = internal.WriteN(c.conn, contents, totalSize)
-	_bpool.Put(buf)
+	myBufferPool.Put(buf)
 	return err
 }
 
@@ -88,10 +88,10 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
-	var buf = _bpool.Get(len(payload) / 2)
-	defer _bpool.Put(buf)
-	buf.Write(_padding[0:])
-	cps := _compressorPools[c.config.CompressLevel+2].Get().(*compressor)
+	var buf = myBufferPool.Get(len(payload) / 2)
+	defer myBufferPool.Put(buf)
+	buf.Write(myPadding[0:])
+	cps := getCompressor(c.config.CompressLevel)
 	err := cps.Compress(payload, buf)
 	cps.Close()
 	if err != nil {
