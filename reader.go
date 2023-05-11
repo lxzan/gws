@@ -147,7 +147,7 @@ func (c *Conn) readMessage() error {
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) error {
 	if compressed {
-		data, err := _dps.Select().Decompress(msg.Data)
+		data, err := c.decompressor.Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
