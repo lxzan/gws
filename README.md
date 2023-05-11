@@ -206,12 +206,11 @@ func main() {
 	}
 
 	option := gws.ClientOption{}
-	socket, httpResp, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
+	socket, _, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	_ = httpResp
 	socket.ReadLoop()
 }
 ```
