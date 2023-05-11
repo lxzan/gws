@@ -59,8 +59,6 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 		host := hostname + ":" + port
 		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
 		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
-	case "unix":
-		d.conn, dialError = net.DialTimeout("unix", URL.Path, option.DialTimeout)
 	default:
 		return nil, d.resp, internal.ErrSchema
 	}

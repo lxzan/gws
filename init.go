@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
 )
 
@@ -12,5 +11,5 @@ var (
 )
 
 func init() {
-	SetFlateCompressor(8, flate.BestSpeed)
+	SetFlateCompressor(8, defaultCompressLevel)
 }

@@ -59,10 +59,6 @@ type (
 		// Whether to turn on data compression
 		CompressEnabled bool
 
-		// 压缩级别
-		// Compress level
-		CompressLevel int
-
 		// 压缩阈值, 低于阈值的消息不会被压缩
 		// Compression threshold, messages below the threshold will not be compressed
 		CompressThreshold int
@@ -155,7 +151,6 @@ func (c *ServerOption) getConfig() *Config {
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,
-		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
 	}
@@ -173,7 +168,6 @@ type ClientOption struct {
 	WriteAsyncCap       int
 	WriteMaxPayloadSize int
 	CompressEnabled     bool
-	CompressLevel       int
 	CompressThreshold   int
 	CheckUtf8Enabled    bool
 
@@ -213,9 +207,6 @@ func (c *ClientOption) initialize() *ClientOption {
 	if c.WriteBufferSize <= 0 {
 		c.WriteBufferSize = defaultWriteBufferSize
 	}
-	if c.CompressEnabled && c.CompressLevel == 0 {
-		c.CompressLevel = defaultCompressLevel
-	}
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
@@ -240,7 +231,6 @@ func (c *ClientOption) getConfig() *Config {
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,
-		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
 	}
