@@ -91,9 +91,7 @@ func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
 	var buf = myBufferPool.Get(len(payload) / 2)
 	defer myBufferPool.Put(buf)
 	buf.Write(myPadding[0:])
-	cps := getCompressor(c.config.CompressLevel)
-	err := cps.Compress(payload, buf)
-	cps.Close()
+	err := myCompressor.Select().Compress(payload, buf)
 	if err != nil {
 		return err
 	}

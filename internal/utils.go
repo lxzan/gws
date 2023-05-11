@@ -200,3 +200,11 @@ func IsNil(v interface{}) bool {
 	}
 	return reflect.ValueOf(v).IsNil()
 }
+
+func ToBinaryNumber(n int) int {
+	var x = 1
+	for x < n {
+		x *= 2
+	}
+	return x
+}

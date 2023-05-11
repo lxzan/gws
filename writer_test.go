@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bytes"
-	"compress/flate"
 	"net"
 	"sync"
 	"testing"
@@ -18,9 +17,7 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
-		cps := getCompressor(flate.BestSpeed)
-		err := cps.Compress(payload, buf)
-		cps.Close()
+		err := myCompressor.Select().Compress(payload, buf)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

@@ -7,10 +7,31 @@ import (
 	"github.com/lxzan/gws/internal"
 	"io"
 	"math"
+	"sync"
+	"sync/atomic"
 )
 
-func getCompressor(level int) *compressor {
-	return myCompressorPools[level+2].Get().(*compressor)
+var numCompressor = uint64(8)
+
+// SetFlateCompressor 设置压缩器数量和压缩级别
+// num越大锁竞争概率越小, 但是会耗费大量内存, 取值需要权衡; 对于websocket server, 推荐num=128; 对于client, 推荐不修改使用默认值;
+// 推荐level=flate.BestSpeed
+func SetFlateCompressor(num int, level int) {
+	numCompressor = uint64(internal.ToBinaryNumber(num))
+	myCompressor = new(compressors)
+	for i := uint64(0); i < numCompressor; i++ {
+		myCompressor.compressors = append(myCompressor.compressors, newCompressor(level))
+	}
+}
+
+type compressors struct {
+	serial      uint64
+	compressors []*compressor
+}
+
+func (c *compressors) Select() *compressor {
+	var j = atomic.AddUint64(&c.serial, 1) & (numCompressor - 1)
+	return c.compressors[j]
 }
 
 func newCompressor(level int) *compressor {
@@ -20,16 +41,16 @@ func newCompressor(level int) *compressor {
 
 // 压缩器
 type compressor struct {
+	sync.Mutex
 	level int
 	fw    *flate.Writer
 }
 
-func (c *compressor) Close() {
-	myCompressorPools[c.level+2].Put(c)
-}
-
 // Compress 压缩
 func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
+	c.Lock()
+	defer c.Unlock()
+
 	c.fw.Reset(buf)
 	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
 		return err

@@ -201,3 +201,10 @@ func TestIsNil(t *testing.T) {
 		assert.True(t, IsNil(v1))
 	}
 }
+
+func TestToBinaryNumber(t *testing.T) {
+	assert.Equal(t, 8, ToBinaryNumber(7))
+	assert.Equal(t, 1, ToBinaryNumber(0))
+	assert.Equal(t, 128, ToBinaryNumber(120))
+	assert.Equal(t, 1024, ToBinaryNumber(1024))
+}
