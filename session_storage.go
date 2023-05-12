@@ -128,19 +128,19 @@ func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V]
 func (c *ConcurrentMap[K, V]) hash(key interface{}) uint64 {
 	switch k := key.(type) {
 	case string:
-		return internal.FNV64(k)
+		return internal.FnvString(k)
 	case int:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case int64:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case int32:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case uint:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case uint64:
-		return k
+		return internal.FnvNumber(k)
 	case uint32:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	default:
 		return 0
 	}

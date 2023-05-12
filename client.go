@@ -22,8 +22,8 @@ type dialer struct {
 	secWebsocketKey string
 }
 
-// NewClient 创建WebSocket客户端; 支持ws, wss, unix三种协议
-// Create WebSocket client, support ws, wss, unix three protocols
+// NewClient 创建WebSocket客户端; 支持ws/wss
+// Create WebSocket client, support ws/wss
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
 	if option == nil {
 		option = new(ClientOption)

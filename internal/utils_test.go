@@ -74,7 +74,8 @@ func TestFNV64(t *testing.T) {
 	var s = AlphabetNumeric.Generate(16)
 	var h = fnv.New64()
 	_, _ = h.Write(s)
-	assert.Equal(t, h.Sum64(), FNV64(string(s)))
+	assert.Equal(t, h.Sum64(), FnvString(string(s)))
+	_ = FnvNumber(1234)
 }
 
 func TestIOUtil(t *testing.T) {

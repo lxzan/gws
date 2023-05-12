@@ -44,15 +44,29 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 }
 
 func TestWriteBigMessage(t *testing.T) {
-	var serverHandler = new(webSocketMocker)
-	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{WriteMaxPayloadSize: 16}
-	var clientOption = &ClientOption{}
-	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.ReadLoop()
-	go client.ReadLoop()
-	var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
-	assert.Error(t, err)
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{WriteMaxPayloadSize: 16}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+		var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{WriteMaxPayloadSize: 16, CompressEnabled: true, CompressThreshold: 1}
+		var clientOption = &ClientOption{CompressEnabled: true}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+		var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
+		assert.Error(t, err)
+	})
 }
 
 func TestWriteClose(t *testing.T) {

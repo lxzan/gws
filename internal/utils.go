@@ -72,12 +72,19 @@ func StringToBytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(&bh))
 }
 
-func FNV64(s string) uint64 {
+func FnvString(s string) uint64 {
 	var h = uint64(offset64)
 	for _, b := range s {
 		h *= prime64
 		h ^= uint64(b)
 	}
+	return h
+}
+
+func FnvNumber[T Integer](x T) uint64 {
+	var h = uint64(offset64)
+	h *= prime64
+	h ^= uint64(x)
 	return h
 }
 
