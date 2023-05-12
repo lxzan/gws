@@ -27,8 +27,10 @@ func (p *BufferPool) Put(b *bytes.Buffer, n int) {
 		return
 	}
 	for i := 1; i < 6; i++ {
-		if n <= p.limits[i] && b.Cap() <= 2*p.limits[i] {
-			p.pools[i].Put(b)
+		if n <= p.limits[i] {
+			if b.Cap() <= 4*p.limits[i] {
+				p.pools[i].Put(b)
+			}
 			return
 		}
 	}
