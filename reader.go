@@ -98,7 +98,8 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var p = myBufferPool.Get(contentLength).Bytes()
+	var rawBuf = myBufferPool.Get(contentLength)
+	var p = rawBuf.Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
@@ -140,7 +141,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.reset()
 		return myerr
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
+		return c.emitMessage(&Message{Opcode: opcode, Data: newBuffer(p, rawBuf.pIndex)}, compressed)
 	default:
 		return internal.CloseNormalClosure
 	}

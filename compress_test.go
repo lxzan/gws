@@ -19,13 +19,13 @@ func TestFlate(t *testing.T) {
 			var dps = newDecompressor()
 			var n = internal.AlphabetNumeric.Intn(1024)
 			var rawText = internal.AlphabetNumeric.Generate(n)
-			var compressedBuf = bytes.NewBufferString("")
+			var compressedBuf = &Buffer{Buffer: bytes.NewBufferString("")}
 			if err := cps.Compress(rawText, compressedBuf); err != nil {
 				as.NoError(err)
 				return
 			}
 
-			var buf = bytes.NewBufferString("")
+			var buf = &Buffer{Buffer: bytes.NewBufferString("")}
 			buf.Write(compressedBuf.Bytes())
 			plainText, err := dps.Decompress(buf)
 			if err != nil {
@@ -41,13 +41,13 @@ func TestFlate(t *testing.T) {
 		var dps = newDecompressor()
 		var n = internal.AlphabetNumeric.Intn(1024)
 		var rawText = internal.AlphabetNumeric.Generate(n)
-		var compressedBuf = bytes.NewBufferString("")
+		var compressedBuf = &Buffer{Buffer: bytes.NewBufferString("")}
 		if err := cps.Compress(rawText, compressedBuf); err != nil {
 			as.NoError(err)
 			return
 		}
 
-		var buf = bytes.NewBufferString("")
+		var buf = &Buffer{Buffer: bytes.NewBufferString("")}
 		buf.Write(compressedBuf.Bytes())
 		buf.WriteString("1234")
 		_, err := dps.Decompress(buf)

@@ -243,7 +243,7 @@ func TestSegments(t *testing.T) {
 func TestMessage(t *testing.T) {
 	var msg = &Message{
 		Opcode: OpcodeText,
-		Data:   bytes.NewBufferString("1234"),
+		Data:   &Buffer{Buffer: bytes.NewBufferString("1234")},
 	}
 	_, _ = msg.Read(make([]byte, 2))
 	msg.Close()

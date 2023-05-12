@@ -16,7 +16,7 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 
 	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
-		var buf = bytes.NewBufferString("")
+		var buf = &Buffer{Buffer: bytes.NewBufferString("")}
 		err := c.config.compressors.Select().Compress(payload, buf)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)

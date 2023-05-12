@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"encoding/binary"
 	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
@@ -43,7 +42,7 @@ type compressor struct {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
+func (c *compressor) Compress(content []byte, buf *Buffer) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -93,7 +92,7 @@ type decompressor struct {
 }
 
 // Decompress 解压
-func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
+func (c *decompressor) Decompress(payload *Buffer) (*Buffer, error) {
 	c.Lock()
 	defer c.Unlock()
 

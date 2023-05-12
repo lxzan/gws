@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
 )
@@ -98,7 +97,7 @@ func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
 	return c.leftTrimAndWrite(opcode, buf, true)
 }
 
-func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *bytes.Buffer, compress bool) error {
+func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *Buffer, compress bool) error {
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {
