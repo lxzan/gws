@@ -26,7 +26,8 @@ const (
 
 type (
 	Config struct {
-		compressors *compressors
+		compressors   *compressors
+		decompressors *decompressors
 
 		// 是否开启异步读, 开启的话会并行调用OnMessage
 		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
@@ -182,6 +183,7 @@ func (c *ServerOption) getConfig() *Config {
 		}
 		if c.config.CompressEnabled {
 			c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
+			c.config.decompressors = new(decompressors).initialize(c.CompressorNum, c.config.CompressLevel)
 		}
 	})
 	return c.config
@@ -273,6 +275,7 @@ func (c *ClientOption) getConfig() *Config {
 	}
 	if config.CompressEnabled {
 		config.compressors = new(compressors).initialize(1, config.CompressLevel)
+		config.decompressors = new(decompressors).initialize(1, config.CompressLevel)
 	}
 	return config
 }

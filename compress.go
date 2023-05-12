@@ -63,17 +63,40 @@ func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
 	return nil
 }
 
+type decompressors struct {
+	serial        uint64
+	size          uint64
+	decompressors []*decompressor
+}
+
+func (c *decompressors) initialize(num int, level int) *decompressors {
+	c.size = uint64(internal.ToBinaryNumber(num))
+	for i := uint64(0); i < c.size; i++ {
+		c.decompressors = append(c.decompressors, newDecompressor())
+	}
+	return c
+}
+
+func (c *decompressors) Select() *decompressor {
+	var j = atomic.AddUint64(&c.serial, 1) & (c.size - 1)
+	return c.decompressors[j]
+}
+
 func newDecompressor() *decompressor {
 	return &decompressor{fr: flate.NewReader(nil)}
 }
 
 type decompressor struct {
+	sync.Mutex
 	fr     io.ReadCloser
 	buffer [internal.Lv2]byte
 }
 
 // Decompress 解压
 func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(payload, nil) // must return a null pointer
