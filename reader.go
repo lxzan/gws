@@ -30,10 +30,10 @@ func (c *Conn) readControl() error {
 	}
 
 	// 不回收小块buffer, 控制帧一般payload长度为0
-	var buf = bytes.NewBuffer(nil)
+	var payload []byte
 	if n > 0 {
-		buf = bytes.NewBuffer(make([]byte, n))
-		if err := internal.ReadN(c.rbuf, buf.Bytes(), int(n)); err != nil {
+		payload = make([]byte, n)
+		if err := internal.ReadN(c.rbuf, payload, int(n)); err != nil {
 			return err
 		}
 		maskEnabled := c.fh.GetMask()
@@ -41,20 +41,20 @@ func (c *Conn) readControl() error {
 			return err
 		}
 		if maskEnabled {
-			internal.MaskXOR(buf.Bytes(), c.fh.GetMaskKey())
+			internal.MaskXOR(payload, c.fh.GetMaskKey())
 		}
 	}
 
 	var opcode = c.fh.GetOpcode()
 	switch opcode {
 	case OpcodePing:
-		c.handler.OnPing(c, buf.Bytes())
+		c.handler.OnPing(c, payload)
 		return nil
 	case OpcodePong:
-		c.handler.OnPong(c, buf.Bytes())
+		c.handler.OnPong(c, payload)
 		return nil
 	case OpcodeCloseConnection:
-		return c.emitClose(buf)
+		return c.emitClose(bytes.NewBuffer(payload))
 	default:
 		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
 		return internal.NewError(internal.CloseProtocolError, err)
@@ -98,7 +98,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var p = _bpool.Get(contentLength).Bytes()
+	var p = myBufferPool.Get(contentLength).Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
@@ -111,7 +111,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.initialized = true
 		c.continuationFrame.compressed = compressed
 		c.continuationFrame.opcode = opcode
-		c.continuationFrame.buffer = _bpool.Get(contentLength)
+		c.continuationFrame.buffer = myBufferPool.Get(contentLength)
 	}
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
@@ -146,13 +146,14 @@ func (c *Conn) readMessage() error {
 	}
 }
 
-func (c *Conn) emitMessage(msg *Message, compressed bool) error {
+func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
+	msg.poolCode = msg.Data.Cap()
 	if compressed {
-		data, err := _dps.Select().Decompress(msg.Data)
+		msg.poolCode = internal.Lv3
+		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		msg.Data = data
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)

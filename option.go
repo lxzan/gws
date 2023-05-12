@@ -3,7 +3,9 @@ package gws
 import (
 	"compress/flate"
 	"crypto/tls"
+	"github.com/lxzan/gws/internal"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -15,6 +17,7 @@ const (
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
 	defaultCompressThreshold   = 512
+	defaultCompressorNum       = 128
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 
@@ -23,6 +26,9 @@ const (
 
 type (
 	Config struct {
+		compressors   *compressors
+		decompressors *decompressors
+
 		// 是否开启异步读, 开启的话会并行调用OnMessage
 		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
 		ReadAsyncEnabled bool
@@ -67,12 +73,21 @@ type (
 		// Compression threshold, messages below the threshold will not be compressed
 		CompressThreshold int
 
+		// CompressorNum 压缩器数量
+		// 数值越大竞争的概率越小, 但是会耗费大量内存, 注意取舍
+		// Number of compressors
+		// The higher the value the lower the probability of competition, but it will consume a lot of memory, so be careful about the trade-off
+		CompressorNum int
+
 		// 是否检查文本utf8编码, 关闭性能会好点
 		// Whether to check the text utf8 encoding, turn off the performance will be better
 		CheckUtf8Enabled bool
 	}
 
 	ServerOption struct {
+		once   sync.Once
+		config *Config
+
 		// 写缓冲区的大小, v1.4.5版本此参数被废弃
 		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 		WriteBufferSize     int
@@ -86,6 +101,7 @@ type (
 		CompressEnabled     bool
 		CompressLevel       int
 		CompressThreshold   int
+		CompressorNum       int
 		CheckUtf8Enabled    bool
 
 		// WebSocket子协议, 一般不需要设置
@@ -97,9 +113,9 @@ type (
 		// attention: client may not support custom response header, use nil instead
 		ResponseHeader http.Header
 
-		// 检查请求来源
-		// Check the origin of the request
-		CheckOrigin func(r *http.Request, session SessionStorage) bool
+		// 鉴权
+		// Authentication of requests for connection establishment
+		Authorize func(r *http.Request, session SessionStorage) bool
 	}
 )
 
@@ -132,33 +148,45 @@ func (c *ServerOption) initialize() *ServerOption {
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
-	if c.CheckOrigin == nil {
-		c.CheckOrigin = func(r *http.Request, session SessionStorage) bool {
+	if c.CompressorNum <= 0 {
+		c.CompressorNum = defaultCompressorNum
+	}
+	if c.Authorize == nil {
+		c.Authorize = func(r *http.Request, session SessionStorage) bool {
 			return true
 		}
 	}
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
 	}
+	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
 	return c
 }
 
 // 获取通用配置
 func (c *ServerOption) getConfig() *Config {
-	return &Config{
-		ReadAsyncEnabled:    c.ReadAsyncEnabled,
-		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
-		ReadAsyncCap:        c.ReadAsyncCap,
-		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
-		ReadBufferSize:      c.ReadBufferSize,
-		WriteAsyncCap:       c.WriteAsyncCap,
-		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
-		WriteBufferSize:     c.WriteBufferSize,
-		CompressEnabled:     c.CompressEnabled,
-		CompressLevel:       c.CompressLevel,
-		CompressThreshold:   c.CompressThreshold,
-		CheckUtf8Enabled:    c.CheckUtf8Enabled,
-	}
+	c.once.Do(func() {
+		c.config = &Config{
+			ReadAsyncEnabled:    c.ReadAsyncEnabled,
+			ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+			ReadAsyncCap:        c.ReadAsyncCap,
+			ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
+			ReadBufferSize:      c.ReadBufferSize,
+			WriteAsyncCap:       c.WriteAsyncCap,
+			WriteMaxPayloadSize: c.WriteMaxPayloadSize,
+			WriteBufferSize:     c.WriteBufferSize,
+			CompressEnabled:     c.CompressEnabled,
+			CompressLevel:       c.CompressLevel,
+			CompressThreshold:   c.CompressThreshold,
+			CheckUtf8Enabled:    c.CheckUtf8Enabled,
+			CompressorNum:       c.CompressorNum,
+		}
+		if c.config.CompressEnabled {
+			c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
+			c.config.decompressors = new(decompressors).initialize(c.CompressorNum, c.config.CompressLevel)
+		}
+	})
+	return c.config
 }
 
 type ClientOption struct {
@@ -230,7 +258,7 @@ func (c *ClientOption) initialize() *ClientOption {
 }
 
 func (c *ClientOption) getConfig() *Config {
-	return &Config{
+	config := &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadAsyncCap:        c.ReadAsyncCap,
@@ -243,5 +271,11 @@ func (c *ClientOption) getConfig() *Config {
 		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+		CompressorNum:       1,
 	}
+	if config.CompressEnabled {
+		config.compressors = new(compressors).initialize(1, config.CompressLevel)
+		config.decompressors = new(decompressors).initialize(1, config.CompressLevel)
+	}
+	return config
 }

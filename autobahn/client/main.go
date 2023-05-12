@@ -92,6 +92,6 @@ func updateReports() {
 		log.Println(err.Error())
 		return
 	}
-	go socket.Listen()
+	go socket.ReadLoop()
 	<-handler.onexit
 }

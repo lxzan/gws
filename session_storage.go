@@ -100,27 +100,24 @@ used to store websocket connections in the IM server
 用来存储IM等服务的连接
 */
 type (
-	ConcurrentMap[K comparable, V any] struct {
+	Comparable interface {
+		string | int | int64 | int32 | uint | uint64 | uint32
+	}
+
+	ConcurrentMap[K Comparable, V any] struct {
 		segments uint64
 		buckets  []*bucket[K, V]
 	}
 
-	bucket[K comparable, V any] struct {
-		sync.RWMutex
+	bucket[K Comparable, V any] struct {
+		sync.Mutex
 		m map[K]V
 	}
 )
 
-func NewConcurrentMap[K comparable, V any](segments uint64) *ConcurrentMap[K, V] {
-	if segments == 0 {
-		segments = 16
-	} else {
-		var num = uint64(1)
-		for num < segments {
-			num *= 2
-		}
-		segments = num
-	}
+func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V] {
+	segments = internal.SelectInt(segments == 0, 16, segments)
+	segments = internal.ToBinaryNumber(segments)
 	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments, segments)}
 	for i, _ := range cm.buckets {
 		cm.buckets[i] = &bucket[K, V]{m: make(map[K]V)}
@@ -131,27 +128,19 @@ func NewConcurrentMap[K comparable, V any](segments uint64) *ConcurrentMap[K, V]
 func (c *ConcurrentMap[K, V]) hash(key interface{}) uint64 {
 	switch k := key.(type) {
 	case string:
-		return internal.FNV64(k)
+		return internal.FnvString(k)
 	case int:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case int64:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case int32:
-		return uint64(k)
-	case int16:
-		return uint64(k)
-	case int8:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case uint:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	case uint64:
-		return k
+		return internal.FnvNumber(k)
 	case uint32:
-		return uint64(k)
-	case uint16:
-		return uint64(k)
-	case uint8:
-		return uint64(k)
+		return internal.FnvNumber(k)
 	default:
 		return 0
 	}
@@ -166,18 +155,18 @@ func (c *ConcurrentMap[K, V]) getBucket(key K) *bucket[K, V] {
 func (c *ConcurrentMap[K, V]) Len() int {
 	var length = 0
 	for _, b := range c.buckets {
-		b.RLock()
+		b.Lock()
 		length += len(b.m)
-		b.RUnlock()
+		b.Unlock()
 	}
 	return length
 }
 
 func (c *ConcurrentMap[K, V]) Load(key K) (value V, exist bool) {
 	var b = c.getBucket(key)
-	b.RLock()
+	b.Lock()
 	value, exist = b.m[key]
-	b.RUnlock()
+	b.Unlock()
 	return
 }
 
@@ -199,13 +188,13 @@ func (c *ConcurrentMap[K, V]) Store(key K, value V) {
 // If f returns false, range stops the iteration.
 func (c *ConcurrentMap[K, V]) Range(f func(key K, value V) bool) {
 	for _, b := range c.buckets {
-		b.RLock()
+		b.Lock()
 		for k, v := range b.m {
 			if !f(k, v) {
-				b.RUnlock()
+				b.Unlock()
 				return
 			}
 		}
-		b.RUnlock()
+		b.Unlock()
 	}
 }

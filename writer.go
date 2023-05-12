@@ -2,28 +2,9 @@ package gws
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
-	"io"
-
 	"github.com/lxzan/gws/internal"
 )
-
-type (
-	Codec interface {
-		NewEncoder(io.Writer) Encoder
-	}
-
-	Encoder interface {
-		Encode(v interface{}) error
-	}
-
-	jsonCodec struct{}
-)
-
-func (c jsonCodec) NewEncoder(writer io.Writer) Encoder {
-	return json.NewEncoder(writer)
-}
 
 // WriteClose proactively close the connection
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
@@ -85,7 +66,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
 	var totalSize = n + headerLength
-	var buf = _bpool.Get(totalSize)
+	var buf = myBufferPool.Get(totalSize)
 	buf.Write(header[:headerLength])
 	buf.Write(payload)
 	var contents = buf.Bytes()
@@ -93,7 +74,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
 	var err = internal.WriteN(c.conn, contents, totalSize)
-	_bpool.Put(buf)
+	myBufferPool.Put(buf, buf.Cap())
 	return err
 }
 
@@ -106,45 +87,12 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
 }
 
-// WriteAny 以特定编码写入数据
-// 使用此方法时, CheckUtf8Enabled=false且CompressThreshold选项无效
-// Write data in a specific encoding
-// When using this method, CheckUtf8Enabled=false and CompressThreshold option is disabled
-func (c *Conn) WriteAny(codec Codec, opcode Opcode, v interface{}) error {
-	if c.isClosed() {
-		return internal.ErrConnClosed
-	}
-
-	var buf = _bpool.Get(internal.Lv3)
-	c.wmu.Lock()
-	err := c.doWriteAny(opcode, v, codec, buf)
-	c.wmu.Unlock()
-	_bpool.Put(buf)
-
-	c.emitError(err)
-	return err
-}
-
-func (c *Conn) doWriteAny(opcode Opcode, v interface{}, codec Codec, buf *bytes.Buffer) error {
-	buf.Write(_padding[0:])
-	var compress = c.compressEnabled && opcode.IsDataFrame()
-	var err error
-	if compress {
-		err = _cps.Select(c.config.CompressLevel).CompressAny(codec, v, buf)
-	} else {
-		err = codec.NewEncoder(buf).Encode(v)
-	}
-	if err != nil {
-		return err
-	}
-	return c.leftTrimAndWrite(opcode, buf, compress)
-}
-
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
-	var buf = _bpool.Get(len(payload) / 2)
-	defer _bpool.Put(buf)
-	buf.Write(_padding[0:])
-	if err := _cps.Select(c.config.CompressLevel).Compress(payload, buf); err != nil {
+	var buf = myBufferPool.Get(internal.Lv3)
+	defer myBufferPool.Put(buf, internal.Lv3)
+	buf.Write(myPadding[0:])
+	err := c.config.compressors.Select().Compress(payload, buf)
+	if err != nil {
 		return err
 	}
 	return c.leftTrimAndWrite(opcode, buf, true)

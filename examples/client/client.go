@@ -47,9 +47,10 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
-	socket.WritePong(payload)
+	_ = socket.WritePong(payload)
 }
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
+	defer message.Close()
 	fmt.Printf("recv: %s\n", message.Data.String())
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"hash/fnv"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -73,7 +74,8 @@ func TestFNV64(t *testing.T) {
 	var s = AlphabetNumeric.Generate(16)
 	var h = fnv.New64()
 	_, _ = h.Write(s)
-	assert.Equal(t, h.Sum64(), FNV64(string(s)))
+	assert.Equal(t, h.Sum64(), FnvString(string(s)))
+	_ = FnvNumber(1234)
 }
 
 func TestIOUtil(t *testing.T) {
@@ -187,4 +189,23 @@ func TestHttpHeaderEqual(t *testing.T) {
 func TestSelectInt(t *testing.T) {
 	assert.Equal(t, 1, SelectInt(true, 1, 2))
 	assert.Equal(t, 2, SelectInt(false, 1, 2))
+}
+
+func TestIsNil(t *testing.T) {
+	{
+		var v io.Reader
+		assert.True(t, IsNil(v))
+	}
+	{
+		var v *http.Request
+		var v1 interface{} = v
+		assert.True(t, IsNil(v1))
+	}
+}
+
+func TestToBinaryNumber(t *testing.T) {
+	assert.Equal(t, 8, ToBinaryNumber(7))
+	assert.Equal(t, 1, ToBinaryNumber(0))
+	assert.Equal(t, 128, ToBinaryNumber(120))
+	assert.Equal(t, 1024, ToBinaryNumber(1024))
 }

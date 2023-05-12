@@ -16,6 +16,10 @@ const (
 	offset64 = 14695981039346656037
 )
 
+type Integer interface {
+	int | int64 | int32 | uint | uint64 | uint32
+}
+
 func MaskByByte(content []byte, key []byte) {
 	var n = len(content)
 	for i := 0; i < n; i++ {
@@ -68,12 +72,19 @@ func StringToBytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(&bh))
 }
 
-func FNV64(s string) uint64 {
+func FnvString(s string) uint64 {
 	var h = uint64(offset64)
 	for _, b := range s {
 		h *= prime64
 		h ^= uint64(b)
 	}
+	return h
+}
+
+func FnvNumber[T Integer](x T) uint64 {
+	var h = uint64(offset64)
+	h *= prime64
+	h ^= uint64(x)
 	return h
 }
 
@@ -161,9 +172,9 @@ func MaskXOR(b []byte, key []byte) {
 	}
 }
 
-func InCollection(ele string, eles []string) bool {
-	for _, item := range eles {
-		if item == ele {
+func InCollection(elem string, elems []string) bool {
+	for _, item := range elems {
+		if item == elem {
 			return true
 		}
 	}
@@ -187,9 +198,24 @@ func HttpHeaderEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 
-func SelectInt(ok bool, a, b int) int {
+func SelectInt[T Integer](ok bool, a, b T) T {
 	if ok {
 		return a
 	}
 	return b
+}
+
+func IsNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	return reflect.ValueOf(v).IsNil()
+}
+
+func ToBinaryNumber[T Integer](n T) T {
+	var x T = 1
+	for x < n {
+		x *= 2
+	}
+	return x
 }

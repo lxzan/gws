@@ -2,26 +2,13 @@ package internal
 
 import (
 	"bytes"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestBufferPool(t *testing.T) {
 	var as = assert.New(t)
 	var pool = NewBufferPool()
-
-	pool.Put(nil)
-	pool.Put(bytes.NewBuffer(nil))
-	pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(64)))
-	as.GreaterOrEqual(pool.Get(72).Cap(), 72)
-
-	{
-		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(128)))
-		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv2)))
-		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv3)))
-		pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(Lv4)))
-	}
 
 	for i := 0; i < 10; i++ {
 		var n = AlphabetNumeric.Intn(126)
@@ -45,7 +32,18 @@ func TestBufferPool(t *testing.T) {
 		as.Equal(0, buf.Len())
 	}
 
-	pool.Put(nil)
-	pool.Put(NewBufferWithCap(0))
-	pool.Get(17 * 1024)
+	{
+		pool.Put(bytes.NewBuffer(make([]byte, 2)), 2)
+		b := pool.Get(120)
+		as.GreaterOrEqual(b.Cap(), 120)
+	}
+	{
+		pool.Put(bytes.NewBuffer(make([]byte, 2000)), 2000)
+		b := pool.Get(3000)
+		as.GreaterOrEqual(b.Cap(), 3000)
+	}
+
+	pool.Put(nil, 0)
+	pool.Put(NewBufferWithCap(0), 0)
+	as.GreaterOrEqual(pool.Get(128*1024).Cap(), 128*1024)
 }

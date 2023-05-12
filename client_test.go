@@ -45,6 +45,32 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
+func TestNewClientFromConn(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("ok", func(t *testing.T) {
+		server := NewServer(BuiltinEventHandler{}, nil)
+		addr := ":" + nextPort()
+		go server.Run(addr)
+		conn, err := net.Dial("tcp", "localhost"+addr)
+		if err != nil {
+			as.NoError(err)
+			return
+		}
+		_, _, err = NewClientFromConn(BuiltinEventHandler{}, nil, conn)
+		as.NoError(err)
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		server := NewServer(BuiltinEventHandler{}, nil)
+		addr := ":" + nextPort()
+		go server.Run(addr)
+		conn, _ := net.Pipe()
+		_, _, err := NewClientFromConn(BuiltinEventHandler{}, &ClientOption{DialTimeout: time.Second}, conn)
+		as.Error(err)
+	})
+}
+
 func TestClientHandshake(t *testing.T) {
 	var as = assert.New(t)
 	option := &ClientOption{
@@ -70,8 +96,7 @@ func TestClientHandshake(t *testing.T) {
 			srv.Write([]byte(text))
 		}
 	}()
-	_, _, err := d.handshake()
-	if err != nil {
+	if _, _, err := d.handshake(); err != nil {
 		as.NoError(err)
 		return
 	}

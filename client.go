@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -23,8 +22,8 @@ type dialer struct {
 	secWebsocketKey string
 }
 
-// NewClient 创建WebSocket客户端; 支持ws, wss, unix三种协议
-// Create WebSocket client, support ws, wss, unix three protocols
+// NewClient 创建WebSocket客户端; 支持ws/wss
+// Create WebSocket client, support ws/wss
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
 	if option == nil {
 		option = new(ClientOption)
@@ -33,7 +32,7 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	var d = &dialer{eventHandler: handler, option: option}
 	defer func() {
-		if e != nil && !d.isNil(d.conn) {
+		if e != nil && !internal.IsNil(d.conn) {
 			_ = d.conn.Close()
 		}
 	}()
@@ -46,23 +45,20 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	var dialError error
 	var hostname = URL.Hostname()
 	var port = URL.Port()
-	var host = ""
 	switch URL.Scheme {
 	case "ws":
 		if port == "" {
 			port = "80"
 		}
-		host = hostname + ":" + port
+		host := hostname + ":" + port
 		d.conn, dialError = net.DialTimeout("tcp", host, option.DialTimeout)
 	case "wss":
 		if port == "" {
 			port = "443"
 		}
-		host = hostname + ":" + port
+		host := hostname + ":" + port
 		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
 		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
-	case "unix":
-		d.conn, dialError = net.DialTimeout("unix", URL.Path, option.DialTimeout)
 	default:
 		return nil, d.resp, internal.ErrSchema
 	}
@@ -76,11 +72,22 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	return d.handshake()
 }
 
-func (c *dialer) isNil(v interface{}) bool {
-	if v == nil {
-		return true
+// NewClientFromConn
+func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, e error) {
+	if option == nil {
+		option = new(ClientOption)
 	}
-	return reflect.ValueOf(v).IsNil()
+	option.initialize()
+	d := &dialer{option: option, conn: conn, eventHandler: handler}
+	defer func() {
+		if e != nil && !internal.IsNil(d.conn) {
+			_ = d.conn.Close()
+		}
+	}()
+	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
+		return nil, d.resp, err
+	}
+	return d.handshake()
 }
 
 func (c *dialer) writeRequest() (*http.Request, error) {
@@ -133,7 +140,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 }
 
 func (c *dialer) checkHeaders() error {
-	if c.resp.StatusCode != 101 {
+	if c.resp.StatusCode != http.StatusSwitchingProtocols {
 		return internal.ErrStatusCode
 	}
 	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {

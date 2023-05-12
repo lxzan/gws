@@ -25,6 +25,7 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
+	- [event-driven go websocket server](#event-driven-go-websocket-server)
 	- [Highlight](#highlight)
 	- [Attention](#attention)
 	- [Install](#install)
@@ -35,8 +36,6 @@
 		- [Upgrade from HTTP](#upgrade-from-http)
 		- [Unix Domain Socket](#unix-domain-socket)
 		- [Broadcast](#broadcast)
-		- [Write JSON](#write-json)
-		- [Customize Codec](#customize-codec)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
 	- [Communication](#communication)
@@ -92,20 +91,25 @@ func main() {
 package main
 
 import (
+	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws"
 	"time"
 )
 
 const PingInterval = 10 * time.Second
 
+func init() {
+	gws.SetFlateCompressor(128, flate.BestSpeed)
+}
+
 func main() {
-	options := &gws.ServerOption{ReadAsyncEnabled: true, ReadAsyncGoLimit: 4}
+	options := &gws.ServerOption{ReadAsyncEnabled: true, ReadAsyncGoLimit: 4, CompressEnabled: true}
 	gws.NewServer(new(Handler), options).Run(":6666")
 }
 
 type Handler struct{}
 
-func (c *Handler) OnOpen(socket *gws.Conn) { _ = socket.SetDeadline(time.Now().Add(3 * PingInterval)) }
+func (c *Handler) OnOpen(socket *gws.Conn) { _ = socket.SetDeadline(time.Now().Add(2 * PingInterval)) }
 
 func (c *Handler) DeleteSession(socket *gws.Conn) {}
 
@@ -114,7 +118,7 @@ func (c *Handler) OnError(socket *gws.Conn, err error) { c.DeleteSession(socket)
 func (c *Handler) OnClose(socket *gws.Conn, code uint16, reason []byte) { c.DeleteSession(socket) }
 
 func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
-	_ = socket.SetDeadline(time.Now().Add(3 * PingInterval))
+	_ = socket.SetDeadline(time.Now().Add(2 * PingInterval))
 	_ = socket.WritePong(nil)
 }
 
@@ -138,7 +142,7 @@ import (
 
 func main() {
 	upgrader := gws.NewUpgrader(new(gws.BuiltinEventHandler), &gws.ServerOption{
-		CheckOrigin: func(r *http.Request, session gws.SessionStorage) bool {
+		Authorize: func(r *http.Request, session gws.SessionStorage) bool {
 			session.Store("username", r.URL.Query().Get("username"))
 			return true
 		},
@@ -167,13 +171,14 @@ func main() {
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"log"
 	"net"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
-	listener, err := net.Listen("unix", "/run/gws.sock")
+	listener, err := net.Listen("unix", "/tmp/gws.sock")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -191,15 +196,21 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"github.com/lxzan/gws"
 	"log"
+	"net"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
-	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
-		Addr: "unix://localhost/run/gws.sock",
-	})
+	conn, err := net.Dial("unix", "/tmp/gws.sock")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	option := gws.ClientOption{}
+	socket, _, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -215,26 +226,6 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 	for _, item := range conns {
 		_ = item.WriteAsync(opcode, payload)
 	}
-}
-```
-
-#### Write JSON
-
-```go
-socket.WriteAny(gws.JsonCodec, gws.OpcodeText, data)
-```
-
-#### Customize Codec
-
-```go
-import json "github.com/json-iterator/go"
-
-var JsonCodec = new(jsonCodec)
-
-type jsonCodec struct{}
-
-func (c jsonCodec) NewEncoder(writer io.Writer) Encoder {
-	return json.NewEncoder(writer)
 }
 ```
 
