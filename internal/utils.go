@@ -16,6 +16,10 @@ const (
 	offset64 = 14695981039346656037
 )
 
+type Integer interface {
+	int | int64 | int32 | uint | uint64 | uint32
+}
+
 func MaskByByte(content []byte, key []byte) {
 	var n = len(content)
 	for i := 0; i < n; i++ {
@@ -187,7 +191,7 @@ func HttpHeaderEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 
-func SelectInt[T uint64 | int](ok bool, a, b T) T {
+func SelectInt[T Integer](ok bool, a, b T) T {
 	if ok {
 		return a
 	}
@@ -201,7 +205,7 @@ func IsNil(v interface{}) bool {
 	return reflect.ValueOf(v).IsNil()
 }
 
-func ToBinaryNumber[T uint64 | int](n T) T {
+func ToBinaryNumber[T Integer](n T) T {
 	var x T = 1
 	for x < n {
 		x *= 2
