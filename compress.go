@@ -88,7 +88,7 @@ func newDecompressor() *decompressor {
 type decompressor struct {
 	sync.Mutex
 	fr     io.ReadCloser
-	buffer [internal.Lv2]byte
+	buffer [internal.Lv3]byte
 }
 
 // Decompress 解压
@@ -99,7 +99,7 @@ func (c *decompressor) Decompress(payload *Buffer) (*Buffer, error) {
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(payload, nil) // must return a null pointer
-	var buf = myBufferPool.Get(3 * payload.Len())
+	var buf = myBufferPool.Get(payload.Len() * 7 / 2)
 	_, err := io.CopyBuffer(buf, c.fr, c.buffer[0:])
 	myBufferPool.Put(payload)
 	return buf, err
