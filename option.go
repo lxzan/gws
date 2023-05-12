@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -83,6 +84,9 @@ type (
 	}
 
 	ServerOption struct {
+		once   sync.Once
+		config *Config
+
 		// 写缓冲区的大小, v1.4.5版本此参数被废弃
 		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 		WriteBufferSize     int
@@ -160,25 +164,27 @@ func (c *ServerOption) initialize() *ServerOption {
 
 // 获取通用配置
 func (c *ServerOption) getConfig() *Config {
-	config := &Config{
-		ReadAsyncEnabled:    c.ReadAsyncEnabled,
-		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
-		ReadAsyncCap:        c.ReadAsyncCap,
-		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
-		ReadBufferSize:      c.ReadBufferSize,
-		WriteAsyncCap:       c.WriteAsyncCap,
-		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
-		WriteBufferSize:     c.WriteBufferSize,
-		CompressEnabled:     c.CompressEnabled,
-		CompressLevel:       c.CompressLevel,
-		CompressThreshold:   c.CompressThreshold,
-		CheckUtf8Enabled:    c.CheckUtf8Enabled,
-		CompressorNum:       c.CompressorNum,
-	}
-	if config.CompressEnabled {
-		config.compressors = new(compressors).initialize(c.CompressorNum, config.CompressLevel)
-	}
-	return config
+	c.once.Do(func() {
+		c.config = &Config{
+			ReadAsyncEnabled:    c.ReadAsyncEnabled,
+			ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+			ReadAsyncCap:        c.ReadAsyncCap,
+			ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
+			ReadBufferSize:      c.ReadBufferSize,
+			WriteAsyncCap:       c.WriteAsyncCap,
+			WriteMaxPayloadSize: c.WriteMaxPayloadSize,
+			WriteBufferSize:     c.WriteBufferSize,
+			CompressEnabled:     c.CompressEnabled,
+			CompressLevel:       c.CompressLevel,
+			CompressThreshold:   c.CompressThreshold,
+			CheckUtf8Enabled:    c.CheckUtf8Enabled,
+			CompressorNum:       c.CompressorNum,
+		}
+		if c.config.CompressEnabled {
+			c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
+		}
+	})
+	return c.config
 }
 
 type ClientOption struct {
