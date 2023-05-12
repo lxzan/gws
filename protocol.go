@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 
@@ -181,8 +182,9 @@ func (c *frameHeader) GetMaskKey() []byte {
 }
 
 type Message struct {
-	Opcode Opcode  // 帧状态码
-	Data   *Buffer // 数据缓冲
+	poolCode int           // poolCode决定了buffer归还到哪一个pool, 对于压缩内容固定为4K
+	Opcode   Opcode        // 帧状态码
+	Data     *bytes.Buffer // 数据缓冲
 }
 
 func (c *Message) Read(p []byte) (n int, err error) {
@@ -195,7 +197,7 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() error {
-	myBufferPool.Put(c.Data)
+	myBufferPool.Put(c.Data, c.poolCode)
 	c.Data = nil
 	return nil
 }
@@ -204,7 +206,7 @@ type continuationFrame struct {
 	initialized bool
 	compressed  bool
 	opcode      Opcode
-	buffer      *Buffer
+	buffer      *bytes.Buffer
 }
 
 func (c *continuationFrame) reset() {

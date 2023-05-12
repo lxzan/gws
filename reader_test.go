@@ -5,11 +5,10 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"sync"
-	"testing"
-
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"sync"
+	"testing"
 )
 
 // 测试同步读
@@ -243,7 +242,7 @@ func TestSegments(t *testing.T) {
 func TestMessage(t *testing.T) {
 	var msg = &Message{
 		Opcode: OpcodeText,
-		Data:   &Buffer{Buffer: bytes.NewBufferString("1234")},
+		Data:   bytes.NewBufferString("1234"),
 	}
 	_, _ = msg.Read(make([]byte, 2))
 	msg.Close()

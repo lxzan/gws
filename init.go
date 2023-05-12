@@ -1,6 +1,8 @@
 package gws
 
+import "github.com/lxzan/gws/internal"
+
 var (
-	myBufferPool = newBufferPool()
+	myBufferPool = internal.NewBufferPool()
 	myPadding    = frameHeader{}
 )

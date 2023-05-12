@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
 )
@@ -73,7 +74,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
 	var err = internal.WriteN(c.conn, contents, totalSize)
-	myBufferPool.Put(buf)
+	myBufferPool.Put(buf, buf.Cap())
 	return err
 }
 
@@ -87,8 +88,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
-	var buf = myBufferPool.Get(len(payload) * 7 / 2)
-	defer myBufferPool.Put(buf)
+	var buf = myBufferPool.Get(internal.Lv3)
+	defer myBufferPool.Put(buf, internal.Lv3)
 	buf.Write(myPadding[0:])
 	err := c.config.compressors.Select().Compress(payload, buf)
 	if err != nil {
@@ -97,7 +98,7 @@ func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
 	return c.leftTrimAndWrite(opcode, buf, true)
 }
 
-func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *Buffer, compress bool) error {
+func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *bytes.Buffer, compress bool) error {
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {

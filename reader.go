@@ -98,8 +98,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var rawBuf = myBufferPool.Get(contentLength)
-	var p = rawBuf.Bytes()
+	var p = myBufferPool.Get(contentLength).Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
@@ -141,19 +140,20 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.reset()
 		return myerr
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{Opcode: opcode, Data: newBuffer(p, rawBuf.pIndex)}, compressed)
+		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
 	default:
 		return internal.CloseNormalClosure
 	}
 }
 
-func (c *Conn) emitMessage(msg *Message, compressed bool) error {
+func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
+	msg.poolCode = msg.Data.Cap()
 	if compressed {
-		data, err := c.config.decompressors.Select().Decompress(msg.Data)
+		msg.poolCode = internal.Lv3
+		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		msg.Data = data
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)

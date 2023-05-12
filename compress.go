@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"encoding/binary"
 	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
@@ -42,7 +43,7 @@ type compressor struct {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content []byte, buf *Buffer) error {
+func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -92,15 +93,15 @@ type decompressor struct {
 }
 
 // Decompress 解压
-func (c *decompressor) Decompress(payload *Buffer) (*Buffer, error) {
+func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	_, _ = payload.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(payload, nil) // must return a null pointer
-	var buf = myBufferPool.Get(payload.Len() * 7 / 2)
+	var buf = myBufferPool.Get(internal.Lv3)
 	_, err := io.CopyBuffer(buf, c.fr, c.buffer[0:])
-	myBufferPool.Put(payload)
+	myBufferPool.Put(payload, payload.Cap())
 	return buf, err
 }
