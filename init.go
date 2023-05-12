@@ -7,9 +7,4 @@ import (
 var (
 	myBufferPool = internal.NewBufferPool()
 	myPadding    = frameHeader{}
-	myCompressor = new(compressors)
 )
-
-func init() {
-	SetFlateCompressor(8, defaultCompressLevel)
-}

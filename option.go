@@ -3,6 +3,7 @@ package gws
 import (
 	"compress/flate"
 	"crypto/tls"
+	"github.com/lxzan/gws/internal"
 	"net/http"
 	"time"
 )
@@ -15,6 +16,7 @@ const (
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
 	defaultCompressThreshold   = 512
+	defaultCompressorNum       = 128
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 
@@ -23,6 +25,8 @@ const (
 
 type (
 	Config struct {
+		compressors *compressors
+
 		// 是否开启异步读, 开启的话会并行调用OnMessage
 		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
 		ReadAsyncEnabled bool
@@ -59,9 +63,19 @@ type (
 		// Whether to turn on data compression
 		CompressEnabled bool
 
+		// 压缩级别
+		// Compress level
+		CompressLevel int
+
 		// 压缩阈值, 低于阈值的消息不会被压缩
 		// Compression threshold, messages below the threshold will not be compressed
 		CompressThreshold int
+
+		// CompressorNum 压缩器数量
+		// 数值越大竞争的概率越小, 但是会耗费大量内存, 注意取舍
+		// Number of compressors
+		// The higher the value the lower the probability of competition, but it will consume a lot of memory, so be careful about the trade-off
+		CompressorNum int
 
 		// 是否检查文本utf8编码, 关闭性能会好点
 		// Whether to check the text utf8 encoding, turn off the performance will be better
@@ -82,6 +96,7 @@ type (
 		CompressEnabled     bool
 		CompressLevel       int
 		CompressThreshold   int
+		CompressorNum       int
 		CheckUtf8Enabled    bool
 
 		// WebSocket子协议, 一般不需要设置
@@ -128,6 +143,9 @@ func (c *ServerOption) initialize() *ServerOption {
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
+	if c.CompressorNum <= 0 {
+		c.CompressorNum = defaultCompressorNum
+	}
 	if c.Authorize == nil {
 		c.Authorize = func(r *http.Request, session SessionStorage) bool {
 			return true
@@ -136,12 +154,13 @@ func (c *ServerOption) initialize() *ServerOption {
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
 	}
+	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
 	return c
 }
 
 // 获取通用配置
 func (c *ServerOption) getConfig() *Config {
-	return &Config{
+	config := &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadAsyncCap:        c.ReadAsyncCap,
@@ -151,9 +170,15 @@ func (c *ServerOption) getConfig() *Config {
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,
+		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+		CompressorNum:       c.CompressorNum,
 	}
+	if config.CompressEnabled {
+		config.compressors = new(compressors).initialize(c.CompressorNum, config.CompressLevel)
+	}
+	return config
 }
 
 type ClientOption struct {
@@ -168,6 +193,7 @@ type ClientOption struct {
 	WriteAsyncCap       int
 	WriteMaxPayloadSize int
 	CompressEnabled     bool
+	CompressLevel       int
 	CompressThreshold   int
 	CheckUtf8Enabled    bool
 
@@ -207,6 +233,9 @@ func (c *ClientOption) initialize() *ClientOption {
 	if c.WriteBufferSize <= 0 {
 		c.WriteBufferSize = defaultWriteBufferSize
 	}
+	if c.CompressEnabled && c.CompressLevel == 0 {
+		c.CompressLevel = defaultCompressLevel
+	}
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
@@ -221,7 +250,7 @@ func (c *ClientOption) initialize() *ClientOption {
 }
 
 func (c *ClientOption) getConfig() *Config {
-	return &Config{
+	config := &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadAsyncCap:        c.ReadAsyncCap,
@@ -231,7 +260,13 @@ func (c *ClientOption) getConfig() *Config {
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,
+		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+		CompressorNum:       1,
 	}
+	if config.CompressEnabled {
+		config.compressors = new(compressors).initialize(1, config.CompressLevel)
+	}
+	return config
 }

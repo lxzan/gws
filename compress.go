@@ -11,26 +11,22 @@ import (
 	"sync/atomic"
 )
 
-var numCompressor = uint64(8)
-
-// SetFlateCompressor 设置压缩器数量和压缩级别
-// num越大锁竞争概率越小, 但是会耗费大量内存, 取值需要权衡; 对于websocket server, 推荐num=128; 对于client, 推荐不修改使用默认值;
-// 推荐level=flate.BestSpeed
-func SetFlateCompressor(num int, level int) {
-	numCompressor = uint64(internal.ToBinaryNumber(num))
-	myCompressor = new(compressors)
-	for i := uint64(0); i < numCompressor; i++ {
-		myCompressor.compressors = append(myCompressor.compressors, newCompressor(level))
-	}
-}
-
 type compressors struct {
 	serial      uint64
+	size        uint64
 	compressors []*compressor
 }
 
+func (c *compressors) initialize(num int, level int) *compressors {
+	c.size = uint64(internal.ToBinaryNumber(num))
+	for i := uint64(0); i < c.size; i++ {
+		c.compressors = append(c.compressors, newCompressor(level))
+	}
+	return c
+}
+
 func (c *compressors) Select() *compressor {
-	var j = atomic.AddUint64(&c.serial, 1) & (numCompressor - 1)
+	var j = atomic.AddUint64(&c.serial, 1) & (c.size - 1)
 	return c.compressors[j]
 }
 

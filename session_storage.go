@@ -116,15 +116,8 @@ type (
 )
 
 func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V] {
-	if segments == 0 {
-		segments = 16
-	} else {
-		var num = uint64(1)
-		for num < segments {
-			num *= 2
-		}
-		segments = num
-	}
+	segments = internal.SelectInt(segments == 0, 16, segments)
+	segments = internal.ToBinaryNumber(segments)
 	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments, segments)}
 	for i, _ := range cm.buckets {
 		cm.buckets[i] = &bucket[K, V]{m: make(map[K]V)}

@@ -51,7 +51,6 @@
 
 ### Attention
 
-- Use SetFlateCompressor wisely to set the number of compressors and compression levels
 - The errors returned by the gws.Conn export methods are ignored, and are handled internally
 - Transferring large files with gws tends to block the connection
 
@@ -143,7 +142,7 @@ import (
 
 func main() {
 	upgrader := gws.NewUpgrader(new(gws.BuiltinEventHandler), &gws.ServerOption{
-		CheckOrigin: func(r *http.Request, session gws.SessionStorage) bool {
+		Authorize: func(r *http.Request, session gws.SessionStorage) bool {
 			session.Store("username", r.URL.Query().Get("username"))
 			return true
 		},

@@ -11,7 +11,7 @@ func main() {
 		CompressEnabled:  true,
 		CheckUtf8Enabled: true,
 	})
-	log.Fatalf("%v", app.Run(":3000"))
+	log.Fatalf("%v", app.Run(":8000"))
 }
 
 type Handler struct {

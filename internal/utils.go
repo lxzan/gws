@@ -187,7 +187,7 @@ func HttpHeaderEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 
-func SelectInt(ok bool, a, b int) int {
+func SelectInt[T uint64 | int](ok bool, a, b T) T {
 	if ok {
 		return a
 	}
@@ -201,8 +201,8 @@ func IsNil(v interface{}) bool {
 	return reflect.ValueOf(v).IsNil()
 }
 
-func ToBinaryNumber(n int) int {
-	var x = 1
+func ToBinaryNumber[T uint64 | int](n T) T {
+	var x T = 1
 	for x < n {
 		x *= 2
 	}

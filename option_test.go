@@ -17,10 +17,12 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.Equal(config.WriteAsyncCap, option.WriteAsyncCap)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
 	as.Equal(config.CompressEnabled, option.CompressEnabled)
+	as.Equal(config.CompressLevel, option.CompressLevel)
 	as.Equal(config.CompressThreshold, option.CompressThreshold)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
+	as.Equal(config.CompressorNum, option.CompressorNum)
 }
 
 func validateClientOption(as *assert.Assertions, option *ClientOption) {
@@ -32,6 +34,7 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.Equal(config.WriteAsyncCap, option.WriteAsyncCap)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
 	as.Equal(config.CompressEnabled, option.CompressEnabled)
+	as.Equal(config.CompressLevel, option.CompressLevel)
 	as.Equal(config.CompressThreshold, option.CompressThreshold)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
@@ -51,6 +54,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
 	as.Equal(defaultWriteAsyncCap, config.WriteAsyncCap)
+	as.Equal(defaultCompressorNum, config.CompressorNum)
 	as.NotNil(updrader.eventHandler)
 	as.NotNil(config)
 	as.NotNil(updrader.option)
@@ -66,10 +70,13 @@ func TestCompressServerOption(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
 			CompressEnabled: true,
+			CompressorNum:   60,
 		})
 		var config = updrader.option.getConfig()
 		as.Equal(true, config.CompressEnabled)
+		as.Equal(defaultCompressLevel, config.CompressLevel)
 		as.Equal(defaultCompressThreshold, config.CompressThreshold)
+		as.Equal(64, config.CompressorNum)
 		validateServerOption(as, updrader)
 	})
 
@@ -81,7 +88,9 @@ func TestCompressServerOption(t *testing.T) {
 		})
 		var config = updrader.option.getConfig()
 		as.Equal(true, config.CompressEnabled)
+		as.Equal(flate.BestCompression, config.CompressLevel)
 		as.Equal(1024, config.CompressThreshold)
+		as.Equal(defaultCompressorNum, config.CompressorNum)
 		validateServerOption(as, updrader)
 	})
 }
@@ -114,6 +123,7 @@ func TestDefaultClientOption(t *testing.T) {
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
 	as.Equal(defaultWriteAsyncCap, config.WriteAsyncCap)
+	as.Equal(1, config.CompressorNum)
 	as.NotNil(config)
 	as.Equal(0, len(option.RequestHeader))
 	as.Equal(defaultDialTimeout, option.DialTimeout)
@@ -128,6 +138,7 @@ func TestCompressClientOption(t *testing.T) {
 		NewClient(new(BuiltinEventHandler), option)
 		var config = option.getConfig()
 		as.Equal(true, config.CompressEnabled)
+		as.Equal(defaultCompressLevel, config.CompressLevel)
 		as.Equal(defaultCompressThreshold, config.CompressThreshold)
 		validateClientOption(as, option)
 	})
@@ -135,10 +146,12 @@ func TestCompressClientOption(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var option = &ClientOption{
 			CompressEnabled:   true,
+			CompressLevel:     flate.BestCompression,
 			CompressThreshold: 1024,
 		}
 		var config = option.getConfig()
 		as.Equal(true, config.CompressEnabled)
+		as.Equal(flate.BestCompression, config.CompressLevel)
 		as.Equal(1024, config.CompressThreshold)
 		validateClientOption(as, option)
 	})
