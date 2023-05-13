@@ -1,6 +1,6 @@
 # gws
 
-### event-driven go websocket server
+### event-driven go websocket server & client
 
 [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
 
@@ -25,7 +25,6 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
-	- [event-driven go websocket server](#event-driven-go-websocket-server)
 	- [Highlight](#highlight)
 	- [Attention](#attention)
 	- [Install](#install)
@@ -38,15 +37,16 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
+		- [Compression Disabled](#compression-disabled)
+		- [Compression Enabled](#compression-enabled)
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
 ### Highlight
 
-- Single dependency
 - IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
 - High IOPS and low latency, low CPU usage
-- Support fast parsing WebSocket protocol directly from TCP, faster handshake, 30% lower memory usage
+- Support fast parsing WebSocket protocol directly from TCP, faster handshake, lower memory usage
 - Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
@@ -91,16 +91,11 @@ func main() {
 package main
 
 import (
-	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws"
 	"time"
 )
 
 const PingInterval = 10 * time.Second
-
-func init() {
-	gws.SetFlateCompressor(128, flate.BestSpeed)
-}
 
 func main() {
 	options := &gws.ServerOption{ReadAsyncEnabled: true, ReadAsyncGoLimit: 4, CompressEnabled: true}
@@ -124,7 +119,9 @@ func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
 
 func (c *Handler) OnPong(socket *gws.Conn, payload []byte) {}
 
-func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {}
+func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
+	defer message.Close()
+}
 ```
 
 ### Usage
@@ -173,7 +170,6 @@ package main
 import (
 	"log"
 	"net"
-
 	"github.com/lxzan/gws"
 )
 
@@ -198,7 +194,6 @@ package main
 import (
 	"log"
 	"net"
-
 	"github.com/lxzan/gws"
 )
 
@@ -244,31 +239,24 @@ docker run -it --rm \
 ### Benchmark
 
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
+- ConnectionNum = 1000, MessageNum = 1000, RequestsNum = 1000*1000
+- PayloadSize = rand.Intn(8 * 1024)
 
-- IOPS
+#### Compression Disabled
 
-```
-// ${message_num} depends on the maximum load capacity of each package
-tcpkali -c 1000 --connect-rate 500 -r ${message_num} -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
-```
+| Package           | Duration | IOPS    | P50   | P90    | P99    |
+|-------------------|----------|---------|-------|--------|--------|
+| lxzan/gws         | 823.27ms | 1214668 | 7ms   | 31ms   | 76ms   |
+| gorilla/websocket | 2.62s    | 380736  | 226ms | 1124ms | 2107ms |
+| nhooyr/websocket  | 4.32s    | 231205  | 378ms | 2364ms | 3960ms |
 
-![iops](assets/performance.png)
+#### Compression Enabled
 
-- Latency
-
-```
-tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.1:${port}/connect
-```
-
-![latency](assets/latency.png)
-
-- CPU
-
-```
- PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
-9898 caster    20   0  721172  39648   7404 S 259.5   1.0  78:44.15 gorilla-linux-a
-9871 caster    20   0  721212  41788   7188 S 161.5   1.0  51:39.43 gws-linux-amd64
-```
+| Package           | Duration | IOPS   | P50    | P90    | P99    |
+|-------------------|----------|--------|--------|--------|--------|
+| lxzan/gws         | 2.80s    | 355956 | 196ms  | 643ms  | 1504ms |
+| gorilla/websocket | 7.80s    | 128203 | 493ms  | 4084ms | 6705ms |
+| nhooyr/websocket  | 23.91s   | 41814  | 2831ms | ∞      | ∞      |
 
 ### Communication
 
@@ -279,3 +267,4 @@ tcpkali -c 1000 --connect-rate 500 -r 100 -T 300s -f assets/1K.txt --ws 127.0.0.
 The following project had particular influence on gws's design.
 
 - [lesismal/nbio](https://github.com/lxzan/gws)
+- [crossbario/autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
