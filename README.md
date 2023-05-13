@@ -266,5 +266,5 @@ docker run -it --rm \
 
 The following project had particular influence on gws's design.
 
-- [lesismal/nbio](https://github.com/lxzan/gws)
+- [lesismal/nbio](https://github.com/lesismal/nbio)
 - [crossbario/autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
