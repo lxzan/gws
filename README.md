@@ -239,24 +239,26 @@ docker run -it --rm \
 ### Benchmark
 
 - Machine: `Ubuntu 20.04LTS VM (4C8T)`
-- ConnectionNum = 1000, MessageNum = 1000, RequestsNum = 1000*1000
-- PayloadSize = rand.Intn(8 * 1024)
+- ConnectionNum: `1000`
 
 #### Compression Disabled
 
-| Package           | Duration | IOPS    | P50   | P90    | P99    |
-|-------------------|----------|---------|-------|--------|--------|
-| lxzan/gws         | 823.27ms | 1214668 | 7ms   | 31ms   | 76ms   |
-| gorilla/websocket | 2.62s    | 380736  | 226ms | 1124ms | 2107ms |
-| nhooyr/websocket  | 4.32s    | 231205  | 378ms | 2364ms | 3960ms |
+| Package               | Payload         | Duration | IOPS    | P50   | P90    | P99    |
+| --------------------- | --------------- | -------- | ------- | ----- | ------ | ------ |
+| lxzan/gws             | rand.Intn(1000) | 712.62ms | 1403261 | 13ms  | 193ms  | 282ms  |
+| lesismal/nbio (block) | rand.Intn(1000) | 803.06ms | 1245230 | 48ms  | 304ms  | 473ms  |
+| gorilla/websocket     | rand.Intn(1000) | 1.43s    | 695787  | 270ms | 807ms  | 1105ms |
+| nhooyr/websocket      | rand.Intn(1000) | 2.80s    | 356775  | 697ms | 1966ms | 2522ms |
+
 
 #### Compression Enabled
 
-| Package           | Duration | IOPS   | P50    | P90    | P99    |
-|-------------------|----------|--------|--------|--------|--------|
-| lxzan/gws         | 2.80s    | 355956 | 196ms  | 643ms  | 1504ms |
-| gorilla/websocket | 7.80s    | 128203 | 493ms  | 4084ms | 6705ms |
-| nhooyr/websocket  | 23.91s   | 41814  | 2831ms | ∞      | ∞      |
+| Package               | Payload         | Duration | IOPS   | P50    | P90    | P99    |
+| --------------------- | --------------- | -------- | ------ | ------ | ------ | ------ |
+| lxzan/gws             | rand.Intn(4000) | 1.73s    | 287628 | 58ms   | 326ms  | 828ms  |
+| lesismal/nbio (block) | rand.Intn(4000) | 2.08s    | 239307 | 58ms   | 460ms  | 1206ms |
+| gorilla/websocket     | rand.Intn(4000) | 4.91s    | 101721 | 488ms  | 2276ms | 4235ms |
+| nhooyr/websocket      | rand.Intn(4000) | 10.99s   | 45467  | 1159ms | 5228ms | ∞      |
 
 ### Communication
 
@@ -268,3 +270,4 @@ The following project had particular influence on gws's design.
 
 - [lesismal/nbio](https://github.com/lesismal/nbio)
 - [crossbario/autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
+

@@ -17,7 +17,7 @@ const (
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
 	defaultCompressThreshold   = 512
-	defaultCompressorNum       = 128
+	defaultCompressorNum       = 64
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 
