@@ -243,22 +243,21 @@ docker run -it --rm \
 
 #### Compression Disabled
 
-| Package               | Payload         | Duration | IOPS    | P50   | P90    | P99    |
-| --------------------- | --------------- | -------- | ------- | ----- | ------ | ------ |
-| lxzan/gws             | rand.Intn(1000) | 712.62ms | 1403261 | 13ms  | 193ms  | 282ms  |
-| lesismal/nbio (block) | rand.Intn(1000) | 803.06ms | 1245230 | 48ms  | 304ms  | 473ms  |
-| gorilla/websocket     | rand.Intn(1000) | 1.43s    | 695787  | 270ms | 807ms  | 1105ms |
-| nhooyr/websocket      | rand.Intn(1000) | 2.80s    | 356775  | 697ms | 1966ms | 2522ms |
-
+| Package                       | Payload         | Duration | IOPS      | P50   | P90    | P99    |
+| ----------------------------- | --------------- | -------- | --------- | ----- | ------ | ------ |
+| lxzan/gws                     | rand.Intn(1000) | 712.62ms | 1,403,261 | 13ms  | 193ms  | 282ms  |
+| lesismal/nbio (IOModBlocking) | rand.Intn(1000) | 803.06ms | 1,245,230 | 48ms  | 304ms  | 473ms  |
+| gorilla/websocket             | rand.Intn(1000) | 1.43s    | 695,787   | 270ms | 807ms  | 1105ms |
+| nhooyr/websocket              | rand.Intn(1000) | 2.80s    | 356,775   | 697ms | 1966ms | 2522ms |
 
 #### Compression Enabled
 
-| Package               | Payload         | Duration | IOPS   | P50    | P90    | P99    |
-| --------------------- | --------------- | -------- | ------ | ------ | ------ | ------ |
-| lxzan/gws             | rand.Intn(4000) | 1.73s    | 287628 | 58ms   | 326ms  | 828ms  |
-| lesismal/nbio (block) | rand.Intn(4000) | 2.08s    | 239307 | 58ms   | 460ms  | 1206ms |
-| gorilla/websocket     | rand.Intn(4000) | 4.91s    | 101721 | 488ms  | 2276ms | 4235ms |
-| nhooyr/websocket      | rand.Intn(4000) | 10.99s   | 45467  | 1159ms | 5228ms | ∞      |
+| Package                       | Payload         | Duration | IOPS    | P50    | P90    | P99    |
+| ----------------------------- | --------------- | -------- | ------- | ------ | ------ | ------ |
+| lxzan/gws                     | rand.Intn(4000) | 1.73s    | 287,628 | 58ms   | 326ms  | 828ms  |
+| lesismal/nbio (IOModBlocking) | rand.Intn(4000) | 2.08s    | 239,307 | 58ms   | 460ms  | 1206ms |
+| gorilla/websocket             | rand.Intn(4000) | 4.91s    | 101,721 | 488ms  | 2276ms | 4235ms |
+| nhooyr/websocket              | rand.Intn(4000) | 10.99s   | 45,467  | 1159ms | 5228ms | ∞      |
 
 ### Communication
 
