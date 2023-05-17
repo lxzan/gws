@@ -93,6 +93,7 @@ type decompressor struct {
 }
 
 // Decompress 解压
+// 解压过程中, 切片可能会发生扩容, 造成bufferpool get/put失衡, 故需要指定大小, 让它们命中同一个bufferpool.
 func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
 	c.Lock()
 	defer c.Unlock()
