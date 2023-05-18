@@ -238,26 +238,38 @@ docker run -it --rm \
 
 ### Benchmark
 
-- Machine: `Ubuntu 20.04LTS VM (4C8T)`
-- ConnectionNum: `1000`
+> Env: 1000 conns, 2*vCPU
 
-#### Compression Disabled
+`wsbench iops -c 1000 -n 1000 -p 100 -u $addr`
 
-| Package                       | Payload         | Duration | IOPS      | P50   | P90    | P99    |
-| ----------------------------- | --------------- | -------- | --------- | ----- | ------ | ------ |
-| lxzan/gws                     | rand.Intn(1000) | 712.62ms | 1,403,261 | 13ms  | 193ms  | 282ms  |
-| lesismal/nbio (IOModBlocking) | rand.Intn(1000) | 803.06ms | 1,245,230 | 48ms  | 304ms  | 473ms  |
-| gorilla/websocket             | rand.Intn(1000) | 1.43s    | 695,787   | 270ms | 807ms  | 1105ms |
-| nhooyr/websocket              | rand.Intn(1000) | 2.80s    | 356,775   | 697ms | 1966ms | 2522ms |
+| Package           | Duration     | IOPS    | P50    | P90    | P99    |
+| ----------------- | ------------ | ------- | ------ | ------ | ------ |
+| lxzan/gws         | 743.877633ms | 1344307 | 203ms  | 397ms  | 478ms  |
+| gorilla/websocket | 2.1261097s   | 470342  | 801ms  | 1664ms | 1884ms |
+| nhooyr/websocket  | 4.182677709s | 239081  | 1929ms | 3546ms | 3971ms |
+| gobwas/ws         | 5.121333938s | 195261  | 2348ms | 4390ms | 4846ms |
 
-#### Compression Enabled
 
-| Package                       | Payload         | Duration | IOPS    | P50    | P90    | P99    |
-| ----------------------------- | --------------- | -------- | ------- | ------ | ------ | ------ |
-| lxzan/gws                     | rand.Intn(4000) | 1.73s    | 287,628 | 58ms   | 326ms  | 828ms  |
-| lesismal/nbio (IOModBlocking) | rand.Intn(4000) | 2.08s    | 239,307 | 58ms   | 460ms  | 1206ms |
-| gorilla/websocket             | rand.Intn(4000) | 4.91s    | 101,721 | 488ms  | 2276ms | 4235ms |
-| nhooyr/websocket              | rand.Intn(4000) | 10.99s   | 45,467  | 1159ms | 5228ms | ∞      |
+`wsbench iops -c 1000 -n 1000 -p 1000 -u $addr`
+
+| Package           | Duration     | IOPS   | P50    | P90    | P99    |
+| ----------------- | ------------ | ------ | ------ | ------ | ------ |
+| lxzan/gws         | 1.881465986s | 531500 | 110ms  | 440ms  | 993ms  |
+| gorilla/websocket | 4.248636072s | 235369 | 463ms  | 1633ms | 3372ms |
+| nhooyr/websocket  | 8.318249204s | 120217 | 1063ms | 3741ms | 7506ms |
+| gobwas/ws         | 8.097690854s | 123492 | 807ms  | 3898ms | 7019ms |
+
+
+`wsbench iops -c 1000 -n 200 -p 4000 -u $addr`
+
+| Package           | Duration     | IOPS   | P50   | P90    | P99    |
+| ----------------- | ------------ | ------ | ----- | ------ | ------ |
+| lxzan/gws         | 1.949510389s | 102589 | 55ms  | 744ms  | 1577ms |
+| gorilla/websocket | 6.064869026s | 32976  | 664ms | 4058ms | 5087ms |
+| nhooyr/websocket  | 6.694693145s | 29874  | 819ms | 4899ms | 5851ms |
+| gobwas/ws         | 3.648503753s | 54816  | 412ms | 2134ms | 3157ms |
+
+
 
 ### Communication
 
