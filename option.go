@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -85,7 +84,6 @@ type (
 	}
 
 	ServerOption struct {
-		once   sync.Once
 		config *Config
 
 		// 写缓冲区的大小, v1.4.5版本此参数被废弃
@@ -160,34 +158,32 @@ func (c *ServerOption) initialize() *ServerOption {
 		c.ResponseHeader = http.Header{}
 	}
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
+
+	c.config = &Config{
+		ReadAsyncEnabled:    c.ReadAsyncEnabled,
+		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+		ReadAsyncCap:        c.ReadAsyncCap,
+		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
+		ReadBufferSize:      c.ReadBufferSize,
+		WriteAsyncCap:       c.WriteAsyncCap,
+		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
+		WriteBufferSize:     c.WriteBufferSize,
+		CompressEnabled:     c.CompressEnabled,
+		CompressLevel:       c.CompressLevel,
+		CompressThreshold:   c.CompressThreshold,
+		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+		CompressorNum:       c.CompressorNum,
+	}
+	if c.config.CompressEnabled {
+		c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
+		c.config.decompressors = new(decompressors).initialize(c.CompressorNum, c.config.CompressLevel)
+	}
+
 	return c
 }
 
 // 获取通用配置
-func (c *ServerOption) getConfig() *Config {
-	c.once.Do(func() {
-		c.config = &Config{
-			ReadAsyncEnabled:    c.ReadAsyncEnabled,
-			ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
-			ReadAsyncCap:        c.ReadAsyncCap,
-			ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
-			ReadBufferSize:      c.ReadBufferSize,
-			WriteAsyncCap:       c.WriteAsyncCap,
-			WriteMaxPayloadSize: c.WriteMaxPayloadSize,
-			WriteBufferSize:     c.WriteBufferSize,
-			CompressEnabled:     c.CompressEnabled,
-			CompressLevel:       c.CompressLevel,
-			CompressThreshold:   c.CompressThreshold,
-			CheckUtf8Enabled:    c.CheckUtf8Enabled,
-			CompressorNum:       c.CompressorNum,
-		}
-		if c.config.CompressEnabled {
-			c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
-			c.config.decompressors = new(decompressors).initialize(c.CompressorNum, c.config.CompressLevel)
-		}
-	})
-	return c.config
-}
+func (c *ServerOption) getConfig() *Config { return c.config }
 
 type ClientOption struct {
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
