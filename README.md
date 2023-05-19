@@ -37,8 +37,6 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
-		- [Compression Disabled](#compression-disabled)
-		- [Compression Enabled](#compression-enabled)
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
