@@ -37,8 +37,6 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
-		- [Compression Disabled](#compression-disabled)
-		- [Compression Enabled](#compression-enabled)
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
@@ -237,29 +235,7 @@ docker run -it --rm \
 ```
 
 ### Benchmark
-
-> Env: 1000 conns, 2*vCPU
-> 
-> Tool: wsbench
-
-| Package           | Payload | Duration     | IOPS    | P50    | P90    | P99    |
-| ----------------- | ------- | ------------ | ------- | ------ | ------ | ------ |
-| lxzan/gws         | 100     | 743.877633ms | 1344307 | 203ms  | 397ms  | 478ms  |
-| gorilla/websocket | 100     | 2.1261097s   | 470342  | 801ms  | 1664ms | 1884ms |
-| nhooyr/websocket  | 100     | 4.182677709s | 239081  | 1929ms | 3546ms | 3971ms |
-| gobwas/ws         | 100     | 5.121333938s | 10..9102.3
-.36+0-9*
-+80/7561  | 2348ms | 4390ms | 4846ms |
-| lxzan/gws         | 1000    | 1.881465986s | 531500  | 110ms  | 440ms  | 993ms  |
-| gorilla/websocket | 1000    | 4.248636072s | 235369  | 463ms  | 1633ms | 3372ms |
-| nhooyr/websocket  | 1000    | 8.318249204s | 120217  | 1063ms | 3741ms | 7506ms |
-| gobwas/ws         | 1000    | 8.097690854s | 123492  | 807ms  | 3898ms | 7019ms |
-| lxzan/gws         | 4000    | 1.949510389s | 102589  | 55ms   | 744ms  | 1577ms |
-| gorilla/websocket | 4000    | 6.064869026s | 32976   | 664ms  | 4058ms | 5087ms |
-| nhooyr/websocket  | 4000    | 6.694693145s | 29874   | 819ms  | 4899ms | 5851ms |
-| gobwas/ws         | 4000    | 3.648503753s | 54816   | 412ms  | 2134ms | 3157ms |
-
-
+![performance](assets/performance.png)
 
 ### Communication
 
