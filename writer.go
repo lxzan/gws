@@ -6,10 +6,12 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// WriteClose proactively close the connection
+// WriteClose
 // code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
 // 通过emitError发送关闭帧, 将连接状态置为关闭, 用于服务端主动断开连接
 // 没有特殊原因的话, 建议code=0, reason=nil
+// Send a close frame via emitError to set the connection state to closed, for server-initiated disconnection
+// If there is no special reason, we suggest code=0, reason=nil
 func (c *Conn) WriteClose(code uint16, reason []byte) {
 	var err = internal.NewError(internal.StatusCode(code), internal.GwsError(""))
 	if len(reason) > 0 {
