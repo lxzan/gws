@@ -25,6 +25,7 @@
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
 - [gws](#gws)
+	- [event-driven go websocket server \& client](#event-driven-go-websocket-server--client)
 	- [Highlight](#highlight)
 	- [Attention](#attention)
 	- [Install](#install)
@@ -37,6 +38,8 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
+		- [Compress Disabled](#compress-disabled)
+		- [Compress Enabled](#compress-enabled)
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
@@ -235,7 +238,16 @@ docker run -it --rm \
 ```
 
 ### Benchmark
-![performance](assets/performance.png)
+
+- Fedora 38 Workstation (Linux 6.2 Kernel)
+- Connection = 1000
+- GOMAXPROCS = 2
+  
+#### Compress Disabled
+![performance](assets/performance-compress-disabled.png)
+
+#### Compress Enabled
+![performance](assets/performance-compress-enabled.png)
 
 ### Communication
 
