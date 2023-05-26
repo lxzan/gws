@@ -53,6 +53,7 @@
 ### Attention
 
 - The errors returned by the gws.Conn export methods are ignored, and are handled internally
+- When an exception occurs, one and only one of OnError/OnClose will be triggered
 - Transferring large files with gws tends to block the connection
 
 ### Install
