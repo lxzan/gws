@@ -3,6 +3,7 @@ package gws
 import (
 	"compress/flate"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -55,6 +56,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
 	as.Equal(defaultWriteAsyncCap, config.WriteAsyncCap)
 	as.Equal(defaultCompressorNum, config.CompressorNum)
+	as.Equal(defaultHandshakeTimeout, updrader.option.HandshakeTimeout)
 	as.NotNil(updrader.eventHandler)
 	as.NotNil(config)
 	as.NotNil(updrader.option)
@@ -101,11 +103,13 @@ func TestReadServerOption(t *testing.T) {
 		ReadAsyncEnabled:   true,
 		ReadAsyncGoLimit:   4,
 		ReadMaxPayloadSize: 1024,
+		HandshakeTimeout:   10 * time.Second,
 	})
 	var config = updrader.option.getConfig()
 	as.Equal(true, config.ReadAsyncEnabled)
 	as.Equal(4, config.ReadAsyncGoLimit)
 	as.Equal(1024, config.ReadMaxPayloadSize)
+	as.Equal(10*time.Second, updrader.option.HandshakeTimeout)
 	validateServerOption(as, updrader)
 }
 
