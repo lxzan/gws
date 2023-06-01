@@ -274,23 +274,6 @@ func TestNewServer(t *testing.T) {
 	})
 
 	t.Run("fail 3", func(t *testing.T) {
-		var addr = ":" + nextPort()
-		var wg = sync.WaitGroup{}
-		wg.Add(1)
-		var server = NewServer(new(BuiltinEventHandler), nil)
-		server.OnConnect = func(conn net.Conn) error {
-			return errors.New("test")
-		}
-		server.OnError = func(conn net.Conn, err error) {
-			wg.Done()
-		}
-		go server.Run(addr)
-		_, err := net.Dial("tcp", "localhost"+addr)
-		as.NoError(err)
-		wg.Wait()
-	})
-
-	t.Run("fail 3", func(t *testing.T) {
 		var server = NewServer(new(BuiltinEventHandler), nil)
 		var addr = ":" + nextPort()
 		go server.Run(addr)
