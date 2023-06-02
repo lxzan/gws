@@ -24,9 +24,8 @@
 
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
 
-- [gws](#gws)
-	- [event-driven go websocket server \& client](#event-driven-go-websocket-server--client)
-	- [Highlight](#highlight)
+- [GWS](#gws)
+	- [Feature](#feature)
 	- [Attention](#attention)
 	- [Install](#install)
 	- [Event](#event)
@@ -43,12 +42,13 @@
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
-### Highlight
+### Feature
 
-- IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
-- High IOPS and low latency, low CPU usage
-- Support fast parsing WebSocket protocol directly from TCP, faster handshake, lower memory usage
-- Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+- [x] Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+- [x] Thread safety guarantees for writing messages
+- [x] High IOPS and low latency, low CPU usage
+- [x] IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
+- [x] Fast upgrade from TCP to WebSocket, dramatically reduce memory usage
 
 ### Attention
 

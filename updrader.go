@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"errors"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -93,6 +94,10 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
+	if err := netConn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout)); err != nil {
+		return nil, err
+	}
+
 	var session = new(sliceMap)
 	var header = c.option.ResponseHeader.Clone()
 	if !c.option.Authorize(r, session) {
@@ -137,10 +142,6 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 type Server struct {
 	upgrader *Upgrader
 
-	// OnConnect 建立连接事件, 用于处理限流, 熔断和安全问题; 返回错误将会断开连接.
-	// Creates connection events for current limit, fuse and security issues; returning an error will disconnect.
-	OnConnect func(conn net.Conn) error
-
 	// OnError 接收握手过程中产生的错误回调
 	// Receive error callbacks generated during the handshake
 	OnError func(conn net.Conn, err error)
@@ -150,8 +151,7 @@ type Server struct {
 // create a websocket server
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
-	c.OnConnect = func(conn net.Conn) error { return nil }
-	c.OnError = func(conn net.Conn, err error) {}
+	c.OnError = func(conn net.Conn, err error) { log.Println(err.Error()) }
 	return c
 }
 
@@ -192,24 +192,18 @@ func (c *Server) RunListener(listener net.Listener) error {
 		}
 
 		go func() {
-			if err := c.OnConnect(conn); err != nil {
-				_ = conn.Close()
-				c.OnError(conn, err)
-				return
-			}
-
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
 			r, err := http.ReadRequest(br)
 			if err != nil {
-				_ = conn.Close()
 				c.OnError(conn, err)
+				_ = conn.Close()
 				return
 			}
 
 			socket, err := c.upgrader.doUpgrade(r, conn, br)
 			if err != nil {
-				_ = conn.Close()
 				c.OnError(conn, err)
+				_ = conn.Close()
 				return
 			}
 			socket.ReadLoop()

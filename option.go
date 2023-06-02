@@ -20,7 +20,8 @@ const (
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 
-	defaultDialTimeout = 5 * time.Second
+	defaultHandshakeTimeout = 5 * time.Second
+	defaultDialTimeout      = 5 * time.Second
 )
 
 type (
@@ -102,6 +103,9 @@ type (
 		CompressorNum       int
 		CheckUtf8Enabled    bool
 
+		// 握手超时时间
+		HandshakeTimeout time.Duration
+
 		// WebSocket子协议, 一般不需要设置
 		// WebSocket subprotocol, usually no need to set
 		Subprotocols []string
@@ -156,6 +160,9 @@ func (c *ServerOption) initialize() *ServerOption {
 	}
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
+	}
+	if c.HandshakeTimeout <= 0 {
+		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
 
