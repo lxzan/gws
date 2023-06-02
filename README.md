@@ -2,7 +2,7 @@
 
 ### event-driven go websocket server & client
 
-[![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
+[![Mentioned in Awesome Go][11]][12] [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
 
 [1]: https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master
 
@@ -23,6 +23,10 @@
 [9]: https://goreportcard.com/badge/github.com/lxzan/gws
 
 [10]: https://goreportcard.com/report/github.com/lxzan/gws
+
+[11]: https://awesome.re/mentioned-badge-flat.svg
+
+[12]: https://github.com/avelino/awesome-go#networking
 
 - [GWS](#gws)
 	- [Feature](#feature)
