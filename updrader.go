@@ -195,15 +195,15 @@ func (c *Server) RunListener(listener net.Listener) error {
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
 			r, err := http.ReadRequest(br)
 			if err != nil {
-				_ = conn.Close()
 				c.OnError(conn, err)
+				_ = conn.Close()
 				return
 			}
 
 			socket, err := c.upgrader.doUpgrade(r, conn, br)
 			if err != nil {
-				_ = conn.Close()
 				c.OnError(conn, err)
+				_ = conn.Close()
 				return
 			}
 			socket.ReadLoop()
