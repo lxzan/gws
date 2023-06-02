@@ -151,7 +151,7 @@ type Server struct {
 // create a websocket server
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
-	c.OnError = func(conn net.Conn, err error) { log.Println(err.Error()) }
+	c.OnError = func(conn net.Conn, err error) { log.Println("gws: " + err.Error()) }
 	return c
 }
 
