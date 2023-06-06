@@ -101,18 +101,6 @@ func TestConn_WriteAsyncError(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
-		var serverOption = &ServerOption{WriteAsyncCap: 1}
-		var clientOption = &ClientOption{}
-		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-		server.WriteAsync(OpcodeText, nil)
-		server.WriteAsync(OpcodeText, nil)
-		err := server.WriteAsync(OpcodeText, nil)
-		as.Equal(internal.ErrAsyncIOCapFull, err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var serverHandler = new(webSocketMocker)
-		var clientHandler = new(webSocketMocker)
 		var serverOption = &ServerOption{}
 		var clientOption = &ClientOption{}
 		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)

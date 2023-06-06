@@ -2,8 +2,6 @@ package gws
 
 import (
 	"sync"
-
-	"github.com/lxzan/gws/internal"
 )
 
 type (
@@ -12,19 +10,17 @@ type (
 		q              []asyncJob // 任务队列
 		maxConcurrency int32      // 最大并发
 		curConcurrency int32      // 当前并发
-		capacity       int        // 容量
 	}
 
 	asyncJob func()
 )
 
 // newWorkerQueue 创建一个任务队列
-func newWorkerQueue(maxConcurrency int32, capacity int) *workerQueue {
+func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	c := &workerQueue{
 		mu:             sync.Mutex{},
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
-		capacity:       capacity,
 	}
 	return c
 }
@@ -38,7 +34,7 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
 	}
-	if n := len(c.q); n == 0 {
+	if len(c.q) == 0 {
 		return nil
 	}
 	var result = c.q[0]
@@ -47,26 +43,20 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 	return result
 }
 
-// 递归地执行任务
+// 循环执行任务
 func (c *workerQueue) do(job asyncJob) {
-	job()
-	if nextJob := c.getJob(-1); nextJob != nil {
-		c.do(nextJob)
+	for job != nil {
+		job()
+		job = c.getJob(-1)
 	}
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
-func (c *workerQueue) Push(job asyncJob) error {
+func (c *workerQueue) Push(job asyncJob) {
 	c.mu.Lock()
-	if n := len(c.q); n >= c.capacity {
-		c.mu.Unlock()
-		return internal.ErrAsyncIOCapFull
-	} else {
-		c.q = append(c.q, job)
-		c.mu.Unlock()
+	c.q = append(c.q, job)
+	c.mu.Unlock()
+	if job := c.getJob(0); job != nil {
+		go c.do(job)
 	}
-	if item := c.getJob(0); item != nil {
-		go c.do(item)
-	}
-	return nil
 }

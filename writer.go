@@ -86,7 +86,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
-	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+	c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+	return nil
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
