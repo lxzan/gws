@@ -91,8 +91,9 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
-	var buf = myBufferPool.Get(internal.Lv3)
-	defer myBufferPool.Put(buf, internal.Lv3)
+	var vCap = myBufferPool.GetvCap(len(payload) / 3)
+	var buf = myBufferPool.Get(vCap)
+	defer myBufferPool.Put(buf, vCap)
 	buf.Write(myPadding[0:])
 	err := c.config.compressors.Select().Compress(payload, buf)
 	if err != nil {
