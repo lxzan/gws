@@ -150,7 +150,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 	msg.vCap = msg.Data.Cap()
 	if compressed {
 		msg.vCap = myBufferPool.GetvCap(msg.Data.Len())
-		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data)
+		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data, msg.vCap)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

@@ -43,21 +43,21 @@ type compressor struct {
 }
 
 // Compress 压缩
-func (c *compressor) Compress(content []byte, buf *bytes.Buffer) error {
+func (c *compressor) Compress(src []byte, dst *bytes.Buffer) error {
 	c.Lock()
 	defer c.Unlock()
 
-	c.fw.Reset(buf)
-	if err := internal.WriteN(c.fw, content, len(content)); err != nil {
+	c.fw.Reset(dst)
+	if err := internal.WriteN(c.fw, src, len(src)); err != nil {
 		return err
 	}
 	if err := c.fw.Flush(); err != nil {
 		return err
 	}
-	if n := buf.Len(); n >= 4 {
-		compressedContent := buf.Bytes()
+	if n := dst.Len(); n >= 4 {
+		compressedContent := dst.Bytes()
 		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			buf.Truncate(n - 4)
+			dst.Truncate(n - 4)
 		}
 	}
 	return nil
@@ -94,15 +94,15 @@ type decompressor struct {
 
 // Decompress 解压
 // 解压过程中, 切片可能会发生扩容, 造成bufferpool get/put失衡, 故需要指定大小, 让它们命中同一个bufferpool.
-func (c *decompressor) Decompress(payload *bytes.Buffer) (*bytes.Buffer, error) {
+func (c *decompressor) Decompress(src *bytes.Buffer, vCap int) (*bytes.Buffer, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	_, _ = payload.Write(internal.FlateTail)
+	_, _ = src.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
-	_ = resetter.Reset(payload, nil) // must return a null pointer
-	var buf = myBufferPool.Get(internal.Lv3)
-	_, err := io.CopyBuffer(buf, c.fr, c.buffer[0:])
-	myBufferPool.Put(payload, payload.Cap())
-	return buf, err
+	_ = resetter.Reset(src, nil) // must return a null pointer
+	var dst = myBufferPool.Get(vCap)
+	_, err := io.CopyBuffer(dst, c.fr, c.buffer[0:])
+	myBufferPool.Put(src, src.Cap())
+	return dst, err
 }

@@ -27,7 +27,7 @@ func TestFlate(t *testing.T) {
 
 			var buf = bytes.NewBufferString("")
 			buf.Write(compressedBuf.Bytes())
-			plainText, err := dps.Decompress(buf)
+			plainText, err := dps.Decompress(buf, 0)
 			if err != nil {
 				as.NoError(err)
 				return
@@ -50,7 +50,7 @@ func TestFlate(t *testing.T) {
 		var buf = bytes.NewBufferString("")
 		buf.Write(compressedBuf.Bytes())
 		buf.WriteString("1234")
-		_, err := dps.Decompress(buf)
+		_, err := dps.Decompress(buf, 0)
 		as.Error(err)
 	})
 }
