@@ -22,6 +22,17 @@ func NewBufferPool() *BufferPool {
 	return &p
 }
 
+// compressedSize: 压缩后的大小
+func (p *BufferPool) GetvCap(compressedSize int) int {
+	if compressedSize <= Lv2 {
+		return Lv2
+	}
+	if compressedSize <= Lv3 {
+		return Lv3
+	}
+	return Lv4
+}
+
 func (p *BufferPool) Put(b *bytes.Buffer, n int) {
 	if b == nil || n == 0 {
 		return

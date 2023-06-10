@@ -47,3 +47,12 @@ func TestBufferPool(t *testing.T) {
 	pool.Put(NewBufferWithCap(0), 0)
 	as.GreaterOrEqual(pool.Get(128*1024).Cap(), 128*1024)
 }
+
+func TestBufferPool_GetvCap(t *testing.T) {
+	var as = assert.New(t)
+	var p = NewBufferPool()
+	as.Equal(Lv2, p.GetvCap(512))
+	as.Equal(Lv3, p.GetvCap(3*1024))
+	as.Equal(Lv4, p.GetvCap(8*1024))
+	as.Equal(Lv4, p.GetvCap(256*1024))
+}

@@ -56,8 +56,8 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		rbuf:            br,
 		fh:              frameHeader{},
 		handler:         handler,
-		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit), capacity: config.ReadAsyncCap},
-		writeQueue:      workerQueue{maxConcurrency: 1, capacity: config.WriteAsyncCap},
+		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit)},
+		writeQueue:      workerQueue{maxConcurrency: 1},
 	}
 	return c
 }

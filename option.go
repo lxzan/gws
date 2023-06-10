@@ -89,13 +89,18 @@ type (
 
 		// 写缓冲区的大小, v1.4.5版本此参数被废弃
 		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
-		WriteBufferSize     int
+		WriteBufferSize int
+		// 参数已废弃, 不再产生任何影响
+		// Deprecated: The parameter is deprecated and no longer has any effect
+		ReadAsyncCap int
+		// 参数已废弃, 不再产生任何影响
+		// Deprecated: The parameter is deprecated and no longer has any effect
+		WriteAsyncCap int
+
 		ReadAsyncEnabled    bool
 		ReadAsyncGoLimit    int
-		ReadAsyncCap        int
 		ReadMaxPayloadSize  int
 		ReadBufferSize      int
-		WriteAsyncCap       int
 		WriteMaxPayloadSize int
 		CompressEnabled     bool
 		CompressLevel       int
@@ -195,13 +200,18 @@ func (c *ServerOption) getConfig() *Config { return c.config }
 type ClientOption struct {
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
 	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
-	WriteBufferSize     int
+	WriteBufferSize int
+	// 参数已废弃, 不再产生任何影响
+	// Deprecated: The parameter is deprecated and no longer has any effect
+	ReadAsyncCap int
+	// 参数已废弃, 不再产生任何影响
+	// Deprecated: The parameter is deprecated and no longer has any effect
+	WriteAsyncCap int
+
 	ReadAsyncEnabled    bool
 	ReadAsyncGoLimit    int
-	ReadAsyncCap        int
 	ReadMaxPayloadSize  int
 	ReadBufferSize      int
-	WriteAsyncCap       int
 	WriteMaxPayloadSize int
 	CompressEnabled     bool
 	CompressLevel       int

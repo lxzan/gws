@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -199,29 +200,48 @@ func TestReadAsync(t *testing.T) {
 
 func TestTaskQueue(t *testing.T) {
 	var as = assert.New(t)
-	var mu = &sync.Mutex{}
-	var listA []int
-	var listB []int
 
-	var count = 1000
-	var wg = &sync.WaitGroup{}
-	wg.Add(count)
-	var q = newWorkerQueue(8, 1024)
-	for i := 0; i < count; i++ {
-		listA = append(listA, i)
+	t.Run("", func(t *testing.T) {
+		var mu = &sync.Mutex{}
+		var listA []int
+		var listB []int
 
-		v := i
-		q.Push(func() {
-			defer wg.Done()
-			var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
-			time.Sleep(latency)
-			mu.Lock()
-			listB = append(listB, v)
-			mu.Unlock()
-		})
-	}
-	wg.Wait()
-	as.ElementsMatch(listA, listB)
+		var count = 1000
+		var wg = &sync.WaitGroup{}
+		wg.Add(count)
+		var q = newWorkerQueue(8)
+		for i := 0; i < count; i++ {
+			listA = append(listA, i)
+
+			v := i
+			q.Push(func() {
+				defer wg.Done()
+				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
+				time.Sleep(latency)
+				mu.Lock()
+				listB = append(listB, v)
+				mu.Unlock()
+			})
+		}
+		wg.Wait()
+		as.ElementsMatch(listA, listB)
+	})
+
+	t.Run("", func(t *testing.T) {
+		sum := int64(0)
+		w := newWorkerQueue(8)
+		var wg = &sync.WaitGroup{}
+		wg.Add(1000)
+		for i := int64(1); i <= 1000; i++ {
+			var tmp = i
+			w.Push(func() {
+				atomic.AddInt64(&sum, tmp)
+				wg.Done()
+			})
+		}
+		wg.Wait()
+		as.Equal(sum, int64(500500))
+	})
 }
 
 func TestWriteAsyncBlocking(t *testing.T) {

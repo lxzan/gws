@@ -149,8 +149,8 @@ func (c *Conn) readMessage() error {
 func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 	msg.vCap = msg.Data.Cap()
 	if compressed {
-		msg.vCap = internal.Lv3
-		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data)
+		msg.vCap = myBufferPool.GetvCap(msg.Data.Len())
+		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data, msg.vCap)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
@@ -160,9 +160,9 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 	}
 
 	if c.config.ReadAsyncEnabled {
-		return c.readQueue.Push(func() { c.handler.OnMessage(c, msg) })
+		c.readQueue.Push(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)
-		return nil
 	}
+	return nil
 }

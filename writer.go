@@ -52,7 +52,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
-	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
+	if !c.isTextValid(opcode, payload) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
@@ -86,12 +86,14 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return internal.ErrConnClosed
 	}
-	return c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+	c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
+	return nil
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
-	var buf = myBufferPool.Get(internal.Lv3)
-	defer myBufferPool.Put(buf, internal.Lv3)
+	var vCap = myBufferPool.GetvCap(len(payload) / 3)
+	var buf = myBufferPool.Get(vCap)
+	defer myBufferPool.Put(buf, vCap)
 	buf.Write(myPadding[0:])
 	err := c.config.compressors.Select().Compress(payload, buf)
 	if err != nil {
