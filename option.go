@@ -221,12 +221,19 @@ type ClientOption struct {
 	// 连接地址, 例如 wss://example.com/connect
 	// service address, eg: wss://example.com/connect
 	Addr string
+
+	// 代理服务器地址, 例如 socks5://127.0.0.1:1080
+	// proxy server addr, eg: socks5://127.0.0.1:1080
+	ProxyAddr string
+
 	// 额外的请求头
 	// extra request header
 	RequestHeader http.Header
+
 	// dial timeout
 	// 连接超时时间
 	DialTimeout time.Duration
+
 	// TLS设置
 	// tls config
 	TlsConfig *tls.Config

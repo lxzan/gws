@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lxzan/gws/internal"
+	"golang.org/x/net/proxy"
 )
 
 type dialer struct {
@@ -41,31 +42,33 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 	if err != nil {
 		return nil, d.resp, err
 	}
-
-	var dialError error
-	var hostname = URL.Hostname()
-	var port = URL.Port()
-	switch URL.Scheme {
-	case "ws":
-		if port == "" {
-			port = "80"
-		}
-		host := hostname + ":" + port
-		d.conn, dialError = net.DialTimeout("tcp", host, option.DialTimeout)
-	case "wss":
-		if port == "" {
-			port = "443"
-		}
-		host := hostname + ":" + port
-		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
-		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
-	default:
+	if URL.Scheme != "ws" && URL.Scheme != "wss" {
 		return nil, d.resp, internal.ErrSchema
 	}
 
-	if dialError != nil {
-		return nil, d.resp, dialError
+	var dialerInstance proxy.Dialer = &net.Dialer{Timeout: option.DialTimeout}
+	if option.ProxyAddr != "" {
+		proxyURL, err := url.Parse(option.ProxyAddr)
+		if err != nil {
+			return nil, d.resp, err
+		}
+		addr := proxyURL.Hostname() + ":" + proxyURL.Port()
+		dialerInstance, err = proxy.SOCKS5("tcp", addr, nil, nil)
+		if err != nil {
+			return nil, d.resp, err
+		}
 	}
+
+	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(URL.Scheme == "ws", "80", "443"), URL.Port())
+	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
+	d.conn, err = dialerInstance.Dial("tcp", hp)
+	if err != nil {
+		return nil, d.resp, err
+	}
+	if URL.Scheme == "wss" {
+		d.conn = tls.Client(d.conn, option.TlsConfig)
+	}
+
 	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
 		return nil, d.resp, err
 	}

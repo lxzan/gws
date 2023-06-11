@@ -198,7 +198,7 @@ func HttpHeaderEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 
-func SelectInt[T Integer](ok bool, a, b T) T {
+func SelectValue[T any](ok bool, a, b T) T {
 	if ok {
 		return a
 	}
