@@ -78,9 +78,9 @@ func TestClientHandshake(t *testing.T) {
 		RequestHeader:   http.Header{},
 	}
 	option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
-	option.initialize()
+	option = initClientOption(option)
 	srv, cli := net.Pipe()
-	var d = &dialer{
+	var d = &connector{
 		option:          option,
 		conn:            cli,
 		eventHandler:    new(BuiltinEventHandler),
@@ -111,9 +111,9 @@ func TestClientHandshakeFail(t *testing.T) {
 			RequestHeader:   http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
-		option.initialize()
+		option = initClientOption(option)
 		srv, cli := net.Pipe()
-		var d = &dialer{
+		var d = &connector{
 			option:          option,
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
@@ -139,9 +139,9 @@ func TestClientHandshakeFail(t *testing.T) {
 			RequestHeader:   http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
-		option.initialize()
+		option = initClientOption(option)
 		srv, cli := net.Pipe()
-		var d = &dialer{
+		var d = &connector{
 			option:          option,
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
@@ -166,9 +166,9 @@ func TestClientHandshakeFail(t *testing.T) {
 			CompressEnabled: true,
 			RequestHeader:   http.Header{},
 		}
-		option.initialize()
+		option = initClientOption(option)
 		srv, cli := net.Pipe()
-		var d = &dialer{
+		var d = &connector{
 			option:          option,
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
@@ -194,9 +194,9 @@ func TestClientHandshakeFail(t *testing.T) {
 			RequestHeader:   http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
-		option.initialize()
+		option = initClientOption(option)
 		srv, cli := net.Pipe()
-		var d = &dialer{
+		var d = &connector{
 			option:          option,
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
@@ -222,9 +222,9 @@ func TestClientHandshakeFail(t *testing.T) {
 			RequestHeader:   http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
-		option.initialize()
+		option = initClientOption(option)
 		srv, cli := net.Pipe()
-		var d = &dialer{
+		var d = &connector{
 			option:          option,
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",

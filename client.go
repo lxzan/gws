@@ -12,10 +12,9 @@ import (
 	"time"
 
 	"github.com/lxzan/gws/internal"
-	"golang.org/x/net/proxy"
 )
 
-type dialer struct {
+type connector struct {
 	option          *ClientOption
 	conn            net.Conn
 	eventHandler    Event
@@ -26,29 +25,26 @@ type dialer struct {
 // NewClient 创建WebSocket客户端; 支持ws/wss
 // Create WebSocket client, support ws/wss
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
-	resp = &http.Response{}
+	option = initClientOption(option)
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
-		return nil, resp, err
+		return nil, nil, err
 	}
 	if URL.Scheme != "ws" && URL.Scheme != "wss" {
-		return nil, resp, internal.ErrSchema
+		return nil, nil, internal.ErrSchema
 	}
 
 	var tlsEnabled = URL.Scheme == "wss"
-	var dialerInstance proxy.Dialer = &net.Dialer{Timeout: option.DialTimeout}
-	if option.Proxy != nil {
-		dialerInstance, err = proxy.SOCKS5("tcp", option.Proxy.Addr, option.Proxy.Auth, option.Proxy.Forward)
-		if err != nil {
-			return nil, resp, err
-		}
+	dialer, err := option.NewDialer()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(tlsEnabled, "443", "80"), URL.Port())
 	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
-	conn, err := dialerInstance.Dial("tcp", hp)
+	conn, err := dialer.Dial("tcp", hp)
 	if err != nil {
-		return nil, resp, err
+		return nil, nil, err
 	}
 	if tlsEnabled {
 		conn = tls.Client(conn, option.TlsConfig)
@@ -57,24 +53,23 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 }
 
 // NewClientFromConn
-func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, e error) {
-	if option == nil {
-		option = new(ClientOption)
-	}
-	option.initialize()
-	d := &dialer{option: option, conn: conn, eventHandler: handler}
+func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, err error) {
 	defer func() {
-		if e != nil && !internal.IsNil(d.conn) {
-			_ = d.conn.Close()
+		if err != nil {
+			_ = conn.Close()
 		}
 	}()
-	if err := d.conn.SetDeadline(time.Now().Add(option.HandshakeTimeout)); err != nil {
-		return nil, d.resp, err
+
+	option = initClientOption(option)
+	d := &connector{option: option, conn: conn, eventHandler: handler}
+	if err = conn.SetDeadline(time.Now().Add(option.HandshakeTimeout)); err != nil {
+		return nil, nil, err
 	}
+
 	return d.handshake()
 }
 
-func (c *dialer) writeRequest() (*http.Request, error) {
+func (c *connector) writeRequest() (*http.Request, error) {
 	r, err := http.NewRequest(http.MethodGet, c.option.Addr, nil)
 	if err != nil {
 		return nil, err
@@ -96,7 +91,7 @@ func (c *dialer) writeRequest() (*http.Request, error) {
 	return r, r.Write(c.conn)
 }
 
-func (c *dialer) handshake() (*Conn, *http.Response, error) {
+func (c *connector) handshake() (*Conn, *http.Response, error) {
 	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
 	request, err := c.writeRequest()
 	if err != nil {
@@ -123,7 +118,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
 }
 
-func (c *dialer) checkHeaders() error {
+func (c *connector) checkHeaders() error {
 	if c.resp.StatusCode != http.StatusSwitchingProtocols {
 		return internal.ErrStatusCode
 	}

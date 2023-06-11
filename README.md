@@ -28,7 +28,7 @@
 
 [12]: https://github.com/avelino/awesome-go#networking
 
-- [GWS](#gws)
+- [gws](#gws)
 	- [Feature](#feature)
 	- [Attention](#attention)
 	- [Install](#install)
@@ -38,6 +38,7 @@
 	- [Usage](#usage)
 		- [Upgrade from HTTP](#upgrade-from-http)
 		- [Unix Domain Socket](#unix-domain-socket)
+		- [Client Proxy](#client-proxy)
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
@@ -212,6 +213,34 @@ func main() {
 
 	option := gws.ClientOption{}
 	socket, _, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	socket.ReadLoop()
+}
+```
+
+#### Client Proxy
+
+```go
+package main
+
+import (
+	"crypto/tls"
+	"github.com/lxzan/gws"
+	"golang.org/x/net/proxy"
+	"log"
+)
+
+func main() {
+	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
+		Addr:      "wss://example.com/connect",
+		TlsConfig: &tls.Config{InsecureSkipVerify: true},
+		NewDialer: func() (proxy.Dialer, error) {
+			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
+		},
+	})
 	if err != nil {
 		log.Println(err.Error())
 		return

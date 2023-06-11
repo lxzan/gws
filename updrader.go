@@ -19,11 +19,8 @@ type Upgrader struct {
 }
 
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
-	if option == nil {
-		option = new(ServerOption)
-	}
 	return &Upgrader{
-		option:       option.initialize(),
+		option:       initServerOption(option),
 		eventHandler: eventHandler,
 	}
 }

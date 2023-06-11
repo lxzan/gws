@@ -14,8 +14,8 @@ import (
 )
 
 func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {
-	serverOption.initialize()
-	clientOption.initialize()
+	serverOption = initServerOption(serverOption)
+	clientOption = initClientOption(clientOption)
 	size := 4096
 	s, c := net.Pipe()
 	{
