@@ -24,8 +24,9 @@ type connector struct {
 
 // NewClient 创建WebSocket客户端; 支持ws/wss
 // Create WebSocket client, support ws/wss
-func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
+func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
+	c := &connector{option: option, eventHandler: handler, resp: &http.Response{}}
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
 		return nil, nil, err
@@ -42,31 +43,30 @@ func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Re
 
 	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(tlsEnabled, "443", "80"), URL.Port())
 	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
-	conn, err := dialer.Dial("tcp", hp)
+	c.conn, err = dialer.Dial("tcp", hp)
 	if err != nil {
 		return nil, nil, err
 	}
 	if tlsEnabled {
-		conn = tls.Client(conn, option.TlsConfig)
+		c.conn = tls.Client(c.conn, option.TlsConfig)
 	}
-	return NewClientFromConn(handler, option, conn)
+
+	client, resp, err := c.handshake()
+	if err != nil {
+		_ = c.conn.Close()
+	}
+	return client, resp, err
 }
 
 // NewClientFromConn
-func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, err error) {
-	defer func() {
-		if err != nil {
-			_ = conn.Close()
-		}
-	}()
-
+func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
-	d := &connector{option: option, conn: conn, eventHandler: handler}
-	if err = conn.SetDeadline(time.Now().Add(option.HandshakeTimeout)); err != nil {
-		return nil, nil, err
+	c := &connector{option: option, conn: conn, eventHandler: handler, resp: &http.Response{}}
+	client, resp, err := c.handshake()
+	if err != nil {
+		_ = c.conn.Close()
 	}
-
-	return d.handshake()
+	return client, resp, err
 }
 
 func (c *connector) writeRequest() (*http.Request, error) {
@@ -92,10 +92,13 @@ func (c *connector) writeRequest() (*http.Request, error) {
 }
 
 func (c *connector) handshake() (*Conn, *http.Response, error) {
+	if err := c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout)); err != nil {
+		return nil, c.resp, err
+	}
 	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
 	request, err := c.writeRequest()
 	if err != nil {
-		return nil, nil, err
+		return nil, c.resp, err
 	}
 	var channel = make(chan error)
 	go func() {

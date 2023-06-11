@@ -201,8 +201,6 @@ func initServerOption(c *ServerOption) *ServerOption {
 func (c *ServerOption) getConfig() *Config { return c.config }
 
 type ClientOption struct {
-	initialized bool
-
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
 	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 	WriteBufferSize int
@@ -249,9 +247,6 @@ func initClientOption(c *ClientOption) *ClientOption {
 	if c == nil {
 		c = new(ClientOption)
 	}
-	if c.initialized {
-		return c
-	}
 	if c.ReadMaxPayloadSize <= 0 {
 		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
 	}
@@ -291,7 +286,6 @@ func initClientOption(c *ClientOption) *ClientOption {
 	if c.NewDialer == nil {
 		c.NewDialer = func() (proxy.Dialer, error) { return &net.Dialer{Timeout: 5 * time.Second}, nil }
 	}
-	c.initialized = true
 	return c
 }
 
