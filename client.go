@@ -26,53 +26,34 @@ type dialer struct {
 // NewClient 创建WebSocket客户端; 支持ws/wss
 // Create WebSocket client, support ws/wss
 func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
-	if option == nil {
-		option = new(ClientOption)
-	}
-	option.initialize()
-
-	var d = &dialer{eventHandler: handler, option: option}
-	defer func() {
-		if e != nil && !internal.IsNil(d.conn) {
-			_ = d.conn.Close()
-		}
-	}()
-
+	resp = &http.Response{}
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
-		return nil, d.resp, err
+		return nil, resp, err
 	}
 	if URL.Scheme != "ws" && URL.Scheme != "wss" {
-		return nil, d.resp, internal.ErrSchema
+		return nil, resp, internal.ErrSchema
 	}
 
+	var tlsEnabled = URL.Scheme == "wss"
 	var dialerInstance proxy.Dialer = &net.Dialer{Timeout: option.DialTimeout}
-	if option.ProxyAddr != "" {
-		proxyURL, err := url.Parse(option.ProxyAddr)
+	if option.Proxy != nil {
+		dialerInstance, err = proxy.SOCKS5("tcp", option.Proxy.Addr, option.Proxy.Auth, option.Proxy.Forward)
 		if err != nil {
-			return nil, d.resp, err
-		}
-		addr := proxyURL.Hostname() + ":" + proxyURL.Port()
-		dialerInstance, err = proxy.SOCKS5("tcp", addr, nil, nil)
-		if err != nil {
-			return nil, d.resp, err
+			return nil, resp, err
 		}
 	}
 
-	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(URL.Scheme == "ws", "80", "443"), URL.Port())
+	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(tlsEnabled, "443", "80"), URL.Port())
 	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
-	d.conn, err = dialerInstance.Dial("tcp", hp)
+	conn, err := dialerInstance.Dial("tcp", hp)
 	if err != nil {
-		return nil, d.resp, err
+		return nil, resp, err
 	}
-	if URL.Scheme == "wss" {
-		d.conn = tls.Client(d.conn, option.TlsConfig)
+	if tlsEnabled {
+		conn = tls.Client(conn, option.TlsConfig)
 	}
-
-	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
-		return nil, d.resp, err
-	}
-	return d.handshake()
+	return NewClientFromConn(handler, option, conn)
 }
 
 // NewClientFromConn
@@ -87,7 +68,7 @@ func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (clie
 			_ = d.conn.Close()
 		}
 	}()
-	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
+	if err := d.conn.SetDeadline(time.Now().Add(option.HandshakeTimeout)); err != nil {
 		return nil, d.resp, err
 	}
 	return d.handshake()

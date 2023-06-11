@@ -4,6 +4,7 @@ import (
 	"compress/flate"
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
+	"golang.org/x/net/proxy"
 	"net/http"
 	"time"
 )
@@ -197,47 +198,62 @@ func (c *ServerOption) initialize() *ServerOption {
 // 获取通用配置
 func (c *ServerOption) getConfig() *Config { return c.config }
 
-type ClientOption struct {
-	// 写缓冲区的大小, v1.4.5版本此参数被废弃
-	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
-	WriteBufferSize int
-	// 参数已废弃, 不再产生任何影响
-	// Deprecated: The parameter is deprecated and no longer has any effect
-	ReadAsyncCap int
-	// 参数已废弃, 不再产生任何影响
-	// Deprecated: The parameter is deprecated and no longer has any effect
-	WriteAsyncCap int
+type (
+	ClientOption struct {
+		// 写缓冲区的大小, v1.4.5版本此参数被废弃
+		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
+		WriteBufferSize int
+		// 参数已废弃, 不再产生任何影响
+		// Deprecated: The parameter is deprecated and no longer has any effect
+		ReadAsyncCap int
+		// 参数已废弃, 不再产生任何影响
+		// Deprecated: The parameter is deprecated and no longer has any effect
+		WriteAsyncCap int
 
-	ReadAsyncEnabled    bool
-	ReadAsyncGoLimit    int
-	ReadMaxPayloadSize  int
-	ReadBufferSize      int
-	WriteMaxPayloadSize int
-	CompressEnabled     bool
-	CompressLevel       int
-	CompressThreshold   int
-	CheckUtf8Enabled    bool
+		ReadAsyncEnabled    bool
+		ReadAsyncGoLimit    int
+		ReadMaxPayloadSize  int
+		ReadBufferSize      int
+		WriteMaxPayloadSize int
+		CompressEnabled     bool
+		CompressLevel       int
+		CompressThreshold   int
+		CheckUtf8Enabled    bool
 
-	// 连接地址, 例如 wss://example.com/connect
-	// service address, eg: wss://example.com/connect
-	Addr string
+		// 连接地址, 例如 wss://example.com/connect
+		// service address, eg: wss://example.com/connect
+		Addr string
 
-	// 代理服务器地址, 例如 socks5://127.0.0.1:1080
-	// proxy server addr, eg: socks5://127.0.0.1:1080
-	ProxyAddr string
+		// 代理配置
+		Proxy *Socks5Proxy
 
-	// 额外的请求头
-	// extra request header
-	RequestHeader http.Header
+		// 额外的请求头
+		// extra request header
+		RequestHeader http.Header
 
-	// dial timeout
-	// 连接超时时间
-	DialTimeout time.Duration
+		// dial timeout
+		// 连接超时时间
+		DialTimeout time.Duration
 
-	// TLS设置
-	// tls config
-	TlsConfig *tls.Config
-}
+		// 握手超时时间
+		HandshakeTimeout time.Duration
+
+		// TLS设置
+		// tls config
+		TlsConfig *tls.Config
+	}
+
+	Socks5Proxy struct {
+		// 代理服务器地址, 例如 127.0.0.1:1080
+		Addr string
+
+		// 网络, tcp/udp
+		Network string
+
+		Auth    *proxy.Auth
+		Forward proxy.Dialer
+	}
+)
 
 func (c *ClientOption) initialize() *ClientOption {
 	if c.ReadMaxPayloadSize <= 0 {
@@ -270,6 +286,9 @@ func (c *ClientOption) initialize() *ClientOption {
 
 	if c.DialTimeout <= 0 {
 		c.DialTimeout = defaultDialTimeout
+	}
+	if c.HandshakeTimeout <= 0 {
+		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	if c.RequestHeader == nil {
 		c.RequestHeader = http.Header{}
