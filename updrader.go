@@ -19,11 +19,8 @@ type Upgrader struct {
 }
 
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
-	if option == nil {
-		option = new(ServerOption)
-	}
 	return &Upgrader{
-		option:       option.initialize(),
+		option:       initServerOption(option),
 		eventHandler: eventHandler,
 	}
 }
@@ -185,13 +182,13 @@ func (c *Server) RunListener(listener net.Listener) error {
 	defer listener.Close()
 
 	for {
-		conn, err := listener.Accept()
+		netConn, err := listener.Accept()
 		if err != nil {
-			c.OnError(conn, err)
+			c.OnError(netConn, err)
 			continue
 		}
 
-		go func() {
+		go func(conn net.Conn) {
 			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
 			r, err := http.ReadRequest(br)
 			if err != nil {
@@ -207,6 +204,6 @@ func (c *Server) RunListener(listener net.Listener) error {
 				return
 			}
 			socket.ReadLoop()
-		}()
+		}(netConn)
 	}
 }

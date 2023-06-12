@@ -45,11 +45,7 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	_ = socket.SetDeadline(time.Now().Add(30 * time.Second))
 }
 
-func (c *WebSocket) OnError(socket *gws.Conn, err error) {
-	c.onexit <- struct{}{}
-}
-
-func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
+func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
 	c.onexit <- struct{}{}
 }
 
@@ -72,11 +68,7 @@ func (c *updateReportsHandler) OnOpen(socket *gws.Conn) {
 	_ = socket.SetDeadline(time.Now().Add(5 * time.Second))
 }
 
-func (c *updateReportsHandler) OnError(socket *gws.Conn, err error) {
-	c.onexit <- struct{}{}
-}
-
-func (c *updateReportsHandler) OnClose(socket *gws.Conn, code uint16, reason []byte) {
+func (c *updateReportsHandler) OnClose(socket *gws.Conn, err error) {
 	c.onexit <- struct{}{}
 }
 

@@ -3,6 +3,7 @@ package gws
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/lxzan/gws/internal"
@@ -21,29 +22,31 @@ const (
 	OpcodePong            Opcode = 0xA
 )
 
-func (c Opcode) IsDataFrame() bool {
+func (c Opcode) isDataFrame() bool {
 	return c <= OpcodeBinary
 }
 
+type CloseError struct {
+	Code   uint16
+	Reason []byte
+}
+
+func (c *CloseError) Error() string {
+	return fmt.Sprintf("gws connection closed: code=%d, reason=%s", c.Code, string(c.Reason))
+}
+
 // WebSocket Event
-// 出现异常时, OnError/OnClose中有且只有一个会被触发, 由CAS保证
-// When an exception occurs, one and only one of OnError/OnClose will be triggered, guaranteed by CAS
 type Event interface {
 	// 建立连接事件
 	// WebSocket connection was successfully established
 	OnOpen(socket *Conn)
 
-	// 错误事件
-	// IO错误, 协议错误, 压缩解压错误...
-	// 一旦发生错误, 连接会自动关闭
-	// IO errors, protocol errors, compression and decompression errors...
-	// In case of an error, the connection will be closed automatically
-	OnError(socket *Conn, err error)
-
 	// 关闭事件
-	// 接收到了网络连接另一端发送的关闭帧
-	// Close frame is received from the other end of the network connection
-	OnClose(socket *Conn, code uint16, reason []byte)
+	// 接收到了网络连接另一端发送的关闭帧, 或者IO过程中出现错误主动断开连接
+	// 如果是前者, err可以断言为*CloseError
+	// Received a close frame from the other end of the network connection, or disconnected voluntarily due to an error in the IO process
+	// In the former case, err can be asserted as *CloseError
+	OnClose(socket *Conn, err error)
 
 	// 心跳探测事件
 	// Received a ping frame
@@ -63,9 +66,7 @@ type BuiltinEventHandler struct{}
 
 func (b BuiltinEventHandler) OnOpen(socket *Conn) {}
 
-func (b BuiltinEventHandler) OnError(socket *Conn, err error) {}
-
-func (b BuiltinEventHandler) OnClose(socket *Conn, code uint16, reason []byte) {}
+func (b BuiltinEventHandler) OnClose(socket *Conn, err error) {}
 
 func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) {}
 
@@ -190,7 +191,7 @@ func (c *frameHeader) GetMaskKey() []byte {
 }
 
 type Message struct {
-	// 虚拟的data容量, 对于压缩内容固定为4K, 保证开启压缩时使用固定的pool
+	// 虚拟容量
 	vCap int
 
 	// 操作码

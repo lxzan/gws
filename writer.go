@@ -52,11 +52,12 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
-	if !c.isTextValid(opcode, payload) {
+	// 不要删除 opcode == OpcodeText
+	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
-	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
+	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
 		return c.compressAndWrite(opcode, payload)
 	}
 

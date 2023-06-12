@@ -31,12 +31,8 @@ func main() {
 type WebSocket struct {
 }
 
-func (c *WebSocket) OnError(socket *gws.Conn, err error) {
+func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
 	fmt.Printf("onerror: err=%s\n", err.Error())
-}
-
-func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	fmt.Printf("onclose: code=%d, payload=%s\n", code, string(reason))
 }
 
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {

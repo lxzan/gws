@@ -14,7 +14,7 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 
-	var useCompress = c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold
+	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
 		err := c.config.compressors.Select().Compress(payload, buf)
@@ -78,7 +78,7 @@ func TestWriteClose(t *testing.T) {
 
 	var wg = sync.WaitGroup{}
 	wg.Add(1)
-	serverHandler.onError = func(socket *Conn, err error) {
+	serverHandler.onClose = func(socket *Conn, err error) {
 		as.Error(err)
 		wg.Done()
 	}
@@ -131,7 +131,7 @@ func TestConn_WriteClose(t *testing.T) {
 	var serverOption = &ServerOption{CheckUtf8Enabled: true}
 	var clientOption = &ClientOption{}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	clientHandler.onClose = func(socket *Conn, code uint16, reason []byte) {
+	clientHandler.onClose = func(socket *Conn, err error) {
 		wg.Done()
 	}
 	clientHandler.onMessage = func(socket *Conn, message *Message) {

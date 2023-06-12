@@ -14,7 +14,11 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-type dialer struct {
+type Dialer interface {
+	Dial(network, addr string) (c net.Conn, err error)
+}
+
+type connector struct {
 	option          *ClientOption
 	conn            net.Conn
 	eventHandler    Event
@@ -22,75 +26,53 @@ type dialer struct {
 	secWebsocketKey string
 }
 
-// NewClient 创建WebSocket客户端; 支持ws/wss
-// Create WebSocket client, support ws/wss
-func NewClient(handler Event, option *ClientOption) (client *Conn, resp *http.Response, e error) {
-	if option == nil {
-		option = new(ClientOption)
-	}
-	option.initialize()
-
-	var d = &dialer{eventHandler: handler, option: option}
-	defer func() {
-		if e != nil && !internal.IsNil(d.conn) {
-			_ = d.conn.Close()
-		}
-	}()
-
+// NewClient
+func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
+	option = initClientOption(option)
+	c := &connector{option: option, eventHandler: handler, resp: &http.Response{}}
 	URL, err := url.Parse(option.Addr)
 	if err != nil {
-		return nil, d.resp, err
+		return nil, nil, err
+	}
+	if URL.Scheme != "ws" && URL.Scheme != "wss" {
+		return nil, nil, internal.ErrSchema
 	}
 
-	var dialError error
-	var hostname = URL.Hostname()
-	var port = URL.Port()
-	switch URL.Scheme {
-	case "ws":
-		if port == "" {
-			port = "80"
-		}
-		host := hostname + ":" + port
-		d.conn, dialError = net.DialTimeout("tcp", host, option.DialTimeout)
-	case "wss":
-		if port == "" {
-			port = "443"
-		}
-		host := hostname + ":" + port
-		var tlsDialer = &net.Dialer{Timeout: option.DialTimeout}
-		d.conn, dialError = tls.DialWithDialer(tlsDialer, "tcp", host, option.TlsConfig)
-	default:
-		return nil, d.resp, internal.ErrSchema
+	var tlsEnabled = URL.Scheme == "wss"
+	dialer, err := option.NewDialer()
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if dialError != nil {
-		return nil, d.resp, dialError
+	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(tlsEnabled, "443", "80"), URL.Port())
+	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
+	c.conn, err = dialer.Dial("tcp", hp)
+	if err != nil {
+		return nil, nil, err
 	}
-	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
-		return nil, d.resp, err
+	if tlsEnabled {
+		c.conn = tls.Client(c.conn, option.TlsConfig)
 	}
-	return d.handshake()
+
+	client, resp, err := c.handshake()
+	if err != nil {
+		_ = c.conn.Close()
+	}
+	return client, resp, err
 }
 
 // NewClientFromConn
-func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (client *Conn, resp *http.Response, e error) {
-	if option == nil {
-		option = new(ClientOption)
+func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Conn, *http.Response, error) {
+	option = initClientOption(option)
+	c := &connector{option: option, conn: conn, eventHandler: handler, resp: &http.Response{}}
+	client, resp, err := c.handshake()
+	if err != nil {
+		_ = c.conn.Close()
 	}
-	option.initialize()
-	d := &dialer{option: option, conn: conn, eventHandler: handler}
-	defer func() {
-		if e != nil && !internal.IsNil(d.conn) {
-			_ = d.conn.Close()
-		}
-	}()
-	if err := d.conn.SetDeadline(time.Now().Add(option.DialTimeout)); err != nil {
-		return nil, d.resp, err
-	}
-	return d.handshake()
+	return client, resp, err
 }
 
-func (c *dialer) writeRequest() (*http.Request, error) {
+func (c *connector) writeRequest() (*http.Request, error) {
 	r, err := http.NewRequest(http.MethodGet, c.option.Addr, nil)
 	if err != nil {
 		return nil, err
@@ -112,11 +94,14 @@ func (c *dialer) writeRequest() (*http.Request, error) {
 	return r, r.Write(c.conn)
 }
 
-func (c *dialer) handshake() (*Conn, *http.Response, error) {
+func (c *connector) handshake() (*Conn, *http.Response, error) {
+	if err := c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout)); err != nil {
+		return nil, c.resp, err
+	}
 	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
 	request, err := c.writeRequest()
 	if err != nil {
-		return nil, nil, err
+		return nil, c.resp, err
 	}
 	var channel = make(chan error)
 	go func() {
@@ -139,7 +124,7 @@ func (c *dialer) handshake() (*Conn, *http.Response, error) {
 	return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
 }
 
-func (c *dialer) checkHeaders() error {
+func (c *connector) checkHeaders() error {
 	if c.resp.StatusCode != http.StatusSwitchingProtocols {
 		return internal.ErrStatusCode
 	}

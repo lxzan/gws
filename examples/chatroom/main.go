@@ -69,17 +69,6 @@ func (c *WebSocket) getKey(socket *gws.Conn) string {
 	return name.(string)
 }
 
-// RemoveSocket 移除WebSocket连接
-func (c *WebSocket) RemoveSocket(socket *gws.Conn) {
-	name := c.getName(socket)
-	key := c.getKey(socket)
-	if mSocket, ok := c.sessions.Load(name); ok {
-		if mKey := c.getKey(mSocket); mKey == key {
-			c.sessions.Delete(name)
-		}
-	}
-}
-
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	name := c.getName(socket)
 	if conn, ok := c.sessions.Load(name); ok {
@@ -90,16 +79,15 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	log.Printf("%s connected\n", name)
 }
 
-func (c *WebSocket) OnError(socket *gws.Conn, err error) {
+func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
 	name := c.getName(socket)
-	c.RemoveSocket(socket)
+	key := c.getKey(socket)
+	if mSocket, ok := c.sessions.Load(name); ok {
+		if mKey := c.getKey(mSocket); mKey == key {
+			c.sessions.Delete(name)
+		}
+	}
 	log.Printf("onerror, name=%s, msg=%s\n", name, err.Error())
-}
-
-func (c *WebSocket) OnClose(socket *gws.Conn, code uint16, reason []byte) {
-	name := c.getName(socket)
-	c.RemoveSocket(socket)
-	log.Printf("onclose, name=%s, code=%d, msg=%s\n", name, code, string(reason))
 }
 
 func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {}

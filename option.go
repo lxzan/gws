@@ -4,14 +4,13 @@ import (
 	"compress/flate"
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
+	"net"
 	"net/http"
 	"time"
 )
 
 const (
 	defaultReadAsyncGoLimit    = 8
-	defaultReadAsyncCap        = 256
-	defaultWriteAsyncCap       = 256
 	defaultCompressLevel       = flate.BestSpeed
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
@@ -19,9 +18,8 @@ const (
 	defaultCompressorNum       = 64
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
-
-	defaultHandshakeTimeout = 5 * time.Second
-	defaultDialTimeout      = 5 * time.Second
+	defaultHandshakeTimeout    = 5 * time.Second
+	defaultDialTimeout         = 5 * time.Second
 )
 
 type (
@@ -37,10 +35,6 @@ type (
 		// Maximum number of parallel concurrent processes for asynchronous reads
 		ReadAsyncGoLimit int
 
-		// 异步读的容量限制, 容量溢出将会返回错误
-		// Capacity limit for asynchronous reads, overflow will return an error
-		ReadAsyncCap int
-
 		// 最大读取的消息内容长度
 		// Maximum read message content length
 		ReadMaxPayloadSize int
@@ -48,10 +42,6 @@ type (
 		// 读缓冲区的大小
 		// Size of the read buffer
 		ReadBufferSize int
-
-		// 异步写的容量限制, 容量溢出将会返回错误
-		// Capacity limit for asynchronous writes, overflow will return an error
-		WriteAsyncCap int
 
 		// 最大写入的消息内容长度
 		// Maximum length of written message content
@@ -90,12 +80,6 @@ type (
 		// 写缓冲区的大小, v1.4.5版本此参数被废弃
 		// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 		WriteBufferSize int
-		// 参数已废弃, 不再产生任何影响
-		// Deprecated: The parameter is deprecated and no longer has any effect
-		ReadAsyncCap int
-		// 参数已废弃, 不再产生任何影响
-		// Deprecated: The parameter is deprecated and no longer has any effect
-		WriteAsyncCap int
 
 		ReadAsyncEnabled    bool
 		ReadAsyncGoLimit    int
@@ -126,22 +110,18 @@ type (
 	}
 )
 
-// Initialize 初始化配置
-func (c *ServerOption) initialize() *ServerOption {
+func initServerOption(c *ServerOption) *ServerOption {
+	if c == nil {
+		c = new(ServerOption)
+	}
 	if c.ReadMaxPayloadSize <= 0 {
 		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
 	}
 	if c.ReadAsyncGoLimit <= 0 {
 		c.ReadAsyncGoLimit = defaultReadAsyncGoLimit
 	}
-	if c.ReadAsyncCap <= 0 {
-		c.ReadAsyncCap = defaultReadAsyncCap
-	}
 	if c.ReadBufferSize <= 0 {
 		c.ReadBufferSize = defaultReadBufferSize
-	}
-	if c.WriteAsyncCap <= 0 {
-		c.WriteAsyncCap = defaultWriteAsyncCap
 	}
 	if c.WriteMaxPayloadSize <= 0 {
 		c.WriteMaxPayloadSize = defaultWriteMaxPayloadSize
@@ -174,10 +154,8 @@ func (c *ServerOption) initialize() *ServerOption {
 	c.config = &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
-		ReadAsyncCap:        c.ReadAsyncCap,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
 		ReadBufferSize:      c.ReadBufferSize,
-		WriteAsyncCap:       c.WriteAsyncCap,
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,
@@ -201,12 +179,6 @@ type ClientOption struct {
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
 	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 	WriteBufferSize int
-	// 参数已废弃, 不再产生任何影响
-	// Deprecated: The parameter is deprecated and no longer has any effect
-	ReadAsyncCap int
-	// 参数已废弃, 不再产生任何影响
-	// Deprecated: The parameter is deprecated and no longer has any effect
-	WriteAsyncCap int
 
 	ReadAsyncEnabled    bool
 	ReadAsyncGoLimit    int
@@ -219,34 +191,41 @@ type ClientOption struct {
 	CheckUtf8Enabled    bool
 
 	// 连接地址, 例如 wss://example.com/connect
-	// service address, eg: wss://example.com/connect
+	// server address, eg: wss://example.com/connect
 	Addr string
+
 	// 额外的请求头
 	// extra request header
 	RequestHeader http.Header
-	// dial timeout
-	// 连接超时时间
-	DialTimeout time.Duration
+
+	// 握手超时时间
+	HandshakeTimeout time.Duration
+
 	// TLS设置
-	// tls config
 	TlsConfig *tls.Config
+
+	// 拨号器
+	// 默认是返回net.Dialer实例, 也可以用于设置代理.
+	// The default is to return the net.Dialer instance
+	// Can also be used to set a proxy, for example
+	// NewDialer: func() (proxy.Dialer, error) {
+	//		return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
+	// },
+	NewDialer func() (Dialer, error)
 }
 
-func (c *ClientOption) initialize() *ClientOption {
+func initClientOption(c *ClientOption) *ClientOption {
+	if c == nil {
+		c = new(ClientOption)
+	}
 	if c.ReadMaxPayloadSize <= 0 {
 		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
 	}
 	if c.ReadAsyncGoLimit <= 0 {
 		c.ReadAsyncGoLimit = defaultReadAsyncGoLimit
 	}
-	if c.ReadAsyncCap <= 0 {
-		c.ReadAsyncCap = defaultReadAsyncCap
-	}
 	if c.ReadBufferSize <= 0 {
 		c.ReadBufferSize = defaultReadBufferSize
-	}
-	if c.WriteAsyncCap <= 0 {
-		c.WriteAsyncCap = defaultWriteAsyncCap
 	}
 	if c.WriteMaxPayloadSize <= 0 {
 		c.WriteMaxPayloadSize = defaultWriteMaxPayloadSize
@@ -260,12 +239,14 @@ func (c *ClientOption) initialize() *ClientOption {
 	if c.CompressThreshold <= 0 {
 		c.CompressThreshold = defaultCompressThreshold
 	}
-
-	if c.DialTimeout <= 0 {
-		c.DialTimeout = defaultDialTimeout
+	if c.HandshakeTimeout <= 0 {
+		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	if c.RequestHeader == nil {
 		c.RequestHeader = http.Header{}
+	}
+	if c.NewDialer == nil {
+		c.NewDialer = func() (Dialer, error) { return &net.Dialer{Timeout: defaultDialTimeout}, nil }
 	}
 	return c
 }
@@ -274,10 +255,8 @@ func (c *ClientOption) getConfig() *Config {
 	config := &Config{
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
-		ReadAsyncCap:        c.ReadAsyncCap,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
 		ReadBufferSize:      c.ReadBufferSize,
-		WriteAsyncCap:       c.WriteAsyncCap,
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
 		WriteBufferSize:     c.WriteBufferSize,
 		CompressEnabled:     c.CompressEnabled,

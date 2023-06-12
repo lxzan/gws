@@ -187,8 +187,8 @@ func TestHttpHeaderEqual(t *testing.T) {
 }
 
 func TestSelectInt(t *testing.T) {
-	assert.Equal(t, 1, SelectInt(true, 1, 2))
-	assert.Equal(t, 2, SelectInt(false, 1, 2))
+	assert.Equal(t, 1, SelectValue(true, 1, 2))
+	assert.Equal(t, 2, SelectValue(false, 1, 2))
 }
 
 func TestIsNil(t *testing.T) {

@@ -28,7 +28,7 @@
 
 [12]: https://github.com/avelino/awesome-go#networking
 
-- [GWS](#gws)
+- [gws](#gws)
 	- [Feature](#feature)
 	- [Attention](#attention)
 	- [Install](#install)
@@ -38,6 +38,7 @@
 	- [Usage](#usage)
 		- [Upgrade from HTTP](#upgrade-from-http)
 		- [Unix Domain Socket](#unix-domain-socket)
+		- [Client Proxy](#client-proxy)
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
@@ -48,16 +49,16 @@
 
 ### Feature
 
-- [x] Fully passes the WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
-- [x] Thread safety guarantees for writing messages
-- [x] High IOPS and low latency, low CPU usage
-- [x] IO multiplexing support, concurrent message processing and asynchronous non-blocking message writing
-- [x] Fast upgrade from TCP to WebSocket, dramatically reduce memory usage
+- [x] fully passes the websocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+- [x] thread safety guarantees for writing messages
+- [x] high iops and low latency, low cpu usage
+- [x] io multiplexing support, concurrent message processing and asynchronous non-blocking message writing
+- [x] fast upgrade from tcp to websocket, dramatically reduce memory usage
+- [x] create client via proxy
 
 ### Attention
 
 - The errors returned by the gws.Conn export methods are ignored, and are handled internally
-- When an exception occurs, one and only one of OnError/OnClose will be triggered
 - Transferring large files with gws tends to block the connection
 
 ### Install
@@ -71,8 +72,7 @@ go get -v github.com/lxzan/gws@latest
 ```go
 type Event interface {
 	OnOpen(socket *Conn)
-	OnError(socket *Conn, err error)
-	OnClose(socket *Conn, code uint16, reason []byte)
+	OnClose(socket *Conn, err error)
 	OnPing(socket *Conn, payload []byte)
 	OnPong(socket *Conn, payload []byte)
 	OnMessage(socket *Conn, message *Message)
@@ -112,11 +112,7 @@ type Handler struct{}
 
 func (c *Handler) OnOpen(socket *gws.Conn) { _ = socket.SetDeadline(time.Now().Add(2 * PingInterval)) }
 
-func (c *Handler) DeleteSession(socket *gws.Conn) {}
-
-func (c *Handler) OnError(socket *gws.Conn, err error) { c.DeleteSession(socket) }
-
-func (c *Handler) OnClose(socket *gws.Conn, code uint16, reason []byte) { c.DeleteSession(socket) }
+func (c *Handler) OnClose(socket *gws.Conn, err error) {}
 
 func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
 	_ = socket.SetDeadline(time.Now().Add(2 * PingInterval))
@@ -212,6 +208,34 @@ func main() {
 
 	option := gws.ClientOption{}
 	socket, _, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	socket.ReadLoop()
+}
+```
+
+#### Client Proxy
+
+```go
+package main
+
+import (
+	"crypto/tls"
+	"github.com/lxzan/gws"
+	"golang.org/x/net/proxy"
+	"log"
+)
+
+func main() {
+	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
+		Addr:      "wss://example.com/connect",
+		TlsConfig: &tls.Config{InsecureSkipVerify: true},
+		NewDialer: func() (gws.Dialer, error) {
+			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
+		},
+	})
 	if err != nil {
 		log.Println(err.Error())
 		return
