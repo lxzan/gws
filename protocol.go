@@ -32,7 +32,7 @@ type CloseError struct {
 }
 
 func (c *CloseError) Error() string {
-	return fmt.Sprintf("connection closed, code=%d, reason=%s", c.Code, string(c.Reason))
+	return fmt.Sprintf("gws connection closed: code=%d, reason=%s", c.Code, string(c.Reason))
 }
 
 // WebSocket Event
