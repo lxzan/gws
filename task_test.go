@@ -113,7 +113,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 		var wg = sync.WaitGroup{}
 		wg.Add(1)
-		serverHandler.onError = func(socket *Conn, err error) {
+		serverHandler.onClose = func(socket *Conn, err error) {
 			as.Error(err)
 			wg.Done()
 		}
@@ -141,7 +141,7 @@ func TestConn_WriteAsync(t *testing.T) {
 				wg.Done()
 			}
 		}
-		serverHandler.onError = func(socket *Conn, err error) {
+		serverHandler.onClose = func(socket *Conn, err error) {
 			wg.Done()
 		}
 		clientHandler.onPong = func(socket *Conn, payload []byte) {

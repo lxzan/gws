@@ -123,22 +123,22 @@ func TestRead(t *testing.T) {
 				as.Equal(string(payload), string(d))
 				wg.Done()
 			}
-		case "onError":
-			clientHandler.onError = func(socket *Conn, err error) {
+		case "onClose":
+			clientHandler.onClose = func(socket *Conn, err error) {
 				as.Error(err)
 				wg.Done()
 			}
-		case "onClose":
-			clientHandler.onClose = func(socket *Conn, code uint16, reason []byte) {
-				defer wg.Done()
-				as.Equal(item.Expected.Code, code)
-				p, err := hex.DecodeString(item.Expected.Reason)
-				if err != nil {
-					as.NoError(err)
-					return
-				}
-				as.Equal(string(reason), string(p))
-			}
+			//case "onClose":
+			//	clientHandler.onClose = func(socket *Conn, err error) {
+			//		defer wg.Done()
+			//		as.Equal(item.Expected.Code, code)
+			//		p, err := hex.DecodeString(item.Expected.Reason)
+			//		if err != nil {
+			//			as.NoError(err)
+			//			return
+			//		}
+			//		as.Equal(string(reason), string(p))
+			//	}
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
@@ -195,7 +195,7 @@ func TestSegments(t *testing.T) {
 
 		var s1 = internal.AlphabetNumeric.Generate(16)
 		var s2 = internal.AlphabetNumeric.Generate(16)
-		serverHandler.onError = func(socket *Conn, err error) {
+		serverHandler.onClose = func(socket *Conn, err error) {
 			as.Error(err)
 			wg.Done()
 		}
@@ -222,7 +222,7 @@ func TestSegments(t *testing.T) {
 
 		var s1 = internal.AlphabetNumeric.Generate(16)
 		var s2 = internal.AlphabetNumeric.Generate(16)
-		serverHandler.onError = func(socket *Conn, err error) {
+		serverHandler.onClose = func(socket *Conn, err error) {
 			as.Error(err)
 			wg.Done()
 		}

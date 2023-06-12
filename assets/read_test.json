@@ -66,7 +66,7 @@
         "length": 2000000,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -76,7 +76,7 @@
         "length": 0,
         "payload": "cebae1bdb9cf83cebcceb5eda080656469746564",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -86,7 +86,7 @@
         "length": 6,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -96,7 +96,7 @@
         "length": 6,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -106,7 +106,7 @@
         "length": 6,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -126,7 +126,7 @@
         "length": 0,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {
@@ -146,7 +146,7 @@
         "length": 256,
         "payload": "",
         "expected": {
-            "event": "onError"
+            "event": "onClose"
         }
     },
     {

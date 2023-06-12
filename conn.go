@@ -118,7 +118,7 @@ func (c *Conn) emitError(err error) {
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.doWrite(OpcodeCloseConnection, content)
 		_ = c.conn.SetDeadline(time.Now())
-		c.handler.OnError(c, responseErr)
+		c.handler.OnClose(c, responseErr)
 	}
 }
 
@@ -155,7 +155,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		_ = c.doWrite(OpcodeCloseConnection, responseCode.Bytes())
-		c.handler.OnClose(c, realCode, buf.Bytes())
+		c.handler.OnClose(c, &CloseError{Code: realCode, Reason: buf.Bytes()})
 	}
 	return internal.CloseNormalClosure
 }

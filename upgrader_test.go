@@ -296,8 +296,7 @@ func TestBuiltinEventEngine(t *testing.T) {
 	assert.Equal(t, true, ok)
 
 	ev.OnOpen(nil)
-	ev.OnError(nil, nil)
-	ev.OnClose(nil, 0, nil)
+	ev.OnClose(nil, nil)
 	ev.OnMessage(nil, nil)
 	ev.OnPing(nil, nil)
 	ev.OnPong(nil, nil)

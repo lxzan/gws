@@ -56,7 +56,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
-	if c.compressEnabled && opcode.IsDataFrame() && len(payload) >= c.config.CompressThreshold {
+	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
 		return c.compressAndWrite(opcode, payload)
 	}
 
