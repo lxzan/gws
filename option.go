@@ -4,7 +4,6 @@ import (
 	"compress/flate"
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
-	"golang.org/x/net/proxy"
 	"net"
 	"net/http"
 	"time"
@@ -225,7 +224,7 @@ type ClientOption struct {
 	CheckUtf8Enabled    bool
 
 	// 连接地址, 例如 wss://example.com/connect
-	// service address, eg: wss://example.com/connect
+	// server address, eg: wss://example.com/connect
 	Addr string
 
 	// 额外的请求头
@@ -236,11 +235,20 @@ type ClientOption struct {
 	HandshakeTimeout time.Duration
 
 	// TLS设置
-	// tls config
 	TlsConfig *tls.Config
 
-	// 拨号器, 可以用于设置代理
-	NewDialer func() (proxy.Dialer, error)
+	// 拨号器
+	// 默认是返回net.Dialer实例
+	// 也可以用于设置代理, 例如
+	// NewDialer: func() (proxy.Dialer, error) {
+	//		return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
+	// },
+	// The default is to return the net.Dialer instance
+	// Can also be used to set a proxy, for example
+	// NewDialer: func() (proxy.Dialer, error) {
+	//		return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
+	// },
+	NewDialer func() (Dialer, error)
 }
 
 func initClientOption(c *ClientOption) *ClientOption {
@@ -284,7 +292,7 @@ func initClientOption(c *ClientOption) *ClientOption {
 		c.RequestHeader = http.Header{}
 	}
 	if c.NewDialer == nil {
-		c.NewDialer = func() (proxy.Dialer, error) { return &net.Dialer{Timeout: 5 * time.Second}, nil }
+		c.NewDialer = func() (Dialer, error) { return &net.Dialer{Timeout: 5 * time.Second}, nil }
 	}
 	return c
 }

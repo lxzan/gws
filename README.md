@@ -237,7 +237,7 @@ func main() {
 	socket, _, err := gws.NewClient(new(gws.BuiltinEventHandler), &gws.ClientOption{
 		Addr:      "wss://example.com/connect",
 		TlsConfig: &tls.Config{InsecureSkipVerify: true},
-		NewDialer: func() (proxy.Dialer, error) {
+		NewDialer: func() (gws.Dialer, error) {
 			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 		},
 	})

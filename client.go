@@ -14,6 +14,10 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
+type Dialer interface {
+	Dial(network, addr string) (c net.Conn, err error)
+}
+
 type connector struct {
 	option          *ClientOption
 	conn            net.Conn
