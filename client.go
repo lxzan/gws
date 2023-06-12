@@ -26,8 +26,7 @@ type connector struct {
 	secWebsocketKey string
 }
 
-// NewClient 创建WebSocket客户端; 支持ws/wss
-// Create WebSocket client, support ws/wss
+// NewClient
 func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, eventHandler: handler, resp: &http.Response{}}

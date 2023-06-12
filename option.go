@@ -205,11 +205,7 @@ type ClientOption struct {
 	TlsConfig *tls.Config
 
 	// 拨号器
-	// 默认是返回net.Dialer实例
-	// 也可以用于设置代理, 例如
-	// NewDialer: func() (proxy.Dialer, error) {
-	//		return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
-	// },
+	// 默认是返回net.Dialer实例, 也可以用于设置代理.
 	// The default is to return the net.Dialer instance
 	// Can also be used to set a proxy, for example
 	// NewDialer: func() (proxy.Dialer, error) {

@@ -191,7 +191,7 @@ func (c *frameHeader) GetMaskKey() []byte {
 }
 
 type Message struct {
-	// 虚拟的data容量, 对于压缩内容固定为4K, 保证开启压缩时使用固定的pool
+	// 虚拟容量
 	vCap int
 
 	// 操作码
