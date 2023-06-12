@@ -22,8 +22,8 @@ func TestReadSync(t *testing.T) {
 
 	var serverHandler = new(webSocketMocker)
 	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{ReadAsyncEnabled: true, WriteAsyncCap: count, ReadAsyncCap: count, CompressEnabled: true}
-	var clientOption = &ClientOption{ReadAsyncEnabled: true, WriteAsyncCap: count, ReadAsyncCap: count, CompressEnabled: true}
+	var serverOption = &ServerOption{CompressEnabled: true}
+	var clientOption = &ClientOption{CompressEnabled: true}
 
 	serverHandler.onMessage = func(socket *Conn, message *Message) {
 		mu.Lock()

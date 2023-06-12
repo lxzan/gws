@@ -1,45 +1,39 @@
 package gws
 
 import (
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
 	"testing"
-	"time"
-
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewClient(t *testing.T) {
 	NewClient(new(BuiltinEventHandler), nil)
 	{
 		var option = &ClientOption{
-			Addr:        "ws://127.0.0.1",
-			DialTimeout: time.Millisecond,
+			Addr: "ws://127.0.0.1",
 		}
 		NewClient(new(BuiltinEventHandler), option)
 	}
 
 	{
 		var option = &ClientOption{
-			Addr:        "wss://127.0.0.1",
-			DialTimeout: time.Millisecond,
+			Addr: "wss://127.0.0.1",
 		}
 		NewClient(new(BuiltinEventHandler), option)
 	}
 
 	{
 		var option = &ClientOption{
-			Addr:        "unix:///",
-			DialTimeout: time.Second,
+			Addr: "unix:///",
 		}
 		NewClient(new(BuiltinEventHandler), option)
 	}
 
 	{
 		var option = &ClientOption{
-			Addr:        "tls://127.0.0.1",
-			DialTimeout: time.Millisecond,
+			Addr: "tls://127.0.0.1",
 		}
 		NewClient(new(BuiltinEventHandler), option)
 	}
@@ -66,7 +60,7 @@ func TestNewClientFromConn(t *testing.T) {
 		addr := ":" + nextPort()
 		go server.Run(addr)
 		conn, _ := net.Pipe()
-		_, _, err := NewClientFromConn(BuiltinEventHandler{}, &ClientOption{DialTimeout: time.Second}, conn)
+		_, _, err := NewClientFromConn(BuiltinEventHandler{}, &ClientOption{}, conn)
 		as.Error(err)
 	})
 }
