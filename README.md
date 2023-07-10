@@ -279,8 +279,13 @@ docker run -it --rm \
 ![performance](assets/performance-compress-enabled.png)
 
 ### Communication
+> 微信二维码在讨论区不定时更新 
 
-<img src="assets/qq.jpg" alt="QQ" width="300"/>
+<div>
+<img src="assets/wechat.jpg" alt="WeChat" width="300" height="411" style="display: inline-block; margin-right: 20px"/>
+<img src="assets/qq.jpg" alt="QQ" width="300" height="411" style="display: inline-block"/>
+</div>
+
 
 ### Acknowledgments
 
