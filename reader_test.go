@@ -128,17 +128,6 @@ func TestRead(t *testing.T) {
 				as.Error(err)
 				wg.Done()
 			}
-			//case "onClose":
-			//	clientHandler.onClose = func(socket *Conn, err error) {
-			//		defer wg.Done()
-			//		as.Equal(item.Expected.Code, code)
-			//		p, err := hex.DecodeString(item.Expected.Reason)
-			//		if err != nil {
-			//			as.NoError(err)
-			//			return
-			//		}
-			//		as.Equal(string(reason), string(p))
-			//	}
 		}
 
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
