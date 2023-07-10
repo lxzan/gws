@@ -142,6 +142,9 @@ type Server struct {
 	// OnError 接收握手过程中产生的错误回调
 	// Receive error callbacks generated during the handshake
 	OnError func(conn net.Conn, err error)
+
+	// OnRequest
+	OnRequest func(socket *Conn, request *http.Request)
 }
 
 // NewServer 创建websocket服务器
@@ -149,6 +152,7 @@ type Server struct {
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.OnError = func(conn net.Conn, err error) { log.Println("gws: " + err.Error()) }
+	c.OnRequest = func(socket *Conn, request *http.Request) { socket.ReadLoop() }
 	return c
 }
 
@@ -203,7 +207,7 @@ func (c *Server) RunListener(listener net.Listener) error {
 				_ = conn.Close()
 				return
 			}
-			socket.ReadLoop()
+			c.OnRequest(socket, r)
 		}(netConn)
 	}
 }
