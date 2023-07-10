@@ -282,8 +282,8 @@ docker run -it --rm \
 > 微信二维码在讨论区不定时更新 
 
 <div>
-<img src="assets/wechat.jpg" alt="WeChat" width="300" height="411" style="display: inline-block; margin-right: 20px"/>
-<img src="assets/qq.jpg" alt="QQ" width="300" height="411" style="display: inline-block"/>
+<img src="assets/wechat.jpg" alt="WeChat" width="300" height="300" style="display: inline-block; margin-right: 50px"/>
+<img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
 
 
