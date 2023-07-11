@@ -36,6 +36,16 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, []byte(s))
 }
 
+// WriteAsync 异步非阻塞地写入消息
+// Write messages asynchronously and non-blockingly
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
+	c.PushTask(func() { _ = c.WriteMessage(opcode, payload) })
+}
+
+// PushTask 往写入队列追加一个任务. 功能和WriteAsync类似, PushTask更灵活点.
+// Appends a task to the write queue. Similar to WriteAsync, but PushTask is a bit more flexible.
+func (c *Conn) PushTask(f func()) { c.writeQueue.Push(f) }
+
 // WriteMessage 发送消息
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
@@ -79,16 +89,6 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	var err = internal.WriteN(c.conn, contents, totalSize)
 	myBufferPool.Put(buf, buf.Cap())
 	return err
-}
-
-// WriteAsync 异步非阻塞地写入消息
-// Write messages asynchronously and non-blockingly
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	if c.isClosed() {
-		return internal.ErrConnClosed
-	}
-	c.writeQueue.Push(func() { c.emitError(c.doWrite(opcode, payload)) })
-	return nil
 }
 
 func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {

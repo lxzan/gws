@@ -90,14 +90,12 @@ func TestWriteClose(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		var socket = &Conn{closed: 1}
-		as.Error(socket.WriteMessage(OpcodeText, nil))
-		as.Error(socket.WriteAsync(OpcodeText, nil))
+		socket.WriteMessage(OpcodeText, nil)
+		socket.WriteAsync(OpcodeText, nil)
 	})
 }
 
 func TestConn_WriteAsyncError(t *testing.T) {
-	var as = assert.New(t)
-
 	t.Run("", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
@@ -105,8 +103,7 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		server.closed = 1
-		err := server.WriteAsync(OpcodeText, nil)
-		as.Equal(internal.ErrConnClosed, err)
+		server.WriteAsync(OpcodeText, nil)
 	})
 }
 

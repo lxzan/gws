@@ -23,6 +23,8 @@ func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
 }
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
-	defer message.Close()
-	_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	socket.PushTask(func() {
+		_ = socket.WriteMessage(message.Opcode, message.Bytes())
+		_ = message.Close()
+	})
 }
