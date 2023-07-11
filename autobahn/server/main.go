@@ -70,7 +70,7 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	_ = socket.WriteAsync(message.Opcode, message.Bytes())
 }
 
 var rsaCertPEM = []byte(`-----BEGIN CERTIFICATE-----
