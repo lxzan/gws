@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
 )
@@ -38,13 +37,25 @@ func (c *Conn) WriteString(s string) error {
 
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blockingly
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) {
-	c.PushTask(func() { _ = c.WriteMessage(opcode, payload) })
-}
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
+	msg, err := c.prepare(opcode, payload)
+	if err != nil {
+		c.emitError(err)
+		return err
+	}
 
-// PushTask 往写入队列追加一个任务. 功能和WriteAsync类似, PushTask更灵活点.
-// Appends a task to the write queue. Similar to WriteAsync, but PushTask is a bit more flexible.
-func (c *Conn) PushTask(f func()) { c.writeQueue.Push(f) }
+	c.writeQueue.Push(func() {
+		if c.isClosed() {
+			return
+		}
+		c.wmu.Lock()
+		err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
+		c.wmu.Unlock()
+		myBufferPool.Put(msg.Data, msg.vCap)
+		c.emitError(err)
+	})
+	return nil
+}
 
 // WriteMessage 发送消息
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
@@ -59,21 +70,31 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
+	msg, err := c.prepare(opcode, payload)
+	if err != nil {
+		return err
+	}
 
+	c.wmu.Lock()
+	err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
+	c.wmu.Unlock()
+	myBufferPool.Put(msg.Data, msg.vCap)
+	return err
+}
+
+func (c *Conn) prepare(opcode Opcode, payload []byte) (*Message, error) {
 	// 不要删除 opcode == OpcodeText
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
-		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
+		return nil, internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
 	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
-		return c.compressAndWrite(opcode, payload)
+		return c.compressData(opcode, payload)
 	}
 
 	var n = len(payload)
 	if n > c.config.WriteMaxPayloadSize {
-		return internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 
 	var header = frameHeader{}
@@ -86,35 +107,28 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	if !c.isServer {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
-	var err = internal.WriteN(c.conn, contents, totalSize)
-	myBufferPool.Put(buf, buf.Cap())
-	return err
+	return &Message{Opcode: opcode, vCap: buf.Cap(), Data: buf}, nil
 }
 
-func (c *Conn) compressAndWrite(opcode Opcode, payload []byte) error {
+func (c *Conn) compressData(opcode Opcode, payload []byte) (*Message, error) {
 	var vCap = myBufferPool.GetvCap(len(payload) / 3)
 	var buf = myBufferPool.Get(vCap)
-	defer myBufferPool.Put(buf, vCap)
 	buf.Write(myPadding[0:])
 	err := c.config.compressors.Select().Compress(payload, buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return c.leftTrimAndWrite(opcode, buf, true)
-}
-
-func (c *Conn) leftTrimAndWrite(opcode Opcode, buf *bytes.Buffer, compress bool) error {
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {
-		return internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, compress, opcode, payloadSize)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
-	contents = contents[frameHeaderSize-headerLength:]
-	copy(contents[:headerLength], header[:headerLength])
-	return internal.WriteN(c.conn, contents, payloadSize+headerLength)
+	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
+	buf.Next(frameHeaderSize - headerLength)
+	return &Message{Opcode: opcode, Data: buf, vCap: vCap}, nil
 }

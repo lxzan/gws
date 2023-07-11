@@ -89,7 +89,7 @@ func TestWriteClose(t *testing.T) {
 	wg.Wait()
 
 	t.Run("", func(t *testing.T) {
-		var socket = &Conn{closed: 1}
+		var socket = &Conn{closed: 1, config: server.config}
 		socket.WriteMessage(OpcodeText, nil)
 		socket.WriteAsync(OpcodeText, nil)
 	})
