@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -36,8 +35,6 @@ type Conn struct {
 
 	// whether server is closed
 	closed uint32
-	// write lock
-	wmu sync.Mutex
 	// async read task queue
 	readQueue workerQueue
 	// async write task queue
@@ -52,7 +49,6 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		compressEnabled: compressEnabled,
 		conn:            netConn,
 		closed:          0,
-		wmu:             sync.Mutex{},
 		rbuf:            br,
 		fh:              frameHeader{},
 		handler:         handler,

@@ -8,7 +8,10 @@ import (
 	"github.com/lxzan/gws"
 )
 
-const remoteAddr = "localhost:9001"
+const (
+	agent      = "gws/client@v1.6.1"
+	remoteAddr = "192.168.1.1:9001"
+)
 
 func main() {
 	const count = 517
@@ -19,7 +22,7 @@ func main() {
 }
 
 func testCase(id int) {
-	var url = fmt.Sprintf("ws://%s/runCase?case=%d&agent=gws/client", remoteAddr, id)
+	var url = fmt.Sprintf("ws://%s/runCase?case=%d&agent=%s", remoteAddr, id, agent)
 	var handler = &WebSocket{onexit: make(chan struct{})}
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
 		Addr:                url,
@@ -56,7 +59,8 @@ func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
-	socket.WriteAsync(message.Opcode, message.Bytes())
+	defer message.Close()
+	_ = socket.WriteAsync(message.Opcode, message.Bytes())
 }
 
 type updateReportsHandler struct {
