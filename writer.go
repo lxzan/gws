@@ -48,9 +48,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		if c.isClosed() {
 			return
 		}
-		c.wmu.Lock()
 		err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
-		c.wmu.Unlock()
 		myBufferPool.Put(msg.Data, msg.vCap)
 		c.emitError(err)
 	})
@@ -75,9 +73,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return err
 	}
 
-	c.wmu.Lock()
 	err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
-	c.wmu.Unlock()
 	myBufferPool.Put(msg.Data, msg.vCap)
 	return err
 }
