@@ -11,9 +11,6 @@ import (
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
-
 	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
