@@ -191,8 +191,8 @@ func (c *frameHeader) GetMaskKey() []byte {
 }
 
 type Message struct {
-	// 虚拟容量
-	vCap int
+	// 内存池下标索引
+	index int
 
 	// 操作码
 	Opcode Opcode
@@ -211,7 +211,7 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() error {
-	myBufferPool.Put(c.Data, c.vCap)
+	myBufferPool.Put(c.Data, c.index)
 	c.Data = nil
 	return nil
 }
