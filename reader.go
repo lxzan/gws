@@ -98,7 +98,8 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var p = myBufferPool.Get(contentLength).Bytes()
+	var buf, index = myBufferPool.Get(contentLength)
+	var p = buf.Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.rbuf, p, contentLength); err != nil {
 		return err
@@ -111,7 +112,7 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.initialized = true
 		c.continuationFrame.compressed = compressed
 		c.continuationFrame.opcode = opcode
-		c.continuationFrame.buffer = myBufferPool.Get(contentLength)
+		c.continuationFrame.buffer = bytes.NewBuffer(make([]byte, 0, contentLength))
 	}
 
 	if !fin || (fin && opcode == OpcodeContinuation) {
@@ -140,17 +141,17 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.reset()
 		return myerr
 	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
+		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
 	default:
 		return internal.CloseNormalClosure
 	}
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
-	msg.vCap = msg.Data.Cap()
 	if compressed {
-		msg.vCap = myBufferPool.GetvCap(msg.Data.Len())
-		msg.Data, err = c.config.decompressors.Select().Decompress(msg.Data, msg.vCap)
+		data, index := msg.Data, msg.index
+		msg.Data, msg.index, err = c.config.decompressors.Select().Decompress(msg.Data)
+		myBufferPool.Put(data, index)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

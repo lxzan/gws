@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 )
 
+const compressionRate = 3
+
 type compressors struct {
 	serial      uint64
 	size        uint64
@@ -94,15 +96,14 @@ type decompressor struct {
 
 // Decompress 解压
 // 解压过程中, 切片可能会发生扩容, 造成bufferpool get/put失衡, 故需要指定大小, 让它们命中同一个bufferpool.
-func (c *decompressor) Decompress(src *bytes.Buffer, vCap int) (*bytes.Buffer, error) {
+func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	_, _ = src.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(src, nil) // must return a null pointer
-	var dst = myBufferPool.Get(vCap)
+	var dst, idx = myBufferPool.Get(src.Len() * compressionRate)
 	_, err := io.CopyBuffer(dst, c.fr, c.buffer[0:])
-	myBufferPool.Put(src, src.Cap())
-	return dst, err
+	return dst, idx, err
 }

@@ -12,47 +12,45 @@ func TestBufferPool(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		var n = AlphabetNumeric.Intn(126)
-		var buf = pool.Get(n)
+		var buf, index = pool.Get(n)
 		as.Equal(128, buf.Cap())
 		as.Equal(0, buf.Len())
+		as.Equal(index, 1)
 	}
 	for i := 0; i < 10; i++ {
-		var buf = pool.Get(500)
+		var buf, index = pool.Get(500)
 		as.Equal(Lv2, buf.Cap())
 		as.Equal(0, buf.Len())
+		as.Equal(index, 2)
 	}
 	for i := 0; i < 10; i++ {
-		var buf = pool.Get(2000)
+		var buf, index = pool.Get(2000)
 		as.Equal(Lv3, buf.Cap())
 		as.Equal(0, buf.Len())
+		as.Equal(index, 3)
 	}
 	for i := 0; i < 10; i++ {
-		var buf = pool.Get(5000)
-		as.Equal(Lv4, buf.Cap())
+		var buf, index = pool.Get(5000)
+		as.Equal(Lv5, buf.Cap())
 		as.Equal(0, buf.Len())
+		as.Equal(index, 5)
 	}
 
 	{
 		pool.Put(bytes.NewBuffer(make([]byte, 2)), 2)
-		b := pool.Get(120)
+		b, index := pool.Get(120)
 		as.GreaterOrEqual(b.Cap(), 120)
+		as.Equal(index, 1)
 	}
 	{
-		pool.Put(bytes.NewBuffer(make([]byte, 2000)), 2000)
-		b := pool.Get(3000)
+		pool.Put(bytes.NewBuffer(make([]byte, 2000)), 4)
+		b, index := pool.Get(3000)
 		as.GreaterOrEqual(b.Cap(), 3000)
+		as.Equal(index, 4)
 	}
 
 	pool.Put(nil, 0)
 	pool.Put(NewBufferWithCap(0), 0)
-	as.GreaterOrEqual(pool.Get(128*1024).Cap(), 128*1024)
-}
-
-func TestBufferPool_GetvCap(t *testing.T) {
-	var as = assert.New(t)
-	var p = NewBufferPool()
-	as.Equal(Lv2, p.GetvCap(512))
-	as.Equal(Lv3, p.GetvCap(3*1024))
-	as.Equal(Lv4, p.GetvCap(8*1024))
-	as.Equal(Lv4, p.GetvCap(256*1024))
+	buffer, _ := pool.Get(128 * 1024)
+	as.GreaterOrEqual(buffer.Cap(), 128*1024)
 }

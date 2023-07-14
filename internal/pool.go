@@ -5,15 +5,29 @@ import (
 	"sync"
 )
 
+const (
+	poolSize = 10
+
+	Lv1 = 128
+	Lv2 = 1024
+	Lv3 = 2 * 1024
+	Lv4 = 4 * 1024
+	Lv5 = 8 * 1024
+	Lv6 = 16 * 1024
+	Lv7 = 32 * 1024
+	Lv8 = 64 * 1024
+	Lv9 = 128 * 1024
+)
+
 type BufferPool struct {
-	pools  [6]*sync.Pool
-	limits [6]int
+	pools  [poolSize]*sync.Pool
+	limits [poolSize]int
 }
 
 func NewBufferPool() *BufferPool {
 	var p BufferPool
-	p.limits = [6]int{0, Lv1, Lv2, Lv3, Lv4, Lv5}
-	for i := 1; i < 6; i++ {
+	p.limits = [poolSize]int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8, Lv9}
+	for i := 1; i < poolSize; i++ {
 		var capacity = p.limits[i]
 		p.pools[i] = &sync.Pool{New: func() any {
 			return bytes.NewBuffer(make([]byte, 0, capacity))
@@ -22,41 +36,25 @@ func NewBufferPool() *BufferPool {
 	return &p
 }
 
-// compressedSize: 压缩后的大小
-func (p *BufferPool) GetvCap(compressedSize int) int {
-	if compressedSize <= Lv2 {
-		return Lv2
-	}
-	if compressedSize <= Lv3 {
-		return Lv3
-	}
-	return Lv4
-}
-
-func (p *BufferPool) Put(b *bytes.Buffer, n int) {
-	if b == nil || n == 0 {
+func (p *BufferPool) Put(b *bytes.Buffer, index int) {
+	if index == 0 || b == nil {
 		return
 	}
-	for i := 1; i < 6; i++ {
-		if n <= p.limits[i] {
-			if b.Cap() <= 4*p.limits[i] {
-				p.pools[i].Put(b)
-			}
-			return
-		}
+	if b.Cap() <= 2*p.limits[index] {
+		p.pools[index].Put(b)
 	}
 }
 
-func (p *BufferPool) Get(n int) *bytes.Buffer {
-	for i := 1; i < 6; i++ {
+func (p *BufferPool) Get(n int) (*bytes.Buffer, int) {
+	for i := 1; i < poolSize; i++ {
 		if n <= p.limits[i] {
 			b := p.pools[i].Get().(*bytes.Buffer)
 			if b.Cap() < n {
 				b.Grow(p.limits[i])
 			}
 			b.Reset()
-			return b
+			return b, i
 		}
 	}
-	return bytes.NewBuffer(make([]byte, 0, n))
+	return bytes.NewBuffer(make([]byte, 0, n)), 0
 }

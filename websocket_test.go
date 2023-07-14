@@ -125,7 +125,6 @@ func TestOthers(t *testing.T) {
 	socket := &Conn{
 		conn:    conn,
 		handler: new(webSocketMocker),
-		wmu:     sync.Mutex{},
 		config:  upgrader.option.getConfig(),
 	}
 	socket.SetDeadline(time.Time{})

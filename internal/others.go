@@ -36,15 +36,6 @@ const (
 	ThresholdV3 = math.MaxUint64
 )
 
-// buffer level
-const (
-	Lv1 = 128
-	Lv2 = 1024
-	Lv3 = 4 * 1024
-	Lv4 = 16 * 1024
-	Lv5 = 64 * 1024
-)
-
 type (
 	ReadLener interface {
 		io.Reader

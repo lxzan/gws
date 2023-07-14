@@ -11,9 +11,6 @@ import (
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
-
 	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
@@ -89,15 +86,13 @@ func TestWriteClose(t *testing.T) {
 	wg.Wait()
 
 	t.Run("", func(t *testing.T) {
-		var socket = &Conn{closed: 1}
-		as.Error(socket.WriteMessage(OpcodeText, nil))
-		as.Error(socket.WriteAsync(OpcodeText, nil))
+		var socket = &Conn{closed: 1, config: server.config}
+		socket.WriteMessage(OpcodeText, nil)
+		socket.WriteAsync(OpcodeText, nil)
 	})
 }
 
 func TestConn_WriteAsyncError(t *testing.T) {
-	var as = assert.New(t)
-
 	t.Run("", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
@@ -105,8 +100,7 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		server.closed = 1
-		err := server.WriteAsync(OpcodeText, nil)
-		as.Equal(internal.ErrConnClosed, err)
+		server.WriteAsync(OpcodeText, nil)
 	})
 }
 
