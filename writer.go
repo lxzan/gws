@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
 )
@@ -38,7 +39,7 @@ func (c *Conn) WriteString(s string) error {
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blockingly
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	msg, err := c.genFrame(opcode, payload)
+	frame, index, err := c.genFrame(opcode, payload)
 	if err != nil {
 		c.emitError(err)
 		return err
@@ -48,8 +49,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		if c.isClosed() {
 			return
 		}
-		err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
-		myBufferPool.Put(msg.Data, msg.index)
+		err = internal.WriteN(c.conn, frame.Bytes(), frame.Len())
+		myBufferPool.Put(frame, index)
 		c.emitError(err)
 	})
 	return nil
@@ -68,21 +69,21 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	msg, err := c.genFrame(opcode, payload)
+	frame, index, err := c.genFrame(opcode, payload)
 	if err != nil {
 		return err
 	}
 
-	err = internal.WriteN(c.conn, msg.Bytes(), msg.Data.Len())
-	myBufferPool.Put(msg.Data, msg.index)
+	err = internal.WriteN(c.conn, frame.Bytes(), frame.Len())
+	myBufferPool.Put(frame, index)
 	return err
 }
 
 // 帧生成
-func (c *Conn) genFrame(opcode Opcode, payload []byte) (*Message, error) {
+func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
 	// 不要删除 opcode == OpcodeText
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
-		return nil, internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
+		return nil, 0, internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
 	}
 
 	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
@@ -91,7 +92,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*Message, error) {
 
 	var n = len(payload)
 	if n > c.config.WriteMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
+		return nil, 0, internal.CloseMessageTooLarge
 	}
 
 	var header = frameHeader{}
@@ -104,20 +105,20 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*Message, error) {
 	if !c.isServer {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
-	return &Message{Opcode: opcode, index: index, Data: buf}, nil
+	return buf, index, nil
 }
 
-func (c *Conn) compressData(opcode Opcode, payload []byte) (*Message, error) {
+func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
 	var buf, index = myBufferPool.Get(len(payload) / compressionRate)
 	buf.Write(myPadding[0:])
 	err := c.config.compressors.Select().Compress(payload, buf)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
+		return nil, 0, internal.CloseMessageTooLarge
 	}
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
@@ -126,5 +127,5 @@ func (c *Conn) compressData(opcode Opcode, payload []byte) (*Message, error) {
 	}
 	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
 	buf.Next(frameHeaderSize - headerLength)
-	return &Message{Opcode: opcode, Data: buf, index: index}, nil
+	return buf, index, nil
 }

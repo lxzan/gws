@@ -5,7 +5,19 @@ import (
 	"sync"
 )
 
-const poolSize = 9
+const (
+	poolSize = 10
+
+	Lv1 = 128
+	Lv2 = 1024
+	Lv3 = 2 * 1024
+	Lv4 = 4 * 1024
+	Lv5 = 8 * 1024
+	Lv6 = 16 * 1024
+	Lv7 = 32 * 1024
+	Lv8 = 64 * 1024
+	Lv9 = 128 * 1024
+)
 
 type BufferPool struct {
 	pools  [poolSize]*sync.Pool
@@ -14,7 +26,7 @@ type BufferPool struct {
 
 func NewBufferPool() *BufferPool {
 	var p BufferPool
-	p.limits = [poolSize]int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8}
+	p.limits = [poolSize]int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8, Lv9}
 	for i := 1; i < poolSize; i++ {
 		var capacity = p.limits[i]
 		p.pools[i] = &sync.Pool{New: func() any {
@@ -25,7 +37,7 @@ func NewBufferPool() *BufferPool {
 }
 
 func (p *BufferPool) Put(b *bytes.Buffer, index int) {
-	if b == nil || index == 0 {
+	if index == 0 || b == nil {
 		return
 	}
 	if b.Cap() <= 2*p.limits[index] {
