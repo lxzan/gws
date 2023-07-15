@@ -42,8 +42,6 @@
 		- [Broadcast](#broadcast)
 	- [Autobahn Test](#autobahn-test)
 	- [Benchmark](#benchmark)
-		- [Compress Disabled](#compress-disabled)
-		- [Compress Enabled](#compress-enabled)
 	- [Communication](#communication)
 	- [Acknowledgments](#acknowledgments)
 
@@ -268,15 +266,12 @@ docker run -it --rm \
 
 ### Benchmark
 
-- Fedora 38 Workstation (Linux 6.2 Kernel)
-- Connection = 1000
+- Fedora 38 Workstation
 - GOMAXPROCS = 2
+- Connection = 1000
+- Compress Disabled
   
-#### Compress Disabled
 ![performance](assets/performance-compress-disabled.png)
-
-#### Compress Enabled
-![performance](assets/performance-compress-enabled.png)
 
 ### Communication
 > 微信二维码在讨论区不定时更新 
