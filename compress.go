@@ -90,12 +90,10 @@ func newDecompressor() *decompressor {
 
 type decompressor struct {
 	sync.Mutex
-	fr     io.ReadCloser
-	buffer [internal.Lv3]byte
+	fr io.ReadCloser
 }
 
 // Decompress 解压
-// 解压过程中, 切片可能会发生扩容, 造成bufferpool get/put失衡, 故需要指定大小, 让它们命中同一个bufferpool.
 func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -104,6 +102,6 @@ func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(src, nil) // must return a null pointer
 	var dst, idx = myBufferPool.Get(src.Len() * compressionRate)
-	_, err := io.CopyBuffer(dst, c.fr, c.buffer[0:])
+	_, err := c.fr.(io.WriterTo).WriteTo(dst)
 	return dst, idx, err
 }
