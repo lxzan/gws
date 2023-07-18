@@ -266,12 +266,25 @@ docker run -it --rm \
 
 ### Benchmark
 
-- Fedora 38 Workstation
 - GOMAXPROCS = 2
 - Connection = 1000
 - Compress Disabled
   
 ![performance](assets/performance-compress-disabled.png)
+
+```go
+$ go test -benchmem -run=^$ -bench ^(BenchmarkConn_WriteMessage|BenchmarkConn_ReadMessage)$ github.com/lxzan/gws
+
+goos: darwin
+goarch: arm64
+pkg: github.com/lxzan/gws
+BenchmarkConn_WriteMessage/compress_disabled-8         	 4494459	       239.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-8          	  107365	     10726 ns/op	     509 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-8          	 3037701	       395.6 ns/op	     120 B/op	       3 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-8           	  175388	      6355 ns/op	    7803 B/op	       7 allocs/op
+PASS
+ok  	github.com/lxzan/gws	5.813s
+```
 
 ### Communication
 > 微信二维码在讨论区不定时更新 

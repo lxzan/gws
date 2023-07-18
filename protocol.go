@@ -72,7 +72,7 @@ func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) {}
 
 func (b BuiltinEventHandler) OnPong(socket *Conn, payload []byte) {}
 
-func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
+func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) { _ = message.Close() }
 
 type frameHeader [frameHeaderSize]byte
 
