@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
-	"sync/atomic"
 )
 
 // WriteClose
@@ -129,33 +128,4 @@ func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, 
 	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
 	buf.Next(frameHeaderSize - headerLength)
 	return buf, index, nil
-}
-
-// Broadcast 广播
-// 注意: 只会生成一次消息帧, 需确保客户端配置一致(全部开启/关闭压缩)
-// Note: message frames are only generated once, make sure the client configuration is consistent (all compression on/off).
-func Broadcast(opcode Opcode, payload []byte, sockets ...*Conn) error {
-	var n = len(sockets)
-	if n == 0 {
-		return nil
-	}
-
-	frame, index, err := sockets[0].genFrame(opcode, payload)
-	if err != nil {
-		return err
-	}
-
-	expected, actual := int64(n), int64(0)
-	for i, _ := range sockets {
-		socket := sockets[i]
-		socket.writeQueue.Push(func() {
-			if !socket.isClosed() {
-				socket.emitError(internal.WriteN(socket.conn, frame.Bytes(), frame.Len()))
-			}
-			if atomic.AddInt64(&actual, 1) == expected {
-				myBufferPool.Put(frame, index)
-			}
-		})
-	}
-	return nil
 }
