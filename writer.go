@@ -31,9 +31,8 @@ func (c *Conn) WritePong(payload []byte) error {
 }
 
 // WriteString write text frame
-// force convert string to []byte
 func (c *Conn) WriteString(s string) error {
-	return c.WriteMessage(OpcodeText, []byte(s))
+	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
 // WriteAsync 异步非阻塞地写入消息

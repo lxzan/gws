@@ -51,6 +51,6 @@ func TestBufferPool(t *testing.T) {
 
 	pool.Put(nil, 0)
 	pool.Put(NewBufferWithCap(0), 0)
-	buffer, _ := pool.Get(128 * 1024)
-	as.GreaterOrEqual(buffer.Cap(), 128*1024)
+	buffer, _ := pool.Get(256 * 1024)
+	as.GreaterOrEqual(buffer.Cap(), 256*1024)
 }
