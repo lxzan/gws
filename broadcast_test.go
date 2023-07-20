@@ -21,6 +21,7 @@ func TestNewBroadcaster(t *testing.T) {
 
 		app.OnRequest = func(socket *Conn, request *http.Request) {
 			handler.sockets.Store(socket, struct{}{})
+			socket.ReadLoop()
 		}
 
 		go func() {
@@ -64,6 +65,7 @@ func TestNewBroadcaster(t *testing.T) {
 
 		app.OnRequest = func(socket *Conn, request *http.Request) {
 			handler.sockets.Store(socket, struct{}{})
+			socket.ReadLoop()
 		}
 
 		go func() {

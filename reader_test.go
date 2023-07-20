@@ -125,6 +125,9 @@ func TestRead(t *testing.T) {
 			}
 		case "onClose":
 			clientHandler.onClose = func(socket *Conn, err error) {
+				if v, ok := err.(*CloseError); ok {
+					println(v.Error())
+				}
 				as.Error(err)
 				wg.Done()
 			}

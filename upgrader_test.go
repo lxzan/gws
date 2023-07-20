@@ -291,13 +291,21 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestBuiltinEventEngine(t *testing.T) {
-	var ev = &webSocketMocker{}
-	_, ok := interface{}(ev).(Event)
-	assert.Equal(t, true, ok)
+	{
+		var ev = &webSocketMocker{}
+		_, ok := interface{}(ev).(Event)
+		assert.Equal(t, true, ok)
 
-	ev.OnOpen(nil)
-	ev.OnClose(nil, nil)
-	ev.OnMessage(nil, &Message{})
-	ev.OnPing(nil, nil)
-	ev.OnPong(nil, nil)
+		ev.OnOpen(nil)
+		ev.OnClose(nil, nil)
+		ev.OnMessage(nil, &Message{})
+		ev.OnPing(nil, nil)
+		ev.OnPong(nil, nil)
+	}
+
+	{
+		var ev = &BuiltinEventHandler{}
+		ev.OnMessage(nil, &Message{})
+		ev.OnPong(nil, nil)
+	}
 }
