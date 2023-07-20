@@ -44,9 +44,9 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 		c.msgs[idx] = &broadcastMessageWrapper{}
 		msg = c.msgs[idx]
 		msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload)
-		if msg.err != nil {
-			return msg.err
-		}
+	}
+	if msg.err != nil {
+		return msg.err
 	}
 
 	c.state.Add(1)
@@ -62,11 +62,10 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 }
 
 func (c *Broadcaster) doClose() {
-	if c.msgs[0] != nil {
-		myBufferPool.Put(c.msgs[0].frame, c.msgs[0].index)
-	}
-	if c.msgs[1] != nil {
-		myBufferPool.Put(c.msgs[1].frame, c.msgs[1].index)
+	for _, item := range c.msgs {
+		if item != nil {
+			myBufferPool.Put(item.frame, item.index)
+		}
 	}
 }
 
