@@ -137,7 +137,7 @@ type (
 		opcode  Opcode
 		payload []byte
 		msgs    [2]*broadcastMessageWrapper
-		state   atomic.Int64
+		state   int64
 	}
 
 	broadcastMessageWrapper struct {
@@ -156,8 +156,8 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 		opcode:  opcode,
 		payload: payload,
 		msgs:    [2]*broadcastMessageWrapper{},
+		state:   int64(math.MaxInt32),
 	}
-	c.state.Add(math.MaxInt32)
 	return c
 }
 
@@ -176,12 +176,12 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 		return msg.err
 	}
 
-	c.state.Add(1)
+	atomic.AddInt64(&c.state, 1)
 	socket.writeQueue.Push(func() {
 		if !socket.isClosed() {
 			socket.emitError(internal.WriteN(socket.conn, msg.frame.Bytes(), msg.frame.Len()))
 		}
-		if c.state.Add(-1) == 0 {
+		if atomic.AddInt64(&c.state, -1) == 0 {
 			c.doClose()
 		}
 	})
@@ -200,7 +200,7 @@ func (c *Broadcaster) doClose() {
 // 在完成所有Broadcast之后调用Release方法释放资源.
 // Call the Release method after all the Broadcasts have been completed to release the resources.
 func (c *Broadcaster) Release() {
-	if c.state.Add(-1*math.MaxInt32) == 0 {
+	if atomic.AddInt64(&c.state, -1*math.MaxInt32) == 0 {
 		c.doClose()
 	}
 }
