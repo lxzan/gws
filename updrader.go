@@ -130,9 +130,6 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	if err := setNoDelay(netConn); err != nil {
-		return nil, err
-	}
 	return serveWebSocket(true, c.option.getConfig(), session, netConn, br, c.eventHandler, compressEnabled), nil
 }
 

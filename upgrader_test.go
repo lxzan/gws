@@ -82,16 +82,20 @@ func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func TestNoDelay(t *testing.T) {
 	t.Run("tcp conn", func(t *testing.T) {
-		setNoDelay(&net.TCPConn{})
+		conn := &Conn{conn: &net.TCPConn{}}
+		conn.SetNoDelay(false)
 	})
 
 	t.Run("tls conn", func(t *testing.T) {
-		setNoDelay(&tls.Conn{})
+		tlsConn := tls.Client(&net.TCPConn{}, nil)
+		conn := &Conn{conn: tlsConn}
+		conn.SetNoDelay(false)
 	})
 
 	t.Run("other", func(t *testing.T) {
 		conn, _ := net.Pipe()
-		setNoDelay(conn)
+		socket := &Conn{conn: conn}
+		socket.SetNoDelay(false)
 	})
 }
 

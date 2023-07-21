@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"github.com/lxzan/gws/internal"
+	"math"
+	"sync"
+	"sync/atomic"
 )
 
 // WriteClose
@@ -127,4 +130,77 @@ func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, 
 	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
 	buf.Next(frameHeaderSize - headerLength)
 	return buf, index, nil
+}
+
+type (
+	Broadcaster struct {
+		opcode  Opcode
+		payload []byte
+		msgs    [2]*broadcastMessageWrapper
+		state   atomic.Int64
+	}
+
+	broadcastMessageWrapper struct {
+		once  sync.Once
+		err   error
+		index int
+		frame *bytes.Buffer
+	}
+)
+
+// NewBroadcaster
+// 相比WriteAsync, Broadcaster只会压缩一次消息, 可以节省大量CPU开销.
+// Compared to WriteAsync, Broadcaster compresses the message only once, saving a lot of CPU overhead.
+func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
+	c := &Broadcaster{
+		opcode:  opcode,
+		payload: payload,
+		msgs:    [2]*broadcastMessageWrapper{},
+	}
+	c.state.Add(math.MaxInt32)
+	return c
+}
+
+// Broadcast 广播
+// 向单个客户端发送广播消息. 注意: 不要并行调用Broadcast方法
+// Send a broadcast message to a single client. Note: Do not call the Broadcast method in parallel.
+func (c *Broadcaster) Broadcast(socket *Conn) error {
+	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
+	var msg = c.msgs[idx]
+	if msg == nil {
+		c.msgs[idx] = &broadcastMessageWrapper{}
+		msg = c.msgs[idx]
+		msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload)
+	}
+	if msg.err != nil {
+		return msg.err
+	}
+
+	c.state.Add(1)
+	socket.writeQueue.Push(func() {
+		if !socket.isClosed() {
+			socket.emitError(internal.WriteN(socket.conn, msg.frame.Bytes(), msg.frame.Len()))
+		}
+		if c.state.Add(-1) == 0 {
+			c.doClose()
+		}
+	})
+	return nil
+}
+
+func (c *Broadcaster) doClose() {
+	for _, item := range c.msgs {
+		if item != nil {
+			myBufferPool.Put(item.frame, item.index)
+		}
+	}
+}
+
+// Release
+// 在完成所有Broadcast之后调用Release方法释放资源.
+// Call the Release method after all the Broadcasts have been completed to release the resources.
+func (c *Broadcaster) Release() {
+	if c.state.Add(-1*math.MaxInt32) == 0 {
+		c.doClose()
+	}
 }
