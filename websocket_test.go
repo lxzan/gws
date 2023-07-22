@@ -148,7 +148,7 @@ func TestOthers(t *testing.T) {
 func TestConn_Close(t *testing.T) {
 	conn, _ := net.Pipe()
 	var socket = &Conn{conn: conn, closed: 1}
-	assert.NoError(t, socket.SetDeadline(time.Time{}))
-	assert.NoError(t, socket.SetReadDeadline(time.Time{}))
-	assert.NoError(t, socket.SetWriteDeadline(time.Time{}))
+	assert.Error(t, socket.SetDeadline(time.Time{}))
+	assert.Error(t, socket.SetReadDeadline(time.Time{}))
+	assert.Error(t, socket.SetWriteDeadline(time.Time{}))
 }

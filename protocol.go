@@ -32,7 +32,7 @@ type CloseError struct {
 }
 
 func (c *CloseError) Error() string {
-	return fmt.Sprintf("gws connection closed: code=%d, reason=%s", c.Code, string(c.Reason))
+	return fmt.Sprintf("gws: connection closed, code=%d, reason=%s", c.Code, string(c.Reason))
 }
 
 // WebSocket Event
@@ -68,11 +68,11 @@ func (b BuiltinEventHandler) OnOpen(socket *Conn) {}
 
 func (b BuiltinEventHandler) OnClose(socket *Conn, err error) {}
 
-func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) {}
+func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) { _ = socket.WritePong(nil) }
 
 func (b BuiltinEventHandler) OnPong(socket *Conn, payload []byte) {}
 
-func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
+func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) { _ = message.Close() }
 
 type frameHeader [frameHeaderSize]byte
 

@@ -82,16 +82,20 @@ func (c *httpWriterWrapper2) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func TestNoDelay(t *testing.T) {
 	t.Run("tcp conn", func(t *testing.T) {
-		setNoDelay(&net.TCPConn{})
+		conn := &Conn{conn: &net.TCPConn{}}
+		conn.SetNoDelay(false)
 	})
 
 	t.Run("tls conn", func(t *testing.T) {
-		setNoDelay(&tls.Conn{})
+		tlsConn := tls.Client(&net.TCPConn{}, nil)
+		conn := &Conn{conn: tlsConn}
+		conn.SetNoDelay(false)
 	})
 
 	t.Run("other", func(t *testing.T) {
 		conn, _ := net.Pipe()
-		setNoDelay(conn)
+		socket := &Conn{conn: conn}
+		socket.SetNoDelay(false)
 	})
 }
 
@@ -291,13 +295,21 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestBuiltinEventEngine(t *testing.T) {
-	var ev = new(BuiltinEventHandler)
-	_, ok := interface{}(ev).(Event)
-	assert.Equal(t, true, ok)
+	{
+		var ev = &webSocketMocker{}
+		_, ok := interface{}(ev).(Event)
+		assert.Equal(t, true, ok)
 
-	ev.OnOpen(nil)
-	ev.OnClose(nil, nil)
-	ev.OnMessage(nil, nil)
-	ev.OnPing(nil, nil)
-	ev.OnPong(nil, nil)
+		ev.OnOpen(nil)
+		ev.OnClose(nil, nil)
+		ev.OnMessage(nil, &Message{})
+		ev.OnPing(nil, nil)
+		ev.OnPong(nil, nil)
+	}
+
+	{
+		var ev = &BuiltinEventHandler{}
+		ev.OnMessage(nil, &Message{})
+		ev.OnPong(nil, nil)
+	}
 }

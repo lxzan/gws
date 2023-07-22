@@ -159,7 +159,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 // SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) error {
 	if c.isClosed() {
-		return nil
+		return internal.ErrConnClosed
 	}
 	err := c.conn.SetDeadline(t)
 	c.emitError(err)
@@ -169,7 +169,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 // SetReadDeadline sets read deadline
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	if c.isClosed() {
-		return nil
+		return internal.ErrConnClosed
 	}
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(err)
@@ -179,7 +179,7 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline sets write deadline
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	if c.isClosed() {
-		return nil
+		return internal.ErrConnClosed
 	}
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(err)
@@ -199,14 +199,17 @@ func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
 
-// setNoDelay set tcp no delay
-func setNoDelay(conn net.Conn) error {
-	switch v := conn.(type) {
+// SetNoDelay controls whether the operating system should delay
+// packet transmission in hopes of sending fewer packets (Nagle's
+// algorithm).  The default is true (no delay), meaning that data is
+// sent as soon as possible after a Write.
+func (c *Conn) SetNoDelay(noDelay bool) error {
+	switch v := c.conn.(type) {
 	case *net.TCPConn:
-		return v.SetNoDelay(false)
+		return v.SetNoDelay(noDelay)
 	case *tls.Conn:
-		if netConn, ok := conn.(internal.NetConn); ok {
-			return setNoDelay(netConn.NetConn())
+		if netConn, ok := v.NetConn().(*net.TCPConn); ok {
+			return netConn.SetNoDelay(noDelay)
 		}
 	}
 	return nil
