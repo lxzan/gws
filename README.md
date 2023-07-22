@@ -47,12 +47,11 @@
 
 ### Feature
 
-- [x] fully passes the websocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
-- [x] thread safety guarantees for writing messages
-- [x] high iops and low latency, low cpu usage
-- [x] io multiplexing support, concurrent message processing and asynchronous non-blocking message writing
-- [x] fast upgrade from tcp to websocket, dramatically reduce memory usage
-- [x] create client via proxy
+- [x] broadcast
+- [x] proxy
+- [x] io multiplexing
+- [x] thread safety
+- [x] passes websocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
 
@@ -268,7 +267,7 @@ docker run -it --rm \
 
 ### Benchmark
 
-- GOMAXPROCS = 2
+- GOMAXPROCS = 4
 - Connection = 1000
 - Compress Disabled
   
@@ -302,5 +301,6 @@ ok  	github.com/lxzan/gws	5.813s
 
 The following project had particular influence on gws's design.
 
-- [lesismal/nbio](https://github.com/lesismal/nbio)
 - [crossbario/autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
+- [klauspost/compress](https://github.com/klauspost/compress)
+- [lesismal/nbio](https://github.com/lesismal/nbio)
