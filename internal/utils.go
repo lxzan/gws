@@ -198,6 +198,10 @@ func HttpHeaderEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 
+func HttpHeaderContains(a, b string) bool {
+	return strings.Contains(strings.ToLower(a), strings.ToLower(b))
+}
+
 func SelectValue[T any](ok bool, a, b T) T {
 	if ok {
 		return a

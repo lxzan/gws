@@ -186,6 +186,11 @@ func TestHttpHeaderEqual(t *testing.T) {
 	assert.Equal(t, false, HttpHeaderEqual("WebSocket@", "websocket"))
 }
 
+func TestHttpHeaderContains(t *testing.T) {
+	assert.Equal(t, true, HttpHeaderContains("WebSocket", "websocket"))
+	assert.Equal(t, true, HttpHeaderContains("WebSocket@", "websocket"))
+}
+
 func TestSelectInt(t *testing.T) {
 	assert.Equal(t, 1, SelectValue(true, 1, 2))
 	assert.Equal(t, 2, SelectValue(false, 1, 2))
