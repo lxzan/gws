@@ -105,14 +105,14 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	if r.Method != http.MethodGet {
 		return nil, internal.ErrGetMethodRequired
 	}
-	if !internal.HttpHeaderEqual(r.Header.Get(internal.SecWebSocketVersion.Key), internal.SecWebSocketVersion.Val) {
+	if !strings.EqualFold(r.Header.Get(internal.SecWebSocketVersion.Key), internal.SecWebSocketVersion.Val) {
 		msg := "websocket version not supported"
 		return nil, errors.New(msg)
 	}
-	if !internal.HttpHeaderEqual(r.Header.Get(internal.Connection.Key), internal.Connection.Val) {
+	if !internal.HttpHeaderContains(r.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return nil, internal.ErrHandshake
 	}
-	if !internal.HttpHeaderEqual(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
+	if !strings.EqualFold(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return nil, internal.ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, "permessage-deflate") && c.option.CompressEnabled {

@@ -125,10 +125,10 @@ func (c *connector) checkHeaders() error {
 	if c.resp.StatusCode != http.StatusSwitchingProtocols {
 		return internal.ErrStatusCode
 	}
-	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
+	if !internal.HttpHeaderContains(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return internal.ErrHandshake
 	}
-	if !internal.HttpHeaderEqual(c.resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
+	if !strings.EqualFold(c.resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return internal.ErrHandshake
 	}
 	if c.resp.Header.Get(internal.SecWebSocketAccept.Key) != internal.ComputeAcceptKey(c.secWebsocketKey) {
