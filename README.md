@@ -47,11 +47,12 @@
 
 ### Feature
 
-- [x] broadcast
-- [x] proxy
-- [x] io multiplexing
-- [x] thread safety
-- [x] passes websocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+- [x] Event API
+- [x] Broadcast
+- [x] Dial via Proxy
+- [x] IO Multiplexing
+- [x] Concurrent Write
+- [x] Passes WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
 
