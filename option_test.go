@@ -22,6 +22,9 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
 	as.Equal(config.CompressorNum, option.CompressorNum)
+
+	_, ok := u.option.NewSessionStorage().(*sliceMap)
+	as.True(ok)
 }
 
 func validateClientOption(as *assert.Assertions, option *ClientOption) {
@@ -36,6 +39,9 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
+
+	_, ok := option.NewSessionStorage().(*sliceMap)
+	as.True(ok)
 }
 
 // 检查默认配置
@@ -56,6 +62,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.NotNil(updrader.option)
 	as.NotNil(updrader.option.ResponseHeader)
 	as.NotNil(updrader.option.Authorize)
+	as.NotNil(updrader.option.NewSessionStorage)
 	as.Nil(updrader.option.Subprotocols)
 	validateServerOption(as, updrader)
 }
@@ -122,6 +129,7 @@ func TestDefaultClientOption(t *testing.T) {
 	as.Equal(1, config.CompressorNum)
 	as.NotNil(config)
 	as.Equal(0, len(option.RequestHeader))
+	as.NotNil(option.NewSessionStorage)
 	validateClientOption(as, option)
 }
 
@@ -144,10 +152,31 @@ func TestCompressClientOption(t *testing.T) {
 			CompressLevel:     flate.BestCompression,
 			CompressThreshold: 1024,
 		}
+		initClientOption(option)
 		var config = option.getConfig()
 		as.Equal(true, config.CompressEnabled)
 		as.Equal(flate.BestCompression, config.CompressLevel)
 		as.Equal(1024, config.CompressThreshold)
 		validateClientOption(as, option)
 	})
+}
+
+func TestNewSessionStorage(t *testing.T) {
+	{
+		var option = &ServerOption{
+			NewSessionStorage: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+		}
+		initServerOption(option)
+		_, ok := option.NewSessionStorage().(*ConcurrentMap[string, any])
+		assert.True(t, ok)
+	}
+
+	{
+		var option = &ClientOption{
+			NewSessionStorage: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+		}
+		initClientOption(option)
+		_, ok := option.NewSessionStorage().(*ConcurrentMap[string, any])
+		assert.True(t, ok)
+	}
 }

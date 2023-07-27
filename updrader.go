@@ -95,7 +95,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		return nil, err
 	}
 
-	var session = new(sliceMap)
+	var session = c.option.NewSessionStorage()
 	var header = c.option.ResponseHeader.Clone()
 	if !c.option.Authorize(r, session) {
 		return nil, internal.ErrUnauthorized
