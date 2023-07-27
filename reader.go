@@ -108,43 +108,40 @@ func (c *Conn) readMessage() error {
 		internal.MaskXOR(p, c.fh.GetMaskKey())
 	}
 
-	if !fin && (opcode == OpcodeText || opcode == OpcodeBinary) {
+	if opcode != OpcodeContinuation && c.continuationFrame.initialized {
+		return internal.CloseProtocolError
+	}
+
+	if fin && opcode != OpcodeContinuation {
+		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
+	}
+
+	if !fin && opcode != OpcodeContinuation {
 		c.continuationFrame.initialized = true
 		c.continuationFrame.compressed = compressed
 		c.continuationFrame.opcode = opcode
 		c.continuationFrame.buffer = bytes.NewBuffer(make([]byte, 0, contentLength))
 	}
 
-	if !fin || (fin && opcode == OpcodeContinuation) {
-		if !c.continuationFrame.initialized {
-			return internal.CloseProtocolError
-		}
-		if err := internal.WriteN(c.continuationFrame.buffer, p, len(p)); err != nil {
-			return err
-		}
-		if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
-			return internal.CloseMessageTooLarge
-		}
-		if !fin {
-			return nil
-		}
-	}
-
-	// Send unfragmented Text Message after Continuation Frame with FIN = false
-	if c.continuationFrame.initialized && opcode != OpcodeContinuation {
+	if !c.continuationFrame.initialized {
 		return internal.CloseProtocolError
 	}
-	switch opcode {
-	case OpcodeContinuation:
-		msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
-		myerr := c.emitMessage(msg, c.continuationFrame.compressed)
-		c.continuationFrame.reset()
-		return myerr
-	case OpcodeText, OpcodeBinary:
-		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
-	default:
-		return internal.CloseNormalClosure
+	if err := internal.WriteN(c.continuationFrame.buffer, p, len(p)); err != nil {
+		return err
+	} else {
+		myBufferPool.Put(buf, index)
 	}
+	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
+		return internal.CloseMessageTooLarge
+	}
+	if !fin {
+		return nil
+	}
+
+	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
+	e := c.emitMessage(msg, c.continuationFrame.compressed)
+	c.continuationFrame.reset()
+	return e
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
