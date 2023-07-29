@@ -139,9 +139,9 @@ func (c *Conn) readMessage() error {
 	}
 
 	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
-	e := c.emitMessage(msg, c.continuationFrame.compressed)
+	compressed = c.continuationFrame.compressed
 	c.continuationFrame.reset()
-	return e
+	return c.emitMessage(msg, c.continuationFrame.compressed)
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
