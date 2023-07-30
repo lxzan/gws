@@ -101,6 +101,7 @@ func TestNoDelay(t *testing.T) {
 
 func TestAccept(t *testing.T) {
 	var upgrader = NewUpgrader(new(webSocketMocker), &ServerOption{
+		CompressEnabled: true,
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		ResponseHeader: http.Header{

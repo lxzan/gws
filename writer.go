@@ -113,7 +113,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, erro
 func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
 	var buf, index = myBufferPool.Get(len(payload) / compressionRate)
 	buf.Write(myPadding[0:])
-	err := c.config.compressors.Select().Compress(payload, buf)
+	err := c.compressor.Compress(payload, buf)
 	if err != nil {
 		return nil, 0, err
 	}

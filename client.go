@@ -118,7 +118,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		return nil, c.resp, err
 	}
 	var compressEnabled = c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate")
-	return serveWebSocket(false, c.option.getConfig(), new(sliceMap), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
+	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
 }
 
 func (c *connector) checkHeaders() error {

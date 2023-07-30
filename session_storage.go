@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-// SessionStorage because sync.Map is not easy to debug, so I implemented my own map.
-// if you don't like it, use sync.Map instead.
 type SessionStorage interface {
 	Load(key string) (value interface{}, exist bool)
 	Delete(key string)
@@ -94,11 +92,6 @@ func (c *sliceMap) Range(f func(key string, value interface{}) bool) {
 	}
 }
 
-/*
-ConcurrentMap
-used to store websocket connections in the IM server
-用来存储IM等服务的连接
-*/
 type (
 	Comparable interface {
 		string | int | int64 | int32 | uint | uint64 | uint32

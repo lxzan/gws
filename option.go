@@ -107,6 +107,11 @@ type (
 		// 鉴权
 		// Authentication of requests for connection establishment
 		Authorize func(r *http.Request, session SessionStorage) bool
+
+		// 创建session存储空间
+		// 用于自定义SessionStorage实现
+		// For custom SessionStorage implementations
+		NewSessionStorage func() SessionStorage
 	}
 )
 
@@ -139,9 +144,10 @@ func initServerOption(c *ServerOption) *ServerOption {
 		c.CompressorNum = defaultCompressorNum
 	}
 	if c.Authorize == nil {
-		c.Authorize = func(r *http.Request, session SessionStorage) bool {
-			return true
-		}
+		c.Authorize = func(r *http.Request, session SessionStorage) bool { return true }
+	}
+	if c.NewSessionStorage == nil {
+		c.NewSessionStorage = func() SessionStorage { return new(sliceMap) }
 	}
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
@@ -212,6 +218,11 @@ type ClientOption struct {
 	//		return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 	// },
 	NewDialer func() (Dialer, error)
+
+	// 创建session存储空间
+	// 用于自定义SessionStorage实现
+	// For custom SessionStorage implementations
+	NewSessionStorage func() SessionStorage
 }
 
 func initClientOption(c *ClientOption) *ClientOption {
@@ -247,6 +258,9 @@ func initClientOption(c *ClientOption) *ClientOption {
 	}
 	if c.NewDialer == nil {
 		c.NewDialer = func() (Dialer, error) { return &net.Dialer{Timeout: defaultDialTimeout}, nil }
+	}
+	if c.NewSessionStorage == nil {
+		c.NewSessionStorage = func() SessionStorage { return new(sliceMap) }
 	}
 	return c
 }

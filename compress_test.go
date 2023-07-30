@@ -5,7 +5,6 @@ import (
 	"compress/flate"
 	"testing"
 
-	klauspost "github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,30 +52,4 @@ func TestFlate(t *testing.T) {
 		_, _, err := dps.Decompress(buf)
 		as.Error(err)
 	})
-}
-
-func BenchmarkStdCompress(b *testing.B) {
-	const size = 4 * 1024
-	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
-	contents := internal.AlphabetNumeric.Generate(size)
-	buffer := bytes.NewBuffer(make([]byte, size))
-	for i := 0; i < b.N; i++ {
-		buffer.Reset()
-		fw.Reset(buffer)
-		fw.Write(contents)
-		fw.Flush()
-	}
-}
-
-func BenchmarkKlauspostCompress(b *testing.B) {
-	const size = 4 * 1024
-	fw, _ := klauspost.NewWriter(nil, flate.BestSpeed)
-	contents := internal.AlphabetNumeric.Generate(size)
-	buffer := bytes.NewBuffer(make([]byte, size))
-	for i := 0; i < b.N; i++ {
-		buffer.Reset()
-		fw.Reset(buffer)
-		fw.Write(contents)
-		fw.Flush()
-	}
 }
