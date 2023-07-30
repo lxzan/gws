@@ -2,10 +2,7 @@ test:
 	go test -count 1 -timeout 30s -run ^Test ./...
 
 bench:
-	go test -benchmem  -bench ^Benchmark github.com/lxzan/gws
-
-build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/gws-linux-amd64 github.com/lxzan/gws/examples/testsuite
+	go test -benchmem -run=^$$ -bench . github.com/lxzan/gws
 
 cover:
 	go test -coverprofile=./bin/cover.out --cover ./...

@@ -4,12 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"compress/flate"
+	_ "embed"
 	"encoding/binary"
 	klauspost "github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
 	"net"
 	"testing"
 )
+
+//go:embed assets/github.json
+var githubData []byte
 
 type benchConn struct {
 	net.TCPConn
@@ -27,13 +31,14 @@ func BenchmarkConn_WriteMessage(b *testing.B) {
 			config: upgrader.option.getConfig(),
 		}
 		for i := 0; i < b.N; i++ {
-			_ = conn.WriteMessage(OpcodeText, testdata)
+			_ = conn.WriteMessage(OpcodeText, githubData)
 		}
 	})
 
 	b.Run("compress enabled", func(b *testing.B) {
 		var upgrader = NewUpgrader(&BuiltinEventHandler{}, &ServerOption{
 			CompressEnabled: true,
+			CompressorNum:   64,
 		})
 		var conn = &Conn{
 			conn:            &benchConn{},
@@ -41,7 +46,7 @@ func BenchmarkConn_WriteMessage(b *testing.B) {
 			config:          upgrader.option.getConfig(),
 		}
 		for i := 0; i < b.N; i++ {
-			_ = conn.WriteMessage(OpcodeText, testdata)
+			_ = conn.WriteMessage(OpcodeText, githubData)
 		}
 	})
 }
@@ -54,7 +59,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			conn:     &benchConn{},
 			config:   upgrader.option.getConfig(),
 		}
-		var buf, _, _ = conn1.genFrame(OpcodeText, testdata)
+		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -79,7 +84,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			compressEnabled: true,
 			config:          upgrader.option.getConfig(),
 		}
-		var buf, _, _ = conn1.genFrame(OpcodeText, testdata)
+		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -100,8 +105,8 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 
 func BenchmarkStdCompress(b *testing.B) {
 	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
-	contents := testdata
-	buffer := bytes.NewBuffer(make([]byte, len(testdata)))
+	contents := githubData
+	buffer := bytes.NewBuffer(make([]byte, len(githubData)))
 	for i := 0; i < b.N; i++ {
 		buffer.Reset()
 		fw.Reset(buffer)
@@ -112,8 +117,8 @@ func BenchmarkStdCompress(b *testing.B) {
 
 func BenchmarkKlauspostCompress(b *testing.B) {
 	fw, _ := klauspost.NewWriter(nil, flate.BestSpeed)
-	contents := testdata
-	buffer := bytes.NewBuffer(make([]byte, len(testdata)))
+	contents := githubData
+	buffer := bytes.NewBuffer(make([]byte, len(githubData)))
 	for i := 0; i < b.N; i++ {
 		buffer.Reset()
 		fw.Reset(buffer)
