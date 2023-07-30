@@ -3,6 +3,10 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"compress/flate"
+	"encoding/binary"
+	klauspost "github.com/klauspost/compress/flate"
+	"github.com/lxzan/gws/internal"
 	"net"
 	"testing"
 )
@@ -92,4 +96,38 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			_ = conn2.readMessage()
 		}
 	})
+}
+
+func BenchmarkStdCompress(b *testing.B) {
+	fw, _ := flate.NewWriter(nil, flate.BestSpeed)
+	contents := testdata
+	buffer := bytes.NewBuffer(make([]byte, len(testdata)))
+	for i := 0; i < b.N; i++ {
+		buffer.Reset()
+		fw.Reset(buffer)
+		fw.Write(contents)
+		fw.Flush()
+	}
+}
+
+func BenchmarkKlauspostCompress(b *testing.B) {
+	fw, _ := klauspost.NewWriter(nil, flate.BestSpeed)
+	contents := testdata
+	buffer := bytes.NewBuffer(make([]byte, len(testdata)))
+	for i := 0; i < b.N; i++ {
+		buffer.Reset()
+		fw.Reset(buffer)
+		fw.Write(contents)
+		fw.Flush()
+	}
+}
+
+func BenchmarkMask(b *testing.B) {
+	var s1 = internal.AlphabetNumeric.Generate(1280)
+	var s2 = s1
+	var key [4]byte
+	binary.LittleEndian.PutUint32(key[:4], internal.AlphabetNumeric.Uint32())
+	for i := 0; i < b.N; i++ {
+		internal.MaskXOR(s2, key[:4])
+	}
 }
