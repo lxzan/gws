@@ -141,13 +141,13 @@ func (c *Conn) readMessage() error {
 	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
 	compressed = c.continuationFrame.compressed
 	c.continuationFrame.reset()
-	return c.emitMessage(msg, c.continuationFrame.compressed)
+	return c.emitMessage(msg, compressed)
 }
 
 func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 	if compressed {
 		data, index := msg.Data, msg.index
-		msg.Data, msg.index, err = c.config.decompressors.Select().Decompress(msg.Data)
+		msg.Data, msg.index, err = c.decompressor.Decompress(msg.Data)
 		myBufferPool.Put(data, index)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)

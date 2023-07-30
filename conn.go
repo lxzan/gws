@@ -39,6 +39,10 @@ type Conn struct {
 	readQueue workerQueue
 	// async write task queue
 	writeQueue workerQueue
+	// flate compressor
+	compressor *compressor
+	// flate decompressor
+	decompressor *decompressor
 }
 
 func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool) *Conn {
@@ -54,6 +58,10 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		handler:         handler,
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit)},
 		writeQueue:      workerQueue{maxConcurrency: 1},
+	}
+	if compressEnabled {
+		c.compressor = config.compressors.Select()
+		c.decompressor = config.decompressors.Select()
 	}
 	return c
 }

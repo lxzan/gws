@@ -40,10 +40,13 @@ func BenchmarkConn_WriteMessage(b *testing.B) {
 			CompressEnabled: true,
 			CompressorNum:   64,
 		})
+		var config = upgrader.option.getConfig()
 		var conn = &Conn{
 			conn:            &benchConn{},
 			compressEnabled: true,
-			config:          upgrader.option.getConfig(),
+			config:          config,
+			compressor:      config.compressors.Select(),
+			decompressor:    config.decompressors.Select(),
 		}
 		for i := 0; i < b.N; i++ {
 			_ = conn.WriteMessage(OpcodeText, githubData)
@@ -78,11 +81,14 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 
 	b.Run("compress enabled", func(b *testing.B) {
 		var upgrader = NewUpgrader(&BuiltinEventHandler{}, &ServerOption{CompressEnabled: true})
+		var config = upgrader.option.getConfig()
 		var conn1 = &Conn{
 			isServer:        false,
 			conn:            &benchConn{},
 			compressEnabled: true,
-			config:          upgrader.option.getConfig(),
+			config:          config,
+			compressor:      config.compressors.Select(),
+			decompressor:    config.decompressors.Select(),
 		}
 		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
 
@@ -94,6 +100,8 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			config:          upgrader.option.getConfig(),
 			compressEnabled: true,
 			handler:         upgrader.eventHandler,
+			compressor:      config.compressors.Select(),
+			decompressor:    config.decompressors.Select(),
 		}
 		for i := 0; i < b.N; i++ {
 			reader = bytes.NewBuffer(buf.Bytes())
