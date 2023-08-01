@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bytes"
+	"compress/flate"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
@@ -226,6 +227,60 @@ func TestSegments(t *testing.T) {
 		go func() {
 			testWrite(client, false, OpcodeText, testCloneBytes(s1))
 			testWrite(client, true, OpcodeText, testCloneBytes(s2))
+		}()
+		wg.Wait()
+	})
+
+	t.Run("illegal compression", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+
+		var s1 = internal.AlphabetNumeric.Generate(1024)
+		serverHandler.onClose = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		go func() {
+			client.compressEnabled = true
+			client.config.compressors = new(compressors).initialize(16, flate.BestSpeed)
+			testWrite(client, true, OpcodeText, testCloneBytes(s1))
+		}()
+		wg.Wait()
+	})
+
+	t.Run("decompress error", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CompressEnabled: true}
+		var clientOption = &ClientOption{CompressEnabled: true}
+
+		serverHandler.onClose = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		go func() {
+			frame, _, _ := client.genFrame(OpcodeText, testdata)
+			data := frame.Bytes()
+			data[20] = 'x'
+			client.conn.Write(data)
 		}()
 		wg.Wait()
 	})
