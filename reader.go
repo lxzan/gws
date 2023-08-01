@@ -36,11 +36,7 @@ func (c *Conn) readControl() error {
 		if err := internal.ReadN(c.rbuf, payload, int(n)); err != nil {
 			return err
 		}
-		maskEnabled := c.fh.GetMask()
-		if err := c.checkMask(maskEnabled); err != nil {
-			return err
-		}
-		if maskEnabled {
+		if maskEnabled := c.fh.GetMask(); maskEnabled {
 			internal.MaskXOR(payload, c.fh.GetMaskKey())
 		}
 	}
