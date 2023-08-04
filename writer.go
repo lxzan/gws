@@ -9,12 +9,11 @@ import (
 	"sync/atomic"
 )
 
-// WriteClose
-// code: https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
-// 通过emitError发送关闭帧, 将连接状态置为关闭, 用于服务端主动断开连接
-// 没有特殊原因的话, 建议code=0, reason=nil
-// Send a close frame via emitError to set the connection state to closed, for server-initiated disconnection
-// If there is no special reason, we suggest code=0, reason=nil
+// WriteClose 发送关闭帧, 主动断开连接
+// 没有特殊需求的话, 推荐code=1000, reason=nil
+// Send shutdown frame, active disconnection
+// If you don't have any special needs, we recommend code=1000, reason=nil
+// https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
 func (c *Conn) WriteClose(code uint16, reason []byte) {
 	var err = internal.NewError(internal.StatusCode(code), errEmpty)
 	if len(reason) > 0 {
@@ -23,23 +22,26 @@ func (c *Conn) WriteClose(code uint16, reason []byte) {
 	c.emitError(err)
 }
 
-// WritePing write ping frame
+// WritePing 写入Ping消息, 携带的信息不要超过125字节
+// Control frame length cannot exceed 125 bytes
 func (c *Conn) WritePing(payload []byte) error {
 	return c.WriteMessage(OpcodePing, payload)
 }
 
-// WritePong write pong frame
+// WritePong 写入Pong消息, 携带的信息不要超过125字节
+// Control frame length cannot exceed 125 bytes
 func (c *Conn) WritePong(payload []byte) error {
 	return c.WriteMessage(OpcodePong, payload)
 }
 
-// WriteString write text frame
+// WriteString 写入文本消息, 使用UTF8编码.
+// Write text messages, should be encoded in UTF8.
 func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-// WriteAsync 异步非阻塞地写入消息
-// Write messages asynchronously and non-blockingly
+// WriteAsync 异步写入消息
+// Asynchronous Write Messages
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	frame, index, err := c.genFrame(opcode, payload)
 	if err != nil {
@@ -58,7 +60,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	return nil
 }
 
-// WriteMessage 发送消息
+// WriteMessage 写入文本/二进制消息, 文本消息应该使用UTF8编码
+// Write text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
 		return ErrConnClosed
@@ -148,7 +151,7 @@ type (
 	}
 )
 
-// NewBroadcaster
+// NewBroadcaster 创建广播器
 // 相比WriteAsync, Broadcaster只会压缩一次消息, 可以节省大量CPU开销.
 // Compared to WriteAsync, Broadcaster compresses the message only once, saving a lot of CPU overhead.
 func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
@@ -196,7 +199,7 @@ func (c *Broadcaster) doClose() {
 	}
 }
 
-// Release
+// Release 释放资源
 // 在完成所有Broadcast之后调用Release方法释放资源.
 // Call the Release method after all the Broadcasts have been completed to release the resources.
 func (c *Broadcaster) Release() {
