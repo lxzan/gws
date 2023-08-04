@@ -3,10 +3,11 @@ package gws
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"io"
-
 	"github.com/lxzan/gws/internal"
+	"io"
+	"net"
 )
 
 const frameHeaderSize = 14
@@ -35,28 +36,55 @@ func (c *CloseError) Error() string {
 	return fmt.Sprintf("gws: connection closed, code=%d, reason=%s", c.Code, string(c.Reason))
 }
 
-// WebSocket Event
+var (
+	errEmpty = errors.New("")
+
+	// ErrUnauthorized 未通过鉴权认证
+	// Failure to pass forensic authentication
+	ErrUnauthorized = errors.New("unauthorized")
+
+	// ErrHandshake 握手错误, 请求头未通过校验
+	// Handshake error, request header does not pass checksum.
+	ErrHandshake = errors.New("handshake error")
+
+	// ErrTextEncoding 文本消息编码错误(必须是utf8编码)
+	// Text message encoding error (must be utf8)
+	ErrTextEncoding = errors.New("invalid text encoding")
+
+	// ErrConnClosed 连接已关闭
+	// Connection closed
+	ErrConnClosed = net.ErrClosed
+
+	// ErrIOBytesLen IO错误(读写的字节长度不符合预期)
+	// IO error (length of bytes read or written is not as expected)
+	ErrIOBytesLen = internal.ErrIOBytesLen
+
+	// ErrUnsupportedProtocol 不支持的网络协议
+	// Unsupported network protocols
+	ErrUnsupportedProtocol = errors.New("unsupported protocol")
+)
+
 type Event interface {
-	// 建立连接事件
+	// OnOpen 建立连接事件
 	// WebSocket connection was successfully established
 	OnOpen(socket *Conn)
 
-	// 关闭事件
+	// OnClose 关闭事件
 	// 接收到了网络连接另一端发送的关闭帧, 或者IO过程中出现错误主动断开连接
 	// 如果是前者, err可以断言为*CloseError
 	// Received a close frame from the other end of the network connection, or disconnected voluntarily due to an error in the IO process
 	// In the former case, err can be asserted as *CloseError
 	OnClose(socket *Conn, err error)
 
-	// 心跳探测事件
+	// OnPing 心跳探测事件
 	// Received a ping frame
 	OnPing(socket *Conn, payload []byte)
 
-	// 心跳响应事件
+	// OnPong 心跳响应事件
 	// Received a pong frame
 	OnPong(socket *Conn, payload []byte)
 
-	// 消息事件
+	// OnMessage 消息事件
 	// 如果开启了ReadAsyncEnabled, 会并行地调用OnMessage; 没有做recover处理.
 	// If ReadAsyncEnabled is enabled, OnMessage is called in parallel. No recover is done.
 	OnMessage(socket *Conn, message *Message)
@@ -127,7 +155,7 @@ func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
 	copy((*c)[offset:offset+4], key[0:])
 }
 
-// generate frame header for writing
+// GenerateHeader generate frame header for writing
 // 可以考虑每个客户端连接带一个随机数发生器
 func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opcode Opcode, length int) (headerLength int, maskBytes []byte) {
 	headerLength = 2
@@ -151,7 +179,7 @@ func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opc
 	return
 }
 
-// 解析完整协议头, 最多14byte, 返回payload长度
+// Parse 解析完整协议头, 最多14byte, 返回payload长度
 func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 	if err := internal.ReadN(reader, (*c)[0:2], 2); err != nil {
 		return 0, err

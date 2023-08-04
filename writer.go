@@ -16,7 +16,7 @@ import (
 // Send a close frame via emitError to set the connection state to closed, for server-initiated disconnection
 // If there is no special reason, we suggest code=0, reason=nil
 func (c *Conn) WriteClose(code uint16, reason []byte) {
-	var err = internal.NewError(internal.StatusCode(code), internal.GwsError(""))
+	var err = internal.NewError(internal.StatusCode(code), errEmpty)
 	if len(reason) > 0 {
 		err.Err = errors.New(string(reason))
 	}
@@ -61,7 +61,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 // WriteMessage 发送消息
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.doWrite(opcode, payload)
 	c.emitError(err)
@@ -85,7 +85,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
 	// 不要删除 opcode == OpcodeText
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
-		return nil, 0, internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
+		return nil, 0, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
 	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {

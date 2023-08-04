@@ -167,7 +167,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 // SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetDeadline(t)
 	c.emitError(err)
@@ -177,7 +177,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 // SetReadDeadline sets read deadline
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(err)
@@ -187,7 +187,7 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline sets write deadline
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(err)
