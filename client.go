@@ -26,7 +26,8 @@ type connector struct {
 	secWebsocketKey string
 }
 
-// NewClient
+// NewClient 创建客户端
+// Create New client
 func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, eventHandler: handler, resp: &http.Response{}}
@@ -61,7 +62,8 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 	return client, resp, err
 }
 
-// NewClientFromConn
+// NewClientFromConn 通过外部连接创建客户端, 支持 TCP/KCP/Unix Domain Socket
+// Create New client via external connection, supports TCP/KCP/Unix Domain Socket.
 func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, conn: conn, eventHandler: handler, resp: &http.Response{}}
