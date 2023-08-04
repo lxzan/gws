@@ -98,22 +98,22 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	var session = c.option.NewSessionStorage()
 	var header = c.option.ResponseHeader.Clone()
 	if !c.option.Authorize(r, session) {
-		return nil, internal.ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	var compressEnabled = false
 	if r.Method != http.MethodGet {
-		return nil, internal.ErrGetMethodRequired
+		return nil, ErrHandshake
 	}
 	if !strings.EqualFold(r.Header.Get(internal.SecWebSocketVersion.Key), internal.SecWebSocketVersion.Val) {
 		msg := "websocket version not supported"
 		return nil, errors.New(msg)
 	}
 	if !internal.HttpHeaderContains(r.Header.Get(internal.Connection.Key), internal.Connection.Val) {
-		return nil, internal.ErrHandshake
+		return nil, ErrHandshake
 	}
 	if !strings.EqualFold(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
-		return nil, internal.ErrHandshake
+		return nil, ErrHandshake
 	}
 	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, "permessage-deflate") && c.option.CompressEnabled {
 		header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
@@ -121,7 +121,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
 	if websocketKey == "" {
-		return nil, internal.ErrHandshake
+		return nil, ErrHandshake
 	}
 
 	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {

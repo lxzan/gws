@@ -150,7 +150,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 		}
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
-		return internal.NewError(internal.CloseUnsupportedData, internal.ErrTextEncoding)
+		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
 	if c.config.ReadAsyncEnabled {

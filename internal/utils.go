@@ -95,18 +95,12 @@ func NewBufferWithCap(n uint8) *bytes.Buffer {
 	return bytes.NewBuffer(make([]byte, 0, n))
 }
 
-/*
-IO Utils
-ReadN
-WriteN
-CopyN
-*/
 func CheckIOError(expectN, realN int, err error) error {
 	if err != nil {
 		return NewError(CloseInternalServerErr, err)
 	}
 	if realN != expectN {
-		return NewError(CloseInternalServerErr, ErrUnexpectedContentLength)
+		return NewError(CloseInternalServerErr, ErrIOBytesLen)
 	}
 	return nil
 }

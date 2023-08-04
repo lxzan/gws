@@ -35,7 +35,7 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 		return nil, nil, err
 	}
 	if URL.Scheme != "ws" && URL.Scheme != "wss" {
-		return nil, nil, internal.ErrSchema
+		return nil, nil, ErrUnsupportedProtocol
 	}
 
 	var tlsEnabled = URL.Scheme == "wss"
@@ -123,16 +123,16 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 
 func (c *connector) checkHeaders() error {
 	if c.resp.StatusCode != http.StatusSwitchingProtocols {
-		return internal.ErrStatusCode
+		return ErrHandshake
 	}
 	if !internal.HttpHeaderContains(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	if !strings.EqualFold(c.resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	if c.resp.Header.Get(internal.SecWebSocketAccept.Key) != internal.ComputeAcceptKey(c.secWebsocketKey) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	return nil
 }
