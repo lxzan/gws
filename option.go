@@ -95,13 +95,13 @@ type (
 		// 握手超时时间
 		HandshakeTimeout time.Duration
 
-		// WebSocket子协议, 一般不需要设置
-		// WebSocket subprotocol, usually no need to set
+		// WebSocket子协议, 握手失败会断开连接
+		// WebSocket sub-protocol, handshake failure disconnects the connection
 		Subprotocols []string
 
-		// 连接握手时添加的额外的响应头, 如果客户端不支持就不要传
+		// 额外的响应头(可能不受客户端支持)
+		// Additional response headers (may not be supported by the client)
 		// https://www.rfc-editor.org/rfc/rfc6455.html#section-1.3
-		// attention: client may not support custom response header, use nil instead
 		ResponseHeader http.Header
 
 		// 鉴权

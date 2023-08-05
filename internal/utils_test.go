@@ -186,3 +186,27 @@ func TestToBinaryNumber(t *testing.T) {
 	assert.Equal(t, 128, ToBinaryNumber(120))
 	assert.Equal(t, 1024, ToBinaryNumber(1024))
 }
+
+func TestGetIntersectionElem(t *testing.T) {
+	{
+		a := []string{"chat", "stock", "excel"}
+		b := []string{"stock", "fx"}
+		assert.Equal(t, "stock", GetIntersectionElem(a, b))
+	}
+	{
+		a := []string{"chat", "stock", "excel"}
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(a, b))
+	}
+	{
+		a := []string{}
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(a, b))
+		assert.Equal(t, "", GetIntersectionElem(b, a))
+	}
+	{
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(nil, b))
+		assert.Equal(t, "", GetIntersectionElem(b, nil))
+	}
+}

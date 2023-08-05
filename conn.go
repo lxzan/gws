@@ -16,36 +16,51 @@ import (
 type Conn struct {
 	// store session information
 	SessionStorage SessionStorage
+
 	// is server
 	isServer bool
+
+	// sub protocol
+	subprotocol string
+
 	// whether to use compression
 	compressEnabled bool
+
 	// tcp connection
 	conn net.Conn
-	// server configs
+
+	// configs
 	config *Config
+
 	// read buffer
 	rbuf *bufio.Reader
+
 	// continuation frame
 	continuationFrame continuationFrame
+
 	// frame header for read
 	fh frameHeader
+
 	// WebSocket Event Handler
 	handler Event
 
 	// whether server is closed
 	closed uint32
+
 	// async read task queue
 	readQueue workerQueue
+
 	// async write task queue
 	writeQueue workerQueue
+
 	// flate compressor
 	compressor *compressor
+
 	// flate decompressor
 	decompressor *decompressor
 }
 
-func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
 	c := &Conn{
 		isServer:        isServer,
 		SessionStorage:  session,
@@ -58,6 +73,7 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		handler:         handler,
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit)},
 		writeQueue:      workerQueue{maxConcurrency: 1},
+		subprotocol:     subprotocol,
 	}
 	if compressEnabled {
 		c.compressor = config.compressors.Select()
@@ -221,4 +237,8 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 		}
 	}
 	return nil
+}
+
+func (c *Conn) SubProtocol() string {
+	return c.subprotocol
 }

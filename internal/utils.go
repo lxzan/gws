@@ -145,6 +145,16 @@ func InCollection(elem string, elems []string) bool {
 	return false
 }
 
+// GetIntersectionElem 获取两个数组交集中的一个元素
+func GetIntersectionElem(a, b []string) string {
+	for _, item := range a {
+		if InCollection(item, b) {
+			return item
+		}
+	}
+	return ""
+}
+
 // Split 分割字符串(空值将会被过滤掉)
 func Split(s string, sep string) []string {
 	var list = strings.Split(s, sep)
