@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestNewClient(t *testing.T) {
@@ -48,6 +49,8 @@ func TestNewClientFromConn(t *testing.T) {
 		server := NewServer(BuiltinEventHandler{}, nil)
 		addr := ":" + nextPort()
 		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
 		conn, err := net.Dial("tcp", "localhost"+addr)
 		if err != nil {
 			as.NoError(err)
@@ -61,6 +64,8 @@ func TestNewClientFromConn(t *testing.T) {
 		server := NewServer(BuiltinEventHandler{}, nil)
 		addr := ":" + nextPort()
 		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
 		conn, _ := net.Pipe()
 		_, _, err := NewClientFromConn(BuiltinEventHandler{}, &ClientOption{}, conn)
 		as.Error(err)

@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _port = int64(9999)
+var _port = int64(19999)
 
 func nextPort() string {
 	port := atomic.AddInt64(&_port, 1)
@@ -231,6 +231,8 @@ func TestNewServer(t *testing.T) {
 		var addr = ":" + nextPort()
 		var server = NewServer(new(BuiltinEventHandler), nil)
 		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
 		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
 			Addr: "ws://localhost" + addr,
 		})
@@ -255,6 +257,8 @@ func TestNewServer(t *testing.T) {
 			wg.Done()
 		}
 		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
 		client, err := net.Dial("tcp", "localhost"+addr)
 		as.NoError(err)
 		var payload = fmt.Sprintf("POST ws://localhost%s HTTP/1.1\r\n\r\n", addr)
@@ -271,6 +275,8 @@ func TestNewServer(t *testing.T) {
 			wg.Done()
 		}
 		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
 		client, err := net.Dial("tcp", "localhost"+addr)
 		as.NoError(err)
 		var payload = fmt.Sprintf("GET ws://localhost%s HTTP/1.1 GWS\r\n\r\n", addr)
@@ -282,6 +288,7 @@ func TestNewServer(t *testing.T) {
 		var server = NewServer(new(BuiltinEventHandler), nil)
 		var addr = ":" + nextPort()
 		go server.Run(addr)
+
 		time.Sleep(100 * time.Millisecond)
 		as.Error(NewServer(new(BuiltinEventHandler), nil).Run(addr))
 		as.Error(NewServer(new(BuiltinEventHandler), nil).RunTLS(addr, "", ""))
@@ -320,6 +327,8 @@ func TestSubprotocol(t *testing.T) {
 		var addr = "127.0.0.1:" + nextPort()
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
 		go func() { app.Run(addr) }()
+
+		time.Sleep(100 * time.Millisecond)
 		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{Addr: "ws://" + addr})
 		assert.Error(t, err)
 	})
@@ -329,6 +338,7 @@ func TestSubprotocol(t *testing.T) {
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{})
 		go func() { app.Run(addr) }()
 
+		time.Sleep(100 * time.Millisecond)
 		rh := http.Header{}
 		rh.Set("Sec-WebSocket-Protocol", "chat")
 		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
@@ -343,6 +353,7 @@ func TestSubprotocol(t *testing.T) {
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
 		go func() { app.Run(addr) }()
 
+		time.Sleep(100 * time.Millisecond)
 		rh := http.Header{}
 		rh.Set("Sec-WebSocket-Protocol", "chat")
 		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{

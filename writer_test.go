@@ -171,7 +171,7 @@ func TestNewBroadcaster(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		var count = 100
 		for i := 0; i < count; i++ {
@@ -215,7 +215,7 @@ func TestNewBroadcaster(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		var count = 100
 		for i := 0; i < count; i++ {
