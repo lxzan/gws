@@ -16,36 +16,51 @@ import (
 type Conn struct {
 	// store session information
 	SessionStorage SessionStorage
+
 	// is server
 	isServer bool
+
+	// sub protocol
+	subprotocol string
+
 	// whether to use compression
 	compressEnabled bool
+
 	// tcp connection
 	conn net.Conn
-	// server configs
+
+	// configs
 	config *Config
+
 	// read buffer
-	rbuf *bufio.Reader
+	br *bufio.Reader
+
 	// continuation frame
 	continuationFrame continuationFrame
+
 	// frame header for read
 	fh frameHeader
+
 	// WebSocket Event Handler
 	handler Event
 
 	// whether server is closed
 	closed uint32
+
 	// async read task queue
 	readQueue workerQueue
+
 	// async write task queue
 	writeQueue workerQueue
+
 	// flate compressor
 	compressor *compressor
+
 	// flate decompressor
 	decompressor *decompressor
 }
 
-func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool) *Conn {
+func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
 	c := &Conn{
 		isServer:        isServer,
 		SessionStorage:  session,
@@ -53,11 +68,12 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		compressEnabled: compressEnabled,
 		conn:            netConn,
 		closed:          0,
-		rbuf:            br,
+		br:              br,
 		fh:              frameHeader{},
 		handler:         handler,
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit)},
 		writeQueue:      workerQueue{maxConcurrency: 1},
+		subprotocol:     subprotocol,
 	}
 	if compressEnabled {
 		c.compressor = config.compressors.Select()
@@ -167,7 +183,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 // SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetDeadline(t)
 	c.emitError(err)
@@ -177,7 +193,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 // SetReadDeadline sets read deadline
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(err)
@@ -187,7 +203,7 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline sets write deadline
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	if c.isClosed() {
-		return internal.ErrConnClosed
+		return ErrConnClosed
 	}
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(err)
@@ -202,7 +218,7 @@ func (c *Conn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-// NetConn get tcp/tls/... conn
+// NetConn get tcp/tls/kcp... connection
 func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
@@ -221,4 +237,10 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 		}
 	}
 	return nil
+}
+
+// SubProtocol 获取协商的子协议
+// Get negotiated sub-protocols
+func (c *Conn) SubProtocol() string {
+	return c.subprotocol
 }

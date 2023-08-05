@@ -21,7 +21,7 @@ var (
 	SecWebSocketProtocol   = Pair{"Sec-WebSocket-Protocol", ""}
 )
 
-// Add four bytes as specified in RFC
+// FlateTail Add four bytes as specified in RFC
 // Add final block to squelch unexpected EOF error from flate reader.
 var FlateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 

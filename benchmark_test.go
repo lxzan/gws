@@ -68,13 +68,13 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		var conn2 = &Conn{
 			isServer: true,
 			conn:     &benchConn{},
-			rbuf:     bufio.NewReader(reader),
+			br:       bufio.NewReader(reader),
 			config:   upgrader.option.getConfig(),
 			handler:  upgrader.eventHandler,
 		}
 		for i := 0; i < b.N; i++ {
 			reader = bytes.NewBuffer(buf.Bytes())
-			conn2.rbuf.Reset(reader)
+			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
 	})
@@ -96,7 +96,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		var conn2 = &Conn{
 			isServer:        true,
 			conn:            &benchConn{},
-			rbuf:            bufio.NewReader(reader),
+			br:              bufio.NewReader(reader),
 			config:          upgrader.option.getConfig(),
 			compressEnabled: true,
 			handler:         upgrader.eventHandler,
@@ -105,7 +105,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		}
 		for i := 0; i < b.N; i++ {
 			reader = bytes.NewBuffer(buf.Bytes())
-			conn2.rbuf.Reset(reader)
+			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
 	})

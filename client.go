@@ -26,7 +26,8 @@ type connector struct {
 	secWebsocketKey string
 }
 
-// NewClient
+// NewClient 创建客户端
+// Create New client
 func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, eventHandler: handler, resp: &http.Response{}}
@@ -35,7 +36,7 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 		return nil, nil, err
 	}
 	if URL.Scheme != "ws" && URL.Scheme != "wss" {
-		return nil, nil, internal.ErrSchema
+		return nil, nil, ErrUnsupportedProtocol
 	}
 
 	var tlsEnabled = URL.Scheme == "wss"
@@ -61,7 +62,8 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 	return client, resp, err
 }
 
-// NewClientFromConn
+// NewClientFromConn 通过外部连接创建客户端, 支持 TCP/KCP/Unix Domain Socket
+// Create New client via external connection, supports TCP/KCP/Unix Domain Socket.
 func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, conn: conn, eventHandler: handler, resp: &http.Response{}}
@@ -117,22 +119,36 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err := c.conn.SetDeadline(time.Time{}); err != nil {
 		return nil, c.resp, err
 	}
+	subprotocol, err := c.getSubProtocol()
+	if err != nil {
+		return nil, c.resp, err
+	}
 	var compressEnabled = c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate")
-	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
+	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled, subprotocol), c.resp, nil
+}
+
+func (c *connector) getSubProtocol() (string, error) {
+	a := internal.Split(c.option.RequestHeader.Get(internal.SecWebSocketProtocol.Key), ",")
+	b := internal.Split(c.resp.Header.Get(internal.SecWebSocketProtocol.Key), ",")
+	subprotocol := internal.GetIntersectionElem(a, b)
+	if len(a) > 0 && subprotocol == "" {
+		return "", ErrHandshake
+	}
+	return subprotocol, nil
 }
 
 func (c *connector) checkHeaders() error {
 	if c.resp.StatusCode != http.StatusSwitchingProtocols {
-		return internal.ErrStatusCode
+		return ErrHandshake
 	}
 	if !internal.HttpHeaderContains(c.resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	if !strings.EqualFold(c.resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	if c.resp.Header.Get(internal.SecWebSocketAccept.Key) != internal.ComputeAcceptKey(c.secWebsocketKey) {
-		return internal.ErrHandshake
+		return ErrHandshake
 	}
 	return nil
 }

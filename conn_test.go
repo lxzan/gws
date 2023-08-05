@@ -23,7 +23,7 @@ type webSocketMocker struct {
 func (c *webSocketMocker) reset(socket *Conn, reader *bytes.Buffer, writer *bytes.Buffer) {
 	reader.Reset()
 	writer.Reset()
-	socket.rbuf.Reset(reader)
+	socket.br.Reset(reader)
 	atomic.StoreUint32(&socket.closed, 0)
 }
 
