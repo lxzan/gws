@@ -97,7 +97,7 @@ type (
 
 		// WebSocket子协议, 握手失败会断开连接
 		// WebSocket sub-protocol, handshake failure disconnects the connection
-		Subprotocols []string
+		SubProtocols []string
 
 		// 额外的响应头(可能不受客户端支持)
 		// Additional response headers (may not be supported by the client)

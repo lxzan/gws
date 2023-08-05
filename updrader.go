@@ -26,8 +26,8 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 }
 
 func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header, conn net.Conn, websocketKey string) (subprotocol string, err error) {
-	if len(c.option.Subprotocols) > 0 {
-		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.Subprotocols)
+	if len(c.option.SubProtocols) > 0 {
+		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.SubProtocols)
 		if subprotocol == "" {
 			return "", ErrHandshake
 		}

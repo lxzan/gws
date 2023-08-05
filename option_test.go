@@ -63,7 +63,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.NotNil(updrader.option.ResponseHeader)
 	as.NotNil(updrader.option.Authorize)
 	as.NotNil(updrader.option.NewSessionStorage)
-	as.Nil(updrader.option.Subprotocols)
+	as.Nil(updrader.option.SubProtocols)
 	validateServerOption(as, updrader)
 }
 

@@ -111,7 +111,7 @@ func TestAccept(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		upgrader.option.CompressEnabled = true
-		upgrader.option.Subprotocols = []string{"chat"}
+		upgrader.option.SubProtocols = []string{"chat"}
 		var request = &http.Request{
 			Header: http.Header{},
 			Method: http.MethodGet,
@@ -325,7 +325,7 @@ func TestBuiltinEventEngine(t *testing.T) {
 func TestSubprotocol(t *testing.T) {
 	t.Run("server close", func(t *testing.T) {
 		var addr = "127.0.0.1:" + nextPort()
-		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
+		app := NewServer(new(BuiltinEventHandler), &ServerOption{SubProtocols: []string{"chat"}})
 		go func() { app.Run(addr) }()
 
 		time.Sleep(100 * time.Millisecond)
@@ -350,7 +350,7 @@ func TestSubprotocol(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		var addr = "127.0.0.1:" + nextPort()
-		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
+		app := NewServer(new(BuiltinEventHandler), &ServerOption{SubProtocols: []string{"chat"}})
 		go func() { app.Run(addr) }()
 
 		time.Sleep(100 * time.Millisecond)
