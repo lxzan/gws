@@ -33,7 +33,7 @@ type Conn struct {
 	config *Config
 
 	// read buffer
-	rbuf *bufio.Reader
+	br *bufio.Reader
 
 	// continuation frame
 	continuationFrame continuationFrame
@@ -68,7 +68,7 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		compressEnabled: compressEnabled,
 		conn:            netConn,
 		closed:          0,
-		rbuf:            br,
+		br:              br,
 		fh:              frameHeader{},
 		handler:         handler,
 		readQueue:       workerQueue{maxConcurrency: int32(config.ReadAsyncGoLimit)},
@@ -218,7 +218,7 @@ func (c *Conn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-// NetConn get tcp/tls/... conn
+// NetConn get tcp/tls/kcp... connection
 func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
@@ -239,6 +239,8 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 	return nil
 }
 
+// SubProtocol 获取协商的子协议
+// Get negotiated sub-protocols
 func (c *Conn) SubProtocol() string {
 	return c.subprotocol
 }

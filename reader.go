@@ -33,7 +33,7 @@ func (c *Conn) readControl() error {
 	var payload []byte
 	if n > 0 {
 		payload = make([]byte, n)
-		if err := internal.ReadN(c.rbuf, payload); err != nil {
+		if err := internal.ReadN(c.br, payload); err != nil {
 			return err
 		}
 		if maskEnabled := c.fh.GetMask(); maskEnabled {
@@ -62,7 +62,7 @@ func (c *Conn) readMessage() error {
 		return internal.CloseNormalClosure
 	}
 
-	contentLength, err := c.fh.Parse(c.rbuf)
+	contentLength, err := c.fh.Parse(c.br)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (c *Conn) readMessage() error {
 	var buf, index = myBufferPool.Get(contentLength)
 	var p = buf.Bytes()
 	p = p[:contentLength]
-	if err := internal.ReadN(c.rbuf, p); err != nil {
+	if err := internal.ReadN(c.br, p); err != nil {
 		return err
 	}
 	if maskEnabled {

@@ -152,8 +152,8 @@ type (
 )
 
 // NewBroadcaster 创建广播器
-// 相比WriteAsync, Broadcaster只会压缩一次消息, 可以节省大量CPU开销.
-// Compared to WriteAsync, Broadcaster compresses the message only once, saving a lot of CPU overhead.
+// 相比循环调用WriteAsync, Broadcaster只会压缩一次消息, 可以节省大量CPU开销.
+// Instead of calling WriteAsync in a loop, Broadcaster compresses the message only once, saving a lot of CPU overhead.
 func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	c := &Broadcaster{
 		opcode:  opcode,
