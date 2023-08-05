@@ -314,3 +314,41 @@ func TestBuiltinEventEngine(t *testing.T) {
 		ev.OnPong(nil, nil)
 	}
 }
+
+func TestSubprotocol(t *testing.T) {
+	t.Run("server close", func(t *testing.T) {
+		var addr = "127.0.0.1:" + nextPort()
+		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
+		go func() { app.Run(addr) }()
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{Addr: "ws://" + addr})
+		assert.Error(t, err)
+	})
+
+	t.Run("client close", func(t *testing.T) {
+		var addr = "127.0.0.1:" + nextPort()
+		app := NewServer(new(BuiltinEventHandler), &ServerOption{})
+		go func() { app.Run(addr) }()
+
+		rh := http.Header{}
+		rh.Set("Sec-WebSocket-Protocol", "chat")
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr:          "ws://" + addr,
+			RequestHeader: rh,
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		var addr = "127.0.0.1:" + nextPort()
+		app := NewServer(new(BuiltinEventHandler), &ServerOption{Subprotocols: []string{"chat"}})
+		go func() { app.Run(addr) }()
+
+		rh := http.Header{}
+		rh.Set("Sec-WebSocket-Protocol", "chat")
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr:          "ws://" + addr,
+			RequestHeader: rh,
+		})
+		assert.NoError(t, err)
+	})
+}

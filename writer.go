@@ -53,7 +53,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		if c.isClosed() {
 			return
 		}
-		err = internal.WriteN(c.conn, frame.Bytes(), frame.Len())
+		err = internal.WriteN(c.conn, frame.Bytes())
 		myBufferPool.Put(frame, index)
 		c.emitError(err)
 	})
@@ -79,7 +79,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 		return err
 	}
 
-	err = internal.WriteN(c.conn, frame.Bytes(), frame.Len())
+	err = internal.WriteN(c.conn, frame.Bytes())
 	myBufferPool.Put(frame, index)
 	return err
 }
@@ -182,7 +182,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	atomic.AddInt64(&c.state, 1)
 	socket.writeQueue.Push(func() {
 		if !socket.isClosed() {
-			socket.emitError(internal.WriteN(socket.conn, msg.frame.Bytes(), msg.frame.Len()))
+			socket.emitError(internal.WriteN(socket.conn, msg.frame.Bytes()))
 		}
 		if atomic.AddInt64(&c.state, -1) == 0 {
 			c.doClose()

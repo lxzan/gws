@@ -119,8 +119,22 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err := c.conn.SetDeadline(time.Time{}); err != nil {
 		return nil, c.resp, err
 	}
+	subprotocol, err := c.getSubProtocol()
+	if err != nil {
+		return nil, c.resp, err
+	}
 	var compressEnabled = c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), "permessage-deflate")
-	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled), c.resp, nil
+	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled, subprotocol), c.resp, nil
+}
+
+func (c *connector) getSubProtocol() (string, error) {
+	a := internal.Split(c.option.RequestHeader.Get(internal.SecWebSocketProtocol.Key), ",")
+	b := internal.Split(c.resp.Header.Get(internal.SecWebSocketProtocol.Key), ",")
+	subprotocol := internal.GetIntersectionElem(a, b)
+	if len(a) > 0 && subprotocol == "" {
+		return "", ErrHandshake
+	}
+	return subprotocol, nil
 }
 
 func (c *connector) checkHeaders() error {

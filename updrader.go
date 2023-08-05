@@ -25,19 +25,13 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	}
 }
 
-func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header, conn net.Conn, websocketKey string) error {
-	if r.Header.Get(internal.SecWebSocketProtocol.Key) != "" {
-		var subprotocolsUsed = ""
-		var arr = internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ",")
-		for _, item := range arr {
-			if internal.InCollection(item, c.option.Subprotocols) {
-				subprotocolsUsed = item
-				break
-			}
+func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header, conn net.Conn, websocketKey string) (subprotocol string, err error) {
+	if len(c.option.Subprotocols) > 0 {
+		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.Subprotocols)
+		if subprotocol == "" {
+			return "", ErrHandshake
 		}
-		if subprotocolsUsed != "" {
-			responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocolsUsed)
-		}
+		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocol)
 	}
 
 	var buf = make([]byte, 0, 256)
@@ -54,8 +48,8 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 		buf = append(buf, "\r\n"...)
 	}
 	buf = append(buf, "\r\n"...)
-	_, err := conn.Write(buf)
-	return err
+	_, err = conn.Write(buf)
+	return subprotocol, err
 }
 
 // Upgrade http upgrade to websocket protocol
@@ -124,13 +118,14 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		return nil, ErrHandshake
 	}
 
-	if err := c.connectHandshake(r, header, netConn, websocketKey); err != nil {
+	subprotocol, err := c.connectHandshake(r, header, netConn, websocketKey)
+	if err != nil {
 		return nil, err
 	}
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(true, c.option.getConfig(), session, netConn, br, c.eventHandler, compressEnabled), nil
+	return serveWebSocket(true, c.option.getConfig(), session, netConn, br, c.eventHandler, compressEnabled, subprotocol), nil
 }
 
 type Server struct {

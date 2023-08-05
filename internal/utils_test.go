@@ -82,51 +82,23 @@ func TestIOUtil(t *testing.T) {
 	var as = assert.New(t)
 
 	t.Run("", func(t *testing.T) {
-		var dst = bytes.NewBuffer(nil)
-		var src = bytes.NewBuffer(make([]byte, 0))
-		var err = CopyN(dst, src, 0)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var dst = bytes.NewBuffer(nil)
-		var src = bytes.NewBuffer(make([]byte, 6))
-		var err = CopyN(dst, src, 12)
-		as.Error(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var reader = strings.NewReader("hello")
-		var p = make([]byte, 0)
-		var err = ReadN(reader, p, 0)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
 		var reader = strings.NewReader("hello")
 		var p = make([]byte, 5)
-		var err = ReadN(reader, p, 10)
-		as.Error(err)
+		var err = ReadN(reader, p)
+		as.Nil(err)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var writer = bytes.NewBufferString("")
-		var err = WriteN(writer, nil, 0)
+		var err = WriteN(writer, nil)
 		as.NoError(err)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var writer = bytes.NewBufferString("")
 		var p = []byte("hello")
-		var err = WriteN(writer, p, 5)
+		var err = WriteN(writer, p)
 		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var buf1 = NewBufferWithCap(0)
-		as.Equal(0, buf1.Cap())
-		var buf2 = NewBufferWithCap(12)
-		as.Equal(12, buf2.Cap())
 	})
 }
 
@@ -213,4 +185,28 @@ func TestToBinaryNumber(t *testing.T) {
 	assert.Equal(t, 1, ToBinaryNumber(0))
 	assert.Equal(t, 128, ToBinaryNumber(120))
 	assert.Equal(t, 1024, ToBinaryNumber(1024))
+}
+
+func TestGetIntersectionElem(t *testing.T) {
+	{
+		a := []string{"chat", "stock", "excel"}
+		b := []string{"stock", "fx"}
+		assert.Equal(t, "stock", GetIntersectionElem(a, b))
+	}
+	{
+		a := []string{"chat", "stock", "excel"}
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(a, b))
+	}
+	{
+		a := []string{}
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(a, b))
+		assert.Equal(t, "", GetIntersectionElem(b, a))
+	}
+	{
+		b := []string{"fx"}
+		assert.Equal(t, "", GetIntersectionElem(nil, b))
+		assert.Equal(t, "", GetIntersectionElem(b, nil))
+	}
 }
