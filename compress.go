@@ -50,7 +50,7 @@ func (c *compressor) Compress(src []byte, dst *bytes.Buffer) error {
 	defer c.Unlock()
 
 	c.fw.Reset(dst)
-	if err := internal.WriteN(c.fw, src, len(src)); err != nil {
+	if err := internal.WriteN(c.fw, src); err != nil {
 		return err
 	}
 	if err := c.fw.Flush(); err != nil {

@@ -55,10 +55,6 @@ var (
 	// Connection closed
 	ErrConnClosed = net.ErrClosed
 
-	// ErrIOBytesLen IO错误(读写的字节长度不符合预期)
-	// IO error (length of bytes read or written is not as expected)
-	ErrIOBytesLen = internal.ErrIOBytesLen
-
 	// ErrUnsupportedProtocol 不支持的网络协议
 	// Unsupported network protocols
 	ErrUnsupportedProtocol = errors.New("unsupported protocol")
@@ -181,7 +177,7 @@ func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opc
 
 // Parse 解析完整协议头, 最多14byte, 返回payload长度
 func (c *frameHeader) Parse(reader io.Reader) (int, error) {
-	if err := internal.ReadN(reader, (*c)[0:2], 2); err != nil {
+	if err := internal.ReadN(reader, (*c)[0:2]); err != nil {
 		return 0, err
 	}
 
@@ -189,13 +185,13 @@ func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 	var lengthCode = c.GetLengthCode()
 	switch lengthCode {
 	case 126:
-		if err := internal.ReadN(reader, (*c)[2:4], 2); err != nil {
+		if err := internal.ReadN(reader, (*c)[2:4]); err != nil {
 			return 0, err
 		}
 		payloadLength = int(binary.BigEndian.Uint16((*c)[2:4]))
 
 	case 127:
-		if err := internal.ReadN(reader, (*c)[2:10], 8); err != nil {
+		if err := internal.ReadN(reader, (*c)[2:10]); err != nil {
 			return 0, err
 		}
 		payloadLength = int(binary.BigEndian.Uint64((*c)[2:10]))
@@ -205,7 +201,7 @@ func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 
 	var maskOn = c.GetMask()
 	if maskOn {
-		if err := internal.ReadN(reader, (*c)[10:14], 4); err != nil {
+		if err := internal.ReadN(reader, (*c)[10:14]); err != nil {
 			return 0, err
 		}
 	}

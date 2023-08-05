@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bytes"
+	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -39,7 +40,13 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 		buf = append(buf, payload)
 	}
 	num, err := buf.WriteTo(c.conn)
-	return internal.CheckIOError(headerLength+n, int(num), err)
+	if err != nil {
+		return err
+	}
+	if int(num) < headerLength+n {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 func TestWriteBigMessage(t *testing.T) {

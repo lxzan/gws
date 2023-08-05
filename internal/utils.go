@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
@@ -88,45 +87,16 @@ func FnvNumber[T Integer](x T) uint64 {
 	return h
 }
 
-func NewBufferWithCap(n uint8) *bytes.Buffer {
-	if n == 0 {
-		return bytes.NewBuffer(nil)
-	}
-	return bytes.NewBuffer(make([]byte, 0, n))
+// ReadN 精准地读取len(data)个字节, 否则返回错误
+func ReadN(reader io.Reader, data []byte) error {
+	_, err := io.ReadFull(reader, data)
+	return err
 }
 
-func CheckIOError(expectN, realN int, err error) error {
-	if err != nil {
-		return NewError(CloseInternalServerErr, err)
-	}
-	if realN != expectN {
-		return NewError(CloseInternalServerErr, ErrIOBytesLen)
-	}
-	return nil
-}
-
-func ReadN(reader io.Reader, data []byte, n int) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := io.ReadFull(reader, data)
-	return CheckIOError(n, num, err)
-}
-
-func WriteN(writer io.Writer, content []byte, n int) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := writer.Write(content)
-	return CheckIOError(n, num, err)
-}
-
-func CopyN(dst io.Writer, src io.Reader, n int64) error {
-	if n == 0 {
-		return nil
-	}
-	num, err := io.CopyN(dst, src, n)
-	return CheckIOError(int(n), int(num), err)
+// WriteN 精准地写入len(data)个字节, 否则返回错误
+func WriteN(writer io.Writer, content []byte) error {
+	_, err := writer.Write(content)
+	return err
 }
 
 func MaskXOR(b []byte, key []byte) {

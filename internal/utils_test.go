@@ -82,51 +82,23 @@ func TestIOUtil(t *testing.T) {
 	var as = assert.New(t)
 
 	t.Run("", func(t *testing.T) {
-		var dst = bytes.NewBuffer(nil)
-		var src = bytes.NewBuffer(make([]byte, 0))
-		var err = CopyN(dst, src, 0)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var dst = bytes.NewBuffer(nil)
-		var src = bytes.NewBuffer(make([]byte, 6))
-		var err = CopyN(dst, src, 12)
-		as.Error(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var reader = strings.NewReader("hello")
-		var p = make([]byte, 0)
-		var err = ReadN(reader, p, 0)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
 		var reader = strings.NewReader("hello")
 		var p = make([]byte, 5)
-		var err = ReadN(reader, p, 10)
-		as.Error(err)
+		var err = ReadN(reader, p)
+		as.Nil(err)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var writer = bytes.NewBufferString("")
-		var err = WriteN(writer, nil, 0)
+		var err = WriteN(writer, nil)
 		as.NoError(err)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var writer = bytes.NewBufferString("")
 		var p = []byte("hello")
-		var err = WriteN(writer, p, 5)
+		var err = WriteN(writer, p)
 		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var buf1 = NewBufferWithCap(0)
-		as.Equal(0, buf1.Cap())
-		var buf2 = NewBufferWithCap(12)
-		as.Equal(12, buf2.Cap())
 	})
 }
 
