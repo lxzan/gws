@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	klauspost "github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
+	"io"
 	"net"
 	"testing"
 )
@@ -76,7 +77,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			handler:  upgrader.eventHandler,
 		}
 		for i := 0; i < b.N; i++ {
-			reader = bytes.NewBuffer(buf.Bytes())
+			internal.ResetBuffer(reader, buf.Bytes())
 			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
@@ -107,7 +108,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			decompressor:    config.decompressors.Select(),
 		}
 		for i := 0; i < b.N; i++ {
-			reader = bytes.NewBuffer(buf.Bytes())
+			internal.ResetBuffer(reader, buf.Bytes())
 			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
@@ -135,6 +136,43 @@ func BenchmarkKlauspostCompress(b *testing.B) {
 		fw.Reset(buffer)
 		fw.Write(contents)
 		fw.Flush()
+	}
+}
+
+func BenchmarkStdDeCompress(b *testing.B) {
+	buffer := bytes.NewBuffer(make([]byte, 0, len(githubData)))
+	fw, _ := flate.NewWriter(buffer, flate.BestSpeed)
+	contents := githubData
+	fw.Write(contents)
+	fw.Flush()
+
+	p := make([]byte, 4096)
+	fr := flate.NewReader(nil)
+	src := bytes.NewBuffer(nil)
+	for i := 0; i < b.N; i++ {
+		internal.ResetBuffer(src, buffer.Bytes())
+		_, _ = src.Write(internal.FlateTail)
+		resetter := fr.(flate.Resetter)
+		_ = resetter.Reset(src, nil)
+		io.CopyBuffer(io.Discard, fr, p)
+	}
+}
+
+func BenchmarkKlauspostDeCompress(b *testing.B) {
+	buffer := bytes.NewBuffer(make([]byte, 0, len(githubData)))
+	fw, _ := klauspost.NewWriter(buffer, klauspost.BestSpeed)
+	contents := githubData
+	fw.Write(contents)
+	fw.Flush()
+
+	fr := klauspost.NewReader(nil)
+	src := bytes.NewBuffer(nil)
+	for i := 0; i < b.N; i++ {
+		internal.ResetBuffer(src, buffer.Bytes())
+		_, _ = src.Write(internal.FlateTail)
+		resetter := fr.(klauspost.Resetter)
+		_ = resetter.Reset(src, nil)
+		fr.(io.WriterTo).WriteTo(io.Discard)
 	}
 }
 
