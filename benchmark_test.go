@@ -55,8 +55,11 @@ func BenchmarkConn_WriteMessage(b *testing.B) {
 }
 
 func BenchmarkConn_ReadMessage(b *testing.B) {
+	var handler = &webSocketMocker{}
+	handler.onMessage = func(socket *Conn, message *Message) { _ = message.Close() }
+
 	b.Run("compress disabled", func(b *testing.B) {
-		var upgrader = NewUpgrader(&BuiltinEventHandler{}, nil)
+		var upgrader = NewUpgrader(handler, nil)
 		var conn1 = &Conn{
 			isServer: false,
 			conn:     &benchConn{},
@@ -80,7 +83,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 	})
 
 	b.Run("compress enabled", func(b *testing.B) {
-		var upgrader = NewUpgrader(&BuiltinEventHandler{}, &ServerOption{CompressEnabled: true})
+		var upgrader = NewUpgrader(handler, &ServerOption{CompressEnabled: true})
 		var config = upgrader.option.getConfig()
 		var conn1 = &Conn{
 			isServer:        false,
