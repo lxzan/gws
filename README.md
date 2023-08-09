@@ -1,6 +1,6 @@
 # gws
 
-### event-driven go websocket server & client
+### Event-Driven Go WebSocket Server & Client
 
 [![Mentioned in Awesome Go][11]][12] [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
 
@@ -29,21 +29,21 @@
 [12]: https://github.com/avelino/awesome-go#networking
 
 - [gws](#gws)
-	- [Feature](#feature)
-	- [Attention](#attention)
-	- [Install](#install)
-	- [Event](#event)
-	- [Quick Start](#quick-start)
-	- [Best Practice](#best-practice)
-	- [Usage](#usage)
-		- [Upgrade from HTTP](#upgrade-from-http)
-		- [Unix Domain Socket](#unix-domain-socket)
-		- [Client Proxy](#client-proxy)
-		- [Broadcast](#broadcast)
-	- [Autobahn Test](#autobahn-test)
-	- [Benchmark](#benchmark)
-	- [Communication](#communication)
-	- [Acknowledgments](#acknowledgments)
+    - [Feature](#feature)
+    - [Attention](#attention)
+    - [Install](#install)
+    - [Event](#event)
+    - [Quick Start](#quick-start)
+    - [Best Practice](#best-practice)
+    - [Usage](#usage)
+        - [Upgrade from HTTP](#upgrade-from-http)
+        - [KCP](#kcp)
+        - [Client Proxy](#client-proxy)
+        - [Broadcast](#broadcast)
+    - [Autobahn Test](#autobahn-test)
+    - [Benchmark](#benchmark)
+    - [Communication](#communication)
+    - [Acknowledgments](#acknowledgments)
 
 ### Feature
 
@@ -52,6 +52,7 @@
 - [x] Dial via Proxy
 - [x] IO Multiplexing
 - [x] Concurrent Write
+- [x] Zero Allocs Read/Write (Compression Disabled)
 - [x] Passes WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
@@ -160,7 +161,7 @@ func main() {
 }
 ```
 
-#### Unix Domain Socket
+#### KCP
 
 - server
 
@@ -169,20 +170,18 @@ package main
 
 import (
 	"log"
-	"net"
 	"github.com/lxzan/gws"
+	kcp "github.com/xtaci/kcp-go"
 )
 
 func main() {
-	listener, err := net.Listen("unix", "/tmp/gws.sock")
+	listener, err := kcp.Listen(":6666")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	var app = gws.NewServer(new(gws.BuiltinEventHandler), nil)
-	if err := app.RunListener(listener); err != nil {
-		log.Println(err.Error())
-	}
+	app := gws.NewServer(&gws.BuiltinEventHandler{}, nil)
+	app.RunListener(listener)
 }
 ```
 
@@ -192,25 +191,23 @@ func main() {
 package main
 
 import (
-	"log"
-	"net"
 	"github.com/lxzan/gws"
+	kcp "github.com/xtaci/kcp-go"
+	"log"
 )
 
 func main() {
-	conn, err := net.Dial("unix", "/tmp/gws.sock")
+	conn, err := kcp.Dial("127.0.0.1:6666")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-
-	option := gws.ClientOption{}
-	socket, _, err := gws.NewClientFromConn(new(gws.BuiltinEventHandler), &option, conn)
+	app, _, err := gws.NewClientFromConn(&gws.BuiltinEventHandler{}, nil, conn)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	socket.ReadLoop()
+	app.ReadLoop()
 }
 ```
 
@@ -280,12 +277,10 @@ $ go test -benchmem -run=^$ -bench ^(BenchmarkConn_WriteMessage|BenchmarkConn_Re
 goos: darwin
 goarch: arm64
 pkg: github.com/lxzan/gws
-BenchmarkConn_WriteMessage/compress_disabled-8         	 4494459	       239.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-8          	  107365	     10726 ns/op	     509 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-8          	 3037701	       395.6 ns/op	     120 B/op	       3 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-8           	  175388	      6355 ns/op	    7803 B/op	       7 allocs/op
-PASS
-ok  	github.com/lxzan/gws	5.813s
+BenchmarkConn_WriteMessage/compress_disabled-8           8713082               138.0 ns/op             0 B/op          0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-8             144266              8066 ns/op             235 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-8           11608689               102.8 ns/op            12 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-8              435176              2498 ns/op              98 B/op          1 allocs/op
 ```
 
 ### Communication
