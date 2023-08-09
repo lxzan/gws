@@ -29,7 +29,7 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 	if len(c.option.SubProtocols) > 0 {
 		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.SubProtocols)
 		if subprotocol == "" {
-			return "", ErrHandshake
+			return "", ErrSubprotocolNegotiation
 		}
 		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocol)
 	}
