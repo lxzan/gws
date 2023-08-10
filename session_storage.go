@@ -94,7 +94,7 @@ func (c *sliceMap) Range(f func(key string, value interface{}) bool) {
 
 type (
 	Comparable interface {
-		string | int | int64 | int32 | uint | uint64 | uint32
+		~string | ~int | ~int64 | ~int32 | ~uint | ~uint64 | ~uint32
 	}
 
 	ConcurrentMap[K Comparable, V any] struct {

@@ -67,21 +67,18 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error
 	return socket, err
 }
 
+// 为了节省内存, 不复用hijack返回的bufio.ReadWriter
 func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error) {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		return nil, nil, internal.CloseInternalServerErr
 	}
-	netConn, brw, err := hj.Hijack()
+	netConn, _, err := hj.Hijack()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	brw.Writer = nil
-	if brw.Reader.Size() != c.option.ReadBufferSize {
-		brw.Reader = bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
-	}
-	return netConn, brw.Reader, nil
+	internal.ClearHttpWriter(w)
+	return netConn, bufio.NewReaderSize(netConn, c.option.ReadBufferSize), nil
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
