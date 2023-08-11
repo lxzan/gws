@@ -77,7 +77,6 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	if err != nil {
 		return nil, nil, err
 	}
-	internal.ClearHttpWriter(w)
 	return netConn, bufio.NewReaderSize(netConn, c.option.ReadBufferSize), nil
 }
 

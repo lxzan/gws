@@ -1,13 +1,11 @@
 package internal
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
 	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -211,20 +209,4 @@ type Buffer struct {
 func ResetBuffer(b *bytes.Buffer, p []byte) {
 	buffer := (*Buffer)(unsafe.Pointer(b))
 	buffer.buf = p
-}
-
-//go:nosplit
-func ClearHttpWriter(w http.ResponseWriter) {
-	wv := reflect.ValueOf(w).Elem()
-	if wv.Type().Name() == "response" {
-		if conn := wv.FieldByName("conn"); conn.CanAddr() {
-			conn = conn.Elem()
-			if bufw := conn.FieldByName("bufw"); bufw.CanAddr() {
-				*(*bufio.Writer)(bufw.UnsafePointer()) = bufio.Writer{}
-			}
-			if bufr := conn.FieldByName("bufr"); bufr.CanAddr() {
-				*(*bufio.Reader)(bufr.UnsafePointer()) = bufio.Reader{}
-			}
-		}
-	}
 }
