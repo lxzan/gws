@@ -15,7 +15,9 @@ func main() {
 		if err != nil {
 			return
 		}
-		socket.ReadLoop()
+		go func() {
+			socket.ReadLoop()
+		}()
 	})
 	http.ListenAndServe(":8000", nil)
 }
