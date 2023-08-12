@@ -2,15 +2,22 @@ package main
 
 import (
 	"github.com/lxzan/gws"
-	"log"
+	"net/http"
 )
 
 func main() {
-	var app = gws.NewServer(new(Handler), &gws.ServerOption{
+	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
 		CompressEnabled:  true,
 		CheckUtf8Enabled: true,
 	})
-	log.Fatalf("%v", app.Run(":8000"))
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(writer, request)
+		if err != nil {
+			return
+		}
+		socket.ReadLoop()
+	})
+	http.ListenAndServe(":8000", nil)
 }
 
 type Handler struct {

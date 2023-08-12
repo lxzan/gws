@@ -29,6 +29,7 @@
 [12]: https://github.com/avelino/awesome-go#networking
 
 - [gws](#gws)
+    - [Event-Driven Go WebSocket Server \& Client](#event-driven-go-websocket-server--client)
     - [Feature](#feature)
     - [Attention](#attention)
     - [Install](#install)
@@ -36,9 +37,8 @@
     - [Quick Start](#quick-start)
     - [Best Practice](#best-practice)
     - [Usage](#usage)
-        - [Upgrade from HTTP](#upgrade-from-http)
         - [KCP](#kcp)
-        - [Client Proxy](#client-proxy)
+        - [Proxy](#proxy)
         - [Broadcast](#broadcast)
     - [Autobahn Test](#autobahn-test)
     - [Benchmark](#benchmark)
@@ -57,8 +57,9 @@
 
 ### Attention
 
-- The errors returned by the gws.Conn export methods are ignored, and are handled internally
-- Transferring large files with gws tends to block the connection
+- The errors returned by the gws.Conn export methods are ignored, and are handled internally.
+- Transferring large files with gws tends to block the connection.
+- If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
 
 ### Install
 
@@ -97,24 +98,43 @@ package main
 
 import (
 	"github.com/lxzan/gws"
+	"net/http"
 	"time"
 )
 
-const PingInterval = 10 * time.Second
+const (
+	PingInterval = 10 * time.Second
+	PingWait     = 5 * time.Second
+)
 
 func main() {
-	options := &gws.ServerOption{ReadAsyncEnabled: true, ReadAsyncGoLimit: 4, CompressEnabled: true}
-	gws.NewServer(new(Handler), options).Run(":6666")
+	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
+		ReadAsyncEnabled: true,
+		CompressEnabled:  true,
+	})
+	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(writer, request)
+		if err != nil {
+			return
+		}
+		go func() {
+			// Blocking prevents the context from being GC.
+			socket.ReadLoop()
+		}()
+	})
+	http.ListenAndServe(":6666", nil)
 }
 
 type Handler struct{}
 
-func (c *Handler) OnOpen(socket *gws.Conn) { _ = socket.SetDeadline(time.Now().Add(2 * PingInterval)) }
+func (c *Handler) OnOpen(socket *gws.Conn) {
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
+}
 
 func (c *Handler) OnClose(socket *gws.Conn, err error) {}
 
 func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
-	_ = socket.SetDeadline(time.Now().Add(2 * PingInterval))
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
 	_ = socket.WritePong(nil)
 }
 
@@ -122,44 +142,11 @@ func (c *Handler) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
+	socket.WriteMessage(message.Opcode, message.Bytes())
 }
 ```
 
 ### Usage
-
-#### Upgrade from HTTP
-
-```go
-package main
-
-import (
-	"github.com/lxzan/gws"
-	"log"
-	"net/http"
-)
-
-func main() {
-	upgrader := gws.NewUpgrader(new(gws.BuiltinEventHandler), &gws.ServerOption{
-		Authorize: func(r *http.Request, session gws.SessionStorage) bool {
-			session.Store("username", r.URL.Query().Get("username"))
-			return true
-		},
-	})
-
-	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
-		socket, err := upgrader.Upgrade(writer, request)
-		if err != nil {
-			log.Printf(err.Error())
-			return
-		}
-		socket.ReadLoop()
-	})
-
-	if err := http.ListenAndServe(":6666", nil); err != nil {
-		log.Fatalf("%v", err)
-	}
-}
-```
 
 #### KCP
 
@@ -211,7 +198,7 @@ func main() {
 }
 ```
 
-#### Client Proxy
+#### Proxy
 
 ```go
 package main
