@@ -346,3 +346,9 @@ func TestNewClientWSS(t *testing.T) {
 		as.Error(err)
 	})
 }
+
+func TestNewClient_WriteRequest(t *testing.T) {
+	c := connector{option: &ClientOption{Addr: "ws://127.0.0.1/a=%"}}
+	_, err := c.writeRequest()
+	assert.Error(t, err)
+}
