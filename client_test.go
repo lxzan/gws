@@ -2,6 +2,7 @@ package gws
 
 import (
 	"crypto/tls"
+	"errors"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -244,6 +245,34 @@ func TestClientHandshakeFail(t *testing.T) {
 		_, _, err := d.handshake()
 		as.Error(err)
 	})
+
+	t.Run("deflate", func(t *testing.T) {
+		option := &ClientOption{
+			CompressEnabled: true,
+			RequestHeader:   http.Header{},
+		}
+		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
+		option = initClientOption(option)
+		srv, cli := net.Pipe()
+		var d = &connector{
+			option:          option,
+			conn:            cli,
+			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
+			eventHandler:    new(BuiltinEventHandler),
+			resp:            &http.Response{Header: http.Header{}},
+		}
+
+		go func() {
+			var text = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Extensions: permessage-deflate\r\nSec-WebSocket-Accept: ygR8UkmG67DM75dkgZzwplwlEEo=\r\n\r\n"
+			for {
+				var buf = make([]byte, 1024)
+				srv.Read(buf)
+				srv.Write([]byte(text))
+			}
+		}()
+		_, _, err := d.handshake()
+		as.True(errors.Is(err, ErrCompressionNegotiation))
+	})
 }
 
 var rsaCertPEM = []byte(`-----BEGIN CERTIFICATE-----
@@ -344,5 +373,24 @@ func TestNewClientWSS(t *testing.T) {
 			},
 		})
 		as.Error(err)
+	})
+}
+
+func TestNewClient_WriteRequest(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		c := connector{option: &ClientOption{Addr: "ws://127.0.0.1/a=%"}}
+		_, err := c.writeRequest()
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		_, conn := net.Pipe()
+		c := connector{
+			conn:   conn,
+			option: &ClientOption{Addr: "ws://127.0.0.1/a=%"},
+		}
+		_ = conn.Close()
+		_, _, err := c.handshake()
+		assert.Error(t, err)
 	})
 }

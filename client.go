@@ -123,7 +123,12 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err != nil {
 		return nil, c.resp, err
 	}
-	var compressEnabled = c.option.CompressEnabled && strings.Contains(c.resp.Header.Get(internal.SecWebSocketExtensions.Key), internal.PermessageDeflate)
+
+	var extensions = c.resp.Header.Get(internal.SecWebSocketExtensions.Key)
+	var compressEnabled = c.option.CompressEnabled && strings.Contains(extensions, internal.PermessageDeflate)
+	if compressEnabled && !strings.Contains(extensions, "server_no_context_takeover") && !strings.Contains(extensions, "client_no_context_takeover") {
+		return nil, c.resp, ErrCompressionNegotiation
+	}
 	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled, subprotocol), c.resp, nil
 }
 
