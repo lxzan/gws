@@ -47,9 +47,8 @@ var (
 	// Handshake error, request header does not pass checksum.
 	ErrHandshake = errors.New("handshake error")
 
-	// ErrCompressionNegotiation 压缩拓展协商失败
-	// 客户端不支持server_max_window_bits参数
-	// The client does not support the server_max_window_bits parameter
+	// ErrCompressionNegotiation 压缩拓展协商失败, 请尝试关闭压缩
+	// Compression extension negotiation failed, please try to disable compression.
 	ErrCompressionNegotiation = errors.New("invalid compression negotiation")
 
 	// ErrSubprotocolNegotiation 子协议协商失败
