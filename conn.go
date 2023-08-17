@@ -82,13 +82,12 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 	return c
 }
 
-// ReadLoop start a read message loop
-// 启动一个读消息的死循环
+// ReadLoop 循环读取消息. 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
+// Read messages in a loop.
+// If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
 func (c *Conn) ReadLoop() {
 	defer c.conn.Close()
-
 	c.handler.OnOpen(c)
-
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)

@@ -47,6 +47,14 @@ var (
 	// Handshake error, request header does not pass checksum.
 	ErrHandshake = errors.New("handshake error")
 
+	// ErrCompressionNegotiation 压缩拓展协商失败, 请尝试关闭压缩
+	// Compression extension negotiation failed, please try to disable compression.
+	ErrCompressionNegotiation = errors.New("invalid compression negotiation")
+
+	// ErrSubprotocolNegotiation 子协议协商失败
+	// Sub-protocol negotiation failed
+	ErrSubprotocolNegotiation = errors.New("sub-protocol negotiation failed")
+
 	// ErrTextEncoding 文本消息编码错误(必须是utf8编码)
 	// Text message encoding error (must be utf8)
 	ErrTextEncoding = errors.New("invalid text encoding")

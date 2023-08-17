@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-
 	"github.com/lxzan/gws/internal"
 )
 
@@ -109,7 +108,8 @@ func (c *Conn) readMessage() error {
 	}
 
 	if fin && opcode != OpcodeContinuation {
-		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: bytes.NewBuffer(p)}, compressed)
+		internal.ResetBuffer(buf, p)
+		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf}, compressed)
 	}
 
 	if !fin && opcode != OpcodeContinuation {

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
@@ -196,4 +197,16 @@ func ToBinaryNumber[T Integer](n T) T {
 		x *= 2
 	}
 	return x
+}
+
+type Buffer struct {
+	buf      []byte
+	off      int
+	lastRead int8
+}
+
+//go:nosplit
+func ResetBuffer(b *bytes.Buffer, p []byte) {
+	buffer := (*Buffer)(unsafe.Pointer(b))
+	buffer.buf = p
 }

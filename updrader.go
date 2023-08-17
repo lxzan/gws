@@ -29,7 +29,7 @@ func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header,
 	if len(c.option.SubProtocols) > 0 {
 		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.SubProtocols)
 		if subprotocol == "" {
-			return "", ErrHandshake
+			return "", ErrSubprotocolNegotiation
 		}
 		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocol)
 	}
@@ -67,21 +67,17 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error
 	return socket, err
 }
 
+// 为了节省内存, 不复用hijack返回的bufio.ReadWriter
 func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error) {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		return nil, nil, internal.CloseInternalServerErr
 	}
-	netConn, brw, err := hj.Hijack()
+	netConn, _, err := hj.Hijack()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	brw.Writer = nil
-	if brw.Reader.Size() != c.option.ReadBufferSize {
-		brw.Reader = bufio.NewReaderSize(netConn, c.option.ReadBufferSize)
-	}
-	return netConn, brw.Reader, nil
+	return netConn, bufio.NewReaderSize(netConn, c.option.ReadBufferSize), nil
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
@@ -109,7 +105,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	if !strings.EqualFold(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return nil, ErrHandshake
 	}
-	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, "permessage-deflate") && c.option.CompressEnabled {
+	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.CompressEnabled {
 		header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 		compressEnabled = true
 	}

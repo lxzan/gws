@@ -6,6 +6,8 @@ import (
 	"net"
 )
 
+const PermessageDeflate = "permessage-deflate"
+
 type Pair struct {
 	Key string
 	Val string
