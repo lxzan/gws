@@ -10,6 +10,7 @@ type (
 		q              []asyncJob // 任务队列
 		maxConcurrency int32      // 最大并发
 		curConcurrency int32      // 当前并发
+		offset         int        // 偏移量
 	}
 
 	asyncJob func()
@@ -25,6 +26,26 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	return c
 }
 
+func (c *workerQueue) pop() asyncJob {
+	var n = len(c.q) - c.offset
+	switch n {
+	case 0:
+		return nil
+	default:
+		res := c.q[c.offset]
+		c.q[c.offset] = nil
+		c.offset++
+		if n == 1 {
+			c.offset = 0
+			c.q = c.q[:0]
+			if cap(c.q) >= 128 {
+				c.q = nil
+			}
+		}
+		return res
+	}
+}
+
 // 获取一个任务
 func (c *workerQueue) getJob(delta int32) asyncJob {
 	c.mu.Lock()
@@ -34,13 +55,9 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
 	}
-	if len(c.q) == 0 {
+	var result = c.pop()
+	if result == nil {
 		return nil
-	}
-	var result = c.q[0]
-	c.q = c.q[1:]
-	if len(c.q) == 0 && cap(c.q) >= 128 {
-		c.q = nil
 	}
 	c.curConcurrency++
 	return result
