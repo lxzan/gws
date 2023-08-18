@@ -39,6 +39,9 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 	}
 	var result = c.q[0]
 	c.q = c.q[1:]
+	if len(c.q) == 0 && cap(c.q) >= 128 {
+		c.q = nil
+	}
 	c.curConcurrency++
 	return result
 }
