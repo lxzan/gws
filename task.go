@@ -37,7 +37,7 @@ func (c *workerQueue) pop() asyncJob {
 	if n == 1 {
 		c.offset = 0
 		c.q = c.q[:0]
-		if cap(c.q) >= 256 {
+		if cap(c.q) > 256 {
 			c.q = nil
 		}
 	}
