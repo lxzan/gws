@@ -235,6 +235,24 @@ func TestTaskQueue(t *testing.T) {
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
 			w.Push(func() {
+				time.Sleep(time.Millisecond)
+				atomic.AddInt64(&sum, tmp)
+				wg.Done()
+			})
+		}
+		wg.Wait()
+		as.Equal(sum, int64(500500))
+	})
+
+	t.Run("", func(t *testing.T) {
+		sum := int64(0)
+		w := newWorkerQueue(1)
+		var wg = &sync.WaitGroup{}
+		wg.Add(1000)
+		for i := int64(1); i <= 1000; i++ {
+			var tmp = i
+			w.Push(func() {
+				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
 			})
