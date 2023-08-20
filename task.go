@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"context"
 	"sync"
 )
 
@@ -77,4 +78,31 @@ func (c *workerQueue) Push(job asyncJob) {
 	if job := c.getJob(0); job != nil {
 		go c.do(job)
 	}
+}
+
+type rQueue struct {
+	size    int
+	current chan struct{}
+}
+
+func newRQueue(limit int) rQueue {
+	return rQueue{size: limit, current: make(chan struct{}, limit)}
+}
+
+func (s *rQueue) Add() {
+	_ = s.AddWithContext(context.Background())
+}
+
+func (s *rQueue) AddWithContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case s.current <- struct{}{}:
+		break
+	}
+	return nil
+}
+
+func (s *rQueue) Done() {
+	<-s.current
 }

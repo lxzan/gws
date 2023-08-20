@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -296,4 +297,42 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 2)
+}
+
+func TestRQueue(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		const total = 1000
+		const limit = 8
+		var q = newRQueue(limit)
+		var concurrency = int64(0)
+		var serial = int64(0)
+		var done = make(chan struct{})
+		for i := 0; i < total; i++ {
+			q.Add()
+			go func() {
+				x := atomic.AddInt64(&concurrency, 1)
+				assert.LessOrEqual(t, x, int64(limit))
+				time.Sleep(10 * time.Millisecond)
+				atomic.AddInt64(&concurrency, -1)
+				q.Done()
+				if atomic.AddInt64(&serial, 1) == total {
+					done <- struct{}{}
+				}
+			}()
+		}
+		<-done
+	})
+
+	t.Run("", func(t *testing.T) {
+		var q = newRQueue(1)
+		q.Add()
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			q.Done()
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+		defer cancel()
+		assert.Error(t, q.AddWithContext(ctx))
+	})
 }
