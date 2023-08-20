@@ -1,7 +1,6 @@
 package gws
 
 import (
-	"context"
 	"sync"
 )
 
@@ -46,10 +45,13 @@ func (c *workerQueue) pop() asyncJob {
 }
 
 // 获取一个任务
-func (c *workerQueue) getJob(delta int32) asyncJob {
+func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if newJob != nil {
+		c.q = append(c.q, newJob)
+	}
 	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
@@ -66,43 +68,13 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 func (c *workerQueue) do(job asyncJob) {
 	for job != nil {
 		job()
-		job = c.getJob(-1)
+		job = c.getJob(nil, -1)
 	}
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
 func (c *workerQueue) Push(job asyncJob) {
-	c.mu.Lock()
-	c.q = append(c.q, job)
-	c.mu.Unlock()
-	if job := c.getJob(0); job != nil {
-		go c.do(job)
+	if nextJob := c.getJob(job, 0); nextJob != nil {
+		go c.do(nextJob)
 	}
-}
-
-type rQueue struct {
-	size    int
-	current chan struct{}
-}
-
-func newRQueue(limit int) rQueue {
-	return rQueue{size: limit, current: make(chan struct{}, limit)}
-}
-
-func (s *rQueue) Add() {
-	_ = s.AddWithContext(context.Background())
-}
-
-func (s *rQueue) AddWithContext(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case s.current <- struct{}{}:
-		break
-	}
-	return nil
-}
-
-func (s *rQueue) Done() {
-	<-s.current
 }
