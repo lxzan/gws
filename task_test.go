@@ -297,3 +297,49 @@ func TestWriteAsyncBlocking(t *testing.T) {
 
 	time.Sleep(time.Second * 2)
 }
+
+func TestRQueue(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		const total = 1000
+		const limit = 8
+		var q = make(channel, limit)
+		var concurrency = int64(0)
+		var serial = int64(0)
+		var done = make(chan struct{})
+		for i := 0; i < total; i++ {
+			q.Add()
+			go func() {
+				x := atomic.AddInt64(&concurrency, 1)
+				assert.LessOrEqual(t, x, int64(limit))
+				time.Sleep(10 * time.Millisecond)
+				atomic.AddInt64(&concurrency, -1)
+				q.Done()
+				if atomic.AddInt64(&serial, 1) == total {
+					done <- struct{}{}
+				}
+			}()
+		}
+		<-done
+	})
+
+	t.Run("", func(t *testing.T) {
+		const total = 1000
+		const limit = 8
+		var q = newWorkerQueue(limit)
+		var concurrency = int64(0)
+		var serial = int64(0)
+		var done = make(chan struct{})
+		for i := 0; i < total; i++ {
+			q.Push(func() {
+				x := atomic.AddInt64(&concurrency, 1)
+				assert.LessOrEqual(t, x, int64(limit))
+				time.Sleep(10 * time.Millisecond)
+				atomic.AddInt64(&concurrency, -1)
+				if atomic.AddInt64(&serial, 1) == total {
+					done <- struct{}{}
+				}
+			})
+		}
+		<-done
+	})
+}

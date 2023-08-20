@@ -78,3 +78,9 @@ func (c *workerQueue) Push(job asyncJob) {
 		go c.do(nextJob)
 	}
 }
+
+type channel chan struct{}
+
+func (c channel) Add() { c <- struct{}{} }
+
+func (c channel) Done() { <-c }

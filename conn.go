@@ -48,7 +48,7 @@ type Conn struct {
 	closed uint32
 
 	// async read task queue
-	readQueue chan struct{}
+	readQueue channel
 
 	// async write task queue
 	writeQueue workerQueue
@@ -71,7 +71,7 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		br:              br,
 		fh:              frameHeader{},
 		handler:         handler,
-		readQueue:       make(chan struct{}, config.ReadAsyncGoLimit),
+		readQueue:       make(channel, config.ReadAsyncGoLimit),
 		writeQueue:      workerQueue{maxConcurrency: 1},
 		subprotocol:     subprotocol,
 	}
