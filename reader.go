@@ -154,11 +154,7 @@ func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
 	}
 
 	if c.config.ReadAsyncEnabled {
-		c.readQueue.Add()
-		go func() {
-			c.handler.OnMessage(c, msg)
-			c.readQueue.Done()
-		}()
+		c.readQueue.Go(func() { c.handler.OnMessage(c, msg) })
 	} else {
 		c.handler.OnMessage(c, msg)
 	}

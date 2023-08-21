@@ -307,17 +307,15 @@ func TestRQueue(t *testing.T) {
 		var serial = int64(0)
 		var done = make(chan struct{})
 		for i := 0; i < total; i++ {
-			q.Add()
-			go func() {
+			q.Go(func() {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
 				time.Sleep(10 * time.Millisecond)
 				atomic.AddInt64(&concurrency, -1)
-				q.Done()
 				if atomic.AddInt64(&serial, 1) == total {
 					done <- struct{}{}
 				}
-			}()
+			})
 		}
 		<-done
 	})
