@@ -10,7 +10,6 @@ type (
 		q              []asyncJob // 任务队列
 		maxConcurrency int32      // 最大并发
 		curConcurrency int32      // 当前并发
-		offset         int        // 偏移量
 	}
 
 	asyncJob func()
@@ -27,28 +26,22 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 }
 
 func (c *workerQueue) pop() asyncJob {
-	var n = len(c.q) - c.offset
-	if n == 0 {
+	if len(c.q) == 0 {
 		return nil
 	}
-	job := c.q[c.offset]
-	c.q[c.offset] = nil
-	c.offset++
-	if n == 1 {
-		c.offset = 0
-		c.q = c.q[:0]
-		if cap(c.q) > 256 {
-			c.q = nil
-		}
-	}
+	var job = c.q[0]
+	c.q = c.q[1:]
 	return job
 }
 
 // 获取一个任务
-func (c *workerQueue) getJob(delta int32) asyncJob {
+func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if newJob != nil {
+		c.q = append(c.q, newJob)
+	}
 	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
@@ -65,16 +58,27 @@ func (c *workerQueue) getJob(delta int32) asyncJob {
 func (c *workerQueue) do(job asyncJob) {
 	for job != nil {
 		job()
-		job = c.getJob(-1)
+		job = c.getJob(nil, -1)
 	}
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
 func (c *workerQueue) Push(job asyncJob) {
-	c.mu.Lock()
-	c.q = append(c.q, job)
-	c.mu.Unlock()
-	if job := c.getJob(0); job != nil {
-		go c.do(job)
+	if nextJob := c.getJob(job, 0); nextJob != nil {
+		go c.do(nextJob)
 	}
+}
+
+type channel chan struct{}
+
+func (c channel) add() { c <- struct{}{} }
+
+func (c channel) done() { <-c }
+
+func (c channel) Go(f func()) {
+	c.add()
+	go func() {
+		f()
+		c.done()
+	}()
 }
