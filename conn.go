@@ -60,24 +60,14 @@ type Conn struct {
 	decompressor *decompressor
 }
 
-func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
-	c := &Conn{
-		isServer:        isServer,
-		SessionStorage:  session,
-		config:          config,
-		compressEnabled: compressEnabled,
-		conn:            netConn,
-		closed:          0,
-		br:              br,
-		fh:              frameHeader{},
-		handler:         handler,
-		readQueue:       make(channel, config.ReadAsyncGoLimit),
-		writeQueue:      workerQueue{maxConcurrency: 1},
-		subprotocol:     subprotocol,
+func (c *Conn) init() *Conn {
+	c.writeQueue = workerQueue{maxConcurrency: 1}
+	if c.config.ReadAsyncEnabled {
+		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
 	}
-	if compressEnabled {
-		c.compressor = config.compressors.Select()
-		c.decompressor = config.decompressors.Select()
+	if c.compressEnabled {
+		c.compressor = c.config.compressors.Select()
+		c.decompressor = c.config.decompressors.Select()
 	}
 	return c
 }
