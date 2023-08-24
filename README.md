@@ -252,11 +252,13 @@ docker run -it --rm \
 
 ### Benchmark
 
-- GOMAXPROCS = 4
-- Connection = 1000
-- Compress Disabled
-  
-![performance](assets/performance-compress-disabled.png)
+| Framework     | Duration | Bytes Sent | Bytes Recv | Conns | SendRate | Payload | CPU Avg | MEM Avg |
+| ------------- | -------- | ---------- | ---------- | ----- | -------- | ------- | ------- | ------- |
+| gws           | 10.00s   | 17.68G     | 17.62G     | 10000 | 200      | 1024    | 792.92  | 203.98M |
+| nbio_blocking | 10.00s   | 18.00G     | 17.95G     | 10000 | 200      | 1024    | 790.75  | 223.48M |
+| gorilla       | 10.00s   | 17.43G     | 17.40G     | 10000 | 200      | 1024    | 795.18  | 342.17M |
+| nhooyr        | 10.00s   | 10.03G     | 9.80G      | 10000 | 200      | 1024    | 799.16  | 492.06M |
+| gobwas        | 10.00s   | 7.77G      | 7.51G      | 10000 | 200      | 1024    | 762.31  | 535.65M |
 
 ```go
 $ go test -benchmem -run=^$ -bench ^(BenchmarkConn_WriteMessage|BenchmarkConn_ReadMessage)$ github.com/lxzan/gws
