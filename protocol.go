@@ -223,6 +223,9 @@ func (c *frameHeader) GetMaskKey() []byte {
 }
 
 type Message struct {
+	// 是否压缩
+	compressed bool
+
 	// 内存池下标索引
 	index int
 
@@ -243,7 +246,8 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() error {
-	myBufferPool.Put(c.Data, c.index)
+	pool := internal.SelectValue(c.compressed, elasticPool, staticPool)
+	pool.Put(c.Data, c.index)
 	c.Data = nil
 	return nil
 }

@@ -93,7 +93,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf, index = myBufferPool.Get(contentLength)
+	var buf, index = staticPool.Get(contentLength)
 	var p = buf.Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.br, p); err != nil {
@@ -109,7 +109,7 @@ func (c *Conn) readMessage() error {
 
 	if fin && opcode != OpcodeContinuation {
 		internal.ResetBuffer(buf, p)
-		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf}, compressed)
+		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
 
 	if !fin && opcode != OpcodeContinuation {
@@ -125,7 +125,7 @@ func (c *Conn) readMessage() error {
 	if err := internal.WriteN(c.continuationFrame.buffer, p); err != nil {
 		return err
 	} else {
-		myBufferPool.Put(buf, index)
+		staticPool.Put(buf, index)
 	}
 	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
 		return internal.CloseMessageTooLarge
@@ -134,17 +134,16 @@ func (c *Conn) readMessage() error {
 		return nil
 	}
 
-	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer}
-	compressed = c.continuationFrame.compressed
+	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer, compressed: c.continuationFrame.compressed}
 	c.continuationFrame.reset()
-	return c.emitMessage(msg, compressed)
+	return c.emitMessage(msg)
 }
 
-func (c *Conn) emitMessage(msg *Message, compressed bool) (err error) {
-	if compressed {
+func (c *Conn) emitMessage(msg *Message) (err error) {
+	if msg.compressed {
 		data, index := msg.Data, msg.index
 		msg.Data, msg.index, err = c.decompressor.Decompress(msg.Data)
-		myBufferPool.Put(data, index)
+		staticPool.Put(data, index)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

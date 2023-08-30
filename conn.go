@@ -14,50 +14,21 @@ import (
 )
 
 type Conn struct {
-	// store session information
-	SessionStorage SessionStorage
-
-	// is server
-	isServer bool
-
-	// sub protocol
-	subprotocol string
-
-	// whether to use compression
-	compressEnabled bool
-
-	// tcp connection
-	conn net.Conn
-
-	// configs
-	config *Config
-
-	// read buffer
-	br *bufio.Reader
-
-	// continuation frame
-	continuationFrame continuationFrame
-
-	// frame header for read
-	fh frameHeader
-
-	// WebSocket Event Handler
-	handler Event
-
-	// whether server is closed
-	closed uint32
-
-	// async read task queue
-	readQueue channel
-
-	// async write task queue
-	writeQueue workerQueue
-
-	// flate compressor
-	compressor *compressor
-
-	// flate decompressor
-	decompressor *decompressor
+	SessionStorage    SessionStorage    // 会话
+	isServer          bool              // 是否为服务器
+	subprotocol       string            // 子协议
+	conn              net.Conn          // 底层连接
+	config            *Config           // 配置
+	br                *bufio.Reader     // 读缓存
+	continuationFrame continuationFrame // 连续帧
+	fh                frameHeader       // 帧头
+	handler           Event             // 事件处理器
+	closed            uint32            // 是否关闭
+	readQueue         channel           // 消息处理队列
+	writeQueue        workerQueue       // 发送队列
+	compressEnabled   bool              // 是否压缩
+	compressor        *compressor       // 压缩器
+	decompressor      *decompressor     // 解压器
 }
 
 func (c *Conn) init() *Conn {

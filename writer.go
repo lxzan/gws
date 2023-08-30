@@ -54,7 +54,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 			return
 		}
 		err = internal.WriteN(c.conn, frame.Bytes())
-		myBufferPool.Put(frame, index)
+		staticPool.Put(frame, index)
 		c.emitError(err)
 	})
 	return nil
@@ -80,7 +80,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	err = internal.WriteN(c.conn, frame.Bytes())
-	myBufferPool.Put(frame, index)
+	staticPool.Put(frame, index)
 	return err
 }
 
@@ -102,8 +102,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, erro
 
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
-	var totalSize = n + headerLength
-	var buf, index = myBufferPool.Get(totalSize)
+	var buf, index = staticPool.Get(n + headerLength)
 	buf.Write(header[:headerLength])
 	buf.Write(payload)
 	var contents = buf.Bytes()
@@ -114,7 +113,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, erro
 }
 
 func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
-	var buf, index = myBufferPool.Get(len(payload) / compressionRate)
+	var buf, index = staticPool.Get(len(payload) + frameHeaderSize)
 	buf.Write(myPadding[0:])
 	err := c.compressor.Compress(payload, buf)
 	if err != nil {
@@ -194,7 +193,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 func (c *Broadcaster) doClose() {
 	for _, item := range c.msgs {
 		if item != nil {
-			myBufferPool.Put(item.frame, item.index)
+			staticPool.Put(item.frame, item.index)
 		}
 	}
 }

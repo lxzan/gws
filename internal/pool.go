@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	poolSize = 10
+	poolSize      = 10
+	maxBufferSize = 256 * 1024
 
 	Lv1 = 128
 	Lv2 = 1024
@@ -40,7 +41,7 @@ func (p *BufferPool) Put(b *bytes.Buffer, index int) {
 	if index == 0 || b == nil {
 		return
 	}
-	if b.Cap() <= 3*p.limits[index] {
+	if b.Cap() <= maxBufferSize {
 		p.pools[index].Put(b)
 	}
 }
