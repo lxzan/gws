@@ -108,7 +108,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	if fin && opcode != OpcodeContinuation {
-		internal.ResetBuffer(buf, p)
+		internal.BufferReset(buf, p)
 		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
 
