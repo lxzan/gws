@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"math"
-	"sync"
 	"sync/atomic"
 )
 
@@ -143,7 +142,6 @@ type (
 	}
 
 	broadcastMessageWrapper struct {
-		once  sync.Once
 		err   error
 		index int
 		frame *bytes.Buffer
@@ -170,9 +168,9 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
 	var msg = c.msgs[idx]
 	if msg == nil {
-		c.msgs[idx] = &broadcastMessageWrapper{}
-		msg = c.msgs[idx]
+		msg = &broadcastMessageWrapper{}
 		msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload)
+		c.msgs[idx] = msg
 	}
 	if msg.err != nil {
 		return msg.err
