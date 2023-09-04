@@ -13,6 +13,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
+	c := &Conn{
+		isServer:        isServer,
+		SessionStorage:  session,
+		config:          config,
+		compressEnabled: compressEnabled,
+		conn:            netConn,
+		closed:          0,
+		br:              br,
+		fh:              frameHeader{},
+		handler:         handler,
+		writeQueue:      workerQueue{maxConcurrency: 1},
+		subprotocol:     subprotocol,
+	}
+	return c.init()
+}
+
 func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {
 	serverOption = initServerOption(serverOption)
 	clientOption = initClientOption(clientOption)

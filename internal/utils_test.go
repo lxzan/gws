@@ -215,6 +215,6 @@ func TestResetBuffer(t *testing.T) {
 	var buf = bytes.NewBufferString("hello")
 	var p = buf.Bytes()
 	p = append(p, "world"...)
-	ResetBuffer(buf, p)
+	BufferReset(buf, p)
 	assert.Equal(t, "helloworld", buf.String())
 }

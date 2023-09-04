@@ -129,7 +129,20 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if compressEnabled && !strings.Contains(extensions, "server_no_context_takeover") {
 		return nil, c.resp, ErrCompressionNegotiation
 	}
-	return serveWebSocket(false, c.option.getConfig(), c.option.NewSessionStorage(), c.conn, br, c.eventHandler, compressEnabled, subprotocol), c.resp, nil
+	socket := &Conn{
+		SessionStorage:    c.option.NewSessionStorage(),
+		isServer:          false,
+		subprotocol:       subprotocol,
+		compressEnabled:   compressEnabled,
+		conn:              c.conn,
+		config:            c.option.getConfig(),
+		br:                br,
+		continuationFrame: continuationFrame{},
+		fh:                frameHeader{},
+		handler:           c.eventHandler,
+		closed:            0,
+	}
+	return socket.init(), c.resp, nil
 }
 
 func (c *connector) getSubProtocol() (string, error) {

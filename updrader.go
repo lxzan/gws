@@ -121,7 +121,20 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	if err := netConn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	return serveWebSocket(true, c.option.getConfig(), session, netConn, br, c.eventHandler, compressEnabled, subprotocol), nil
+	socket := &Conn{
+		SessionStorage:    session,
+		isServer:          true,
+		subprotocol:       subprotocol,
+		compressEnabled:   compressEnabled,
+		conn:              netConn,
+		config:            c.option.getConfig(),
+		br:                br,
+		continuationFrame: continuationFrame{},
+		fh:                frameHeader{},
+		handler:           c.eventHandler,
+		closed:            0,
+	}
+	return socket.init(), nil
 }
 
 type Server struct {

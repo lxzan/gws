@@ -77,7 +77,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			handler:  upgrader.eventHandler,
 		}
 		for i := 0; i < b.N; i++ {
-			internal.ResetBuffer(reader, buf.Bytes())
+			internal.BufferReset(reader, buf.Bytes())
 			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
@@ -108,7 +108,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			decompressor:    config.decompressors.Select(),
 		}
 		for i := 0; i < b.N; i++ {
-			internal.ResetBuffer(reader, buf.Bytes())
+			internal.BufferReset(reader, buf.Bytes())
 			conn2.br.Reset(reader)
 			_ = conn2.readMessage()
 		}
@@ -150,7 +150,7 @@ func BenchmarkStdDeCompress(b *testing.B) {
 	fr := flate.NewReader(nil)
 	src := bytes.NewBuffer(nil)
 	for i := 0; i < b.N; i++ {
-		internal.ResetBuffer(src, buffer.Bytes())
+		internal.BufferReset(src, buffer.Bytes())
 		_, _ = src.Write(internal.FlateTail)
 		resetter := fr.(flate.Resetter)
 		_ = resetter.Reset(src, nil)
@@ -168,7 +168,7 @@ func BenchmarkKlauspostDeCompress(b *testing.B) {
 	fr := klauspost.NewReader(nil)
 	src := bytes.NewBuffer(nil)
 	for i := 0; i < b.N; i++ {
-		internal.ResetBuffer(src, buffer.Bytes())
+		internal.BufferReset(src, buffer.Bytes())
 		_, _ = src.Write(internal.FlateTail)
 		resetter := fr.(klauspost.Resetter)
 		_ = resetter.Reset(src, nil)

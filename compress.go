@@ -101,7 +101,7 @@ func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error)
 	_, _ = src.Write(internal.FlateTail)
 	resetter := c.fr.(flate.Resetter)
 	_ = resetter.Reset(src, nil) // must return a null pointer
-	var dst, idx = myBufferPool.Get(src.Len() * compressionRate)
+	var dst, idx = elasticPool.Get(src.Len() * compressionRate)
 	_, err := c.fr.(io.WriterTo).WriteTo(dst)
 	return dst, idx, err
 }

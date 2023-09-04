@@ -206,7 +206,9 @@ type Buffer struct {
 }
 
 //go:nosplit
-func ResetBuffer(b *bytes.Buffer, p []byte) {
+func BufferReset(b *bytes.Buffer, p []byte) {
 	buffer := (*Buffer)(unsafe.Pointer(b))
 	buffer.buf = p
+	buffer.off = 0
+	buffer.lastRead = 0
 }
