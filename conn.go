@@ -47,7 +47,6 @@ func (c *Conn) init() *Conn {
 // Read messages in a loop.
 // If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
 func (c *Conn) ReadLoop() {
-	defer c.conn.Close()
 	c.handler.OnOpen(c)
 	for {
 		if err := c.readMessage(); err != nil {
@@ -73,6 +72,12 @@ func (c *Conn) isClosed() bool {
 	return atomic.LoadUint32(&c.closed) == 1
 }
 
+func (c *Conn) close(reason []byte, err error) {
+	_ = c.doWrite(OpcodeCloseConnection, reason)
+	_ = c.conn.Close()
+	c.handler.OnClose(c, err)
+}
+
 func (c *Conn) emitError(err error) {
 	if err == nil {
 		return
@@ -96,9 +101,7 @@ func (c *Conn) emitError(err error) {
 		content = content[:internal.ThresholdV1]
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.doWrite(OpcodeCloseConnection, content)
-		_ = c.conn.SetDeadline(time.Now())
-		c.handler.OnClose(c, responseErr)
+		c.close(content, responseErr)
 	}
 }
 
@@ -134,8 +137,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		_ = c.doWrite(OpcodeCloseConnection, responseCode.Bytes())
-		c.handler.OnClose(c, &CloseError{Code: realCode, Reason: buf.Bytes()})
+		c.close(responseCode.Bytes(), &CloseError{Code: realCode, Reason: buf.Bytes()})
 	}
 	return internal.CloseNormalClosure
 }
