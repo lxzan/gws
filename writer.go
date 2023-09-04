@@ -40,8 +40,8 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-// WriteAsync 异步写入消息
-// Asynchronous Write Messages
+// WriteAsync 异步非阻塞地写入消息
+// Write messages asynchronously and non-blocking
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 	frame, index, err := c.genFrame(opcode, payload)
 	if err != nil {
