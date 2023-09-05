@@ -56,6 +56,12 @@ func (c *Conn) ReadLoop() {
 		}
 	}
 	c.handler.OnClose(c, c.err.Load().(error))
+
+	// 回收资源
+	if c.isServer {
+		c.config.readerPool.Put(c.br)
+		c.br = nil
+	}
 }
 
 func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {

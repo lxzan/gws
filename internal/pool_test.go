@@ -53,3 +53,11 @@ func TestBufferPool(t *testing.T) {
 	buffer, _ := pool.Get(256 * 1024)
 	as.GreaterOrEqual(buffer.Cap(), 256*1024)
 }
+
+func TestPool(t *testing.T) {
+	var p = NewPool(func() int {
+		return 0
+	})
+	assert.Equal(t, 0, p.Get())
+	p.Put(1)
+}

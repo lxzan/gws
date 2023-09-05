@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bufio"
 	"compress/flate"
 	"crypto/tls"
 	"github.com/lxzan/gws/internal"
@@ -24,6 +25,7 @@ const (
 
 type (
 	Config struct {
+		readerPool    *internal.Pool[*bufio.Reader]
 		compressors   *compressors
 		decompressors *decompressors
 
@@ -158,6 +160,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
 
 	c.config = &Config{
+		readerPool:          internal.NewPool(func() *bufio.Reader { return bufio.NewReaderSize(nil, c.ReadBufferSize) }),
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,

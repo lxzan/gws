@@ -77,7 +77,9 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	if err != nil {
 		return nil, nil, err
 	}
-	return netConn, bufio.NewReaderSize(netConn, c.option.ReadBufferSize), nil
+	br := c.option.config.readerPool.Get()
+	br.Reset(netConn)
+	return netConn, br, nil
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
@@ -194,7 +196,8 @@ func (c *Server) RunListener(listener net.Listener) error {
 		}
 
 		go func(conn net.Conn) {
-			br := bufio.NewReaderSize(conn, c.upgrader.option.ReadBufferSize)
+			br := c.upgrader.option.config.readerPool.Get()
+			br.Reset(conn)
 			r, err := http.ReadRequest(br)
 			if err != nil {
 				c.OnError(conn, err)
