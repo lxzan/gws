@@ -134,6 +134,8 @@ func TestConn_WriteAsync(t *testing.T) {
 			as.Error(err)
 			wg.Done()
 		}
+		go client.ReadLoop()
+		go server.ReadLoop()
 		client.NetConn().Close()
 		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
 		wg.Wait()

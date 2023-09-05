@@ -15,6 +15,7 @@ import (
 
 type Conn struct {
 	SessionStorage    SessionStorage    // 会话
+	err               atomic.Value      // 错误
 	isServer          bool              // 是否为服务器
 	subprotocol       string            // 子协议
 	conn              net.Conn          // 底层连接
@@ -51,9 +52,10 @@ func (c *Conn) ReadLoop() {
 	for {
 		if err := c.readMessage(); err != nil {
 			c.emitError(err)
-			return
+			break
 		}
 	}
+	c.handler.OnClose(c, c.err.Load().(error))
 }
 
 func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {
@@ -68,14 +70,12 @@ func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {
 	}
 }
 
-func (c *Conn) isClosed() bool {
-	return atomic.LoadUint32(&c.closed) == 1
-}
+func (c *Conn) isClosed() bool { return atomic.LoadUint32(&c.closed) == 1 }
 
 func (c *Conn) close(reason []byte, err error) {
+	c.err.Store(err)
 	_ = c.doWrite(OpcodeCloseConnection, reason)
 	_ = c.conn.Close()
-	c.handler.OnClose(c, err)
 }
 
 func (c *Conn) emitError(err error) {
@@ -172,18 +172,12 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 	return err
 }
 
-func (c *Conn) LocalAddr() net.Addr {
-	return c.conn.LocalAddr()
-}
+func (c *Conn) LocalAddr() net.Addr { return c.conn.LocalAddr() }
 
-func (c *Conn) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
-}
+func (c *Conn) RemoteAddr() net.Addr { return c.conn.RemoteAddr() }
 
 // NetConn get tcp/tls/kcp... connection
-func (c *Conn) NetConn() net.Conn {
-	return c.conn
-}
+func (c *Conn) NetConn() net.Conn { return c.conn }
 
 // SetNoDelay controls whether the operating system should delay
 // packet transmission in hopes of sending fewer packets (Nagle's
@@ -203,6 +197,4 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 
 // SubProtocol 获取协商的子协议
 // Get negotiated sub-protocols
-func (c *Conn) SubProtocol() string {
-	return c.subprotocol
-}
+func (c *Conn) SubProtocol() string { return c.subprotocol }
