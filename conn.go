@@ -55,7 +55,8 @@ func (c *Conn) ReadLoop() {
 			break
 		}
 	}
-	c.handler.OnClose(c, c.err.Load().(error))
+	err, ok := c.err.Load().(error)
+	c.handler.OnClose(c, internal.SelectValue(ok, err, errEmpty))
 
 	// 回收资源
 	if c.isServer {
