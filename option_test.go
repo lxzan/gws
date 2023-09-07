@@ -22,6 +22,7 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
 	as.Equal(config.CompressorNum, option.CompressorNum)
+	as.NotNil(config.readerPool)
 
 	_, ok := u.option.NewSessionStorage().(*sliceMap)
 	as.True(ok)
@@ -39,6 +40,7 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
+	as.Nil(config.readerPool)
 
 	_, ok := option.NewSessionStorage().(*sliceMap)
 	as.True(ok)
