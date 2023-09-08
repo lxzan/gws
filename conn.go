@@ -60,6 +60,7 @@ func (c *Conn) ReadLoop() {
 
 	// 回收资源
 	if c.isServer {
+		c.br.Reset(nil)
 		c.config.readerPool.Put(c.br)
 		c.br = nil
 	}
