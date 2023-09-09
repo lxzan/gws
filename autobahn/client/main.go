@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	agent      = "gws/client@v1.6.1"
-	remoteAddr = "192.168.1.1:9001"
+	agent      = "gws/client@v1.6.10"
+	remoteAddr = "127.0.0.1:9001"
 )
 
 func main() {
