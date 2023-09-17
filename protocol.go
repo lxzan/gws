@@ -246,8 +246,7 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() error {
-	pool := internal.SelectValue(c.compressed, elasticPool, staticPool)
-	pool.Put(c.Data, c.index)
+	binaryPool.Put(c.Data, c.index)
 	c.Data = nil
 	return nil
 }
