@@ -53,3 +53,12 @@ func TestFlate(t *testing.T) {
 		as.Error(err)
 	})
 }
+
+func TestDecompressor_Init(t *testing.T) {
+	var d = &decompressor{
+		b:  bytes.NewBuffer(internal.AlphabetNumeric.Generate(512 * 1024)),
+		fr: flate.NewReader(nil),
+	}
+	d.reset(nil)
+	assert.Equal(t, d.b.Cap(), 0)
+}

@@ -29,7 +29,6 @@
 [12]: https://github.com/avelino/awesome-go#networking
 
 - [gws](#gws)
-    - [Event-Driven Go WebSocket Server \& Client](#event-driven-go-websocket-server--client)
     - [Feature](#feature)
     - [Attention](#attention)
     - [Install](#install)
@@ -274,7 +273,7 @@ BenchmarkConn_ReadMessage/compress_enabled-8              435176              24
 > 微信二维码在讨论区不定时更新 
 
 <div>
-<img src="assets/wechat.jpg" alt="WeChat" width="300" height="300" style="display: inline-block;"/>
+<img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>
 <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
