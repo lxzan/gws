@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/lxzan/gws/internal"
 	"math"
+	"sync"
 	"sync/atomic"
 )
 
@@ -142,6 +143,7 @@ type (
 	}
 
 	broadcastMessageWrapper struct {
+		once  sync.Once
 		err   error
 		index int
 		frame *bytes.Buffer
@@ -155,23 +157,19 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	c := &Broadcaster{
 		opcode:  opcode,
 		payload: payload,
-		msgs:    [2]*broadcastMessageWrapper{},
+		msgs:    [2]*broadcastMessageWrapper{{}, {}},
 		state:   int64(math.MaxInt32),
 	}
 	return c
 }
 
 // Broadcast 广播
-// 向单个客户端发送广播消息. 注意: 不要并行调用Broadcast方法
-// Send a broadcast message to a single client. Note: Do not call the Broadcast method in parallel.
+// 向客户端发送广播消息
+// Send a broadcast message to a client.
 func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
 	var msg = c.msgs[idx]
-	if msg == nil {
-		msg = &broadcastMessageWrapper{}
-		msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload)
-		c.msgs[idx] = msg
-	}
+	msg.once.Do(func() { msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload) })
 	if msg.err != nil {
 		return msg.err
 	}
@@ -197,7 +195,7 @@ func (c *Broadcaster) doClose() {
 }
 
 // Release 释放资源
-// 在完成所有Broadcast之后调用Release方法释放资源.
+// 在完成所有Broadcast调用之后执行Release方法释放资源.
 // Call the Release method after all the Broadcasts have been completed to release the resources.
 func (c *Broadcaster) Release() {
 	if atomic.AddInt64(&c.state, -1*math.MaxInt32) == 0 {
