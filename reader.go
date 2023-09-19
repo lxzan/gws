@@ -93,7 +93,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf, index = staticPool.Get(contentLength)
+	var buf, index = binaryPool.Get(contentLength)
 	var p = buf.Bytes()
 	p = p[:contentLength]
 	if err := internal.ReadN(c.br, p); err != nil {
@@ -125,7 +125,7 @@ func (c *Conn) readMessage() error {
 	if err := internal.WriteN(c.continuationFrame.buffer, p); err != nil {
 		return err
 	} else {
-		staticPool.Put(buf, index)
+		binaryPool.Put(buf, index)
 	}
 	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
 		return internal.CloseMessageTooLarge
@@ -143,7 +143,7 @@ func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
 		data, index := msg.Data, msg.index
 		msg.Data, msg.index, err = c.decompressor.Decompress(msg.Data)
-		staticPool.Put(data, index)
+		binaryPool.Put(data, index)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

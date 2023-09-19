@@ -40,7 +40,7 @@ func (p *BufferPool) Put(b *bytes.Buffer, index int) {
 	if index == 0 || b == nil {
 		return
 	}
-	if b.Cap() <= 5*p.limits[index] {
+	if b.Cap() <= p.limits[index] {
 		p.pools[index].Put(b)
 	}
 }

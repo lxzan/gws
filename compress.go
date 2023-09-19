@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 )
 
-const compressionRate = 3
-
 type compressors struct {
 	serial      uint64
 	size        uint64
@@ -85,12 +83,25 @@ func (c *decompressors) Select() *decompressor {
 }
 
 func newDecompressor() *decompressor {
-	return &decompressor{fr: flate.NewReader(nil)}
+	return &decompressor{
+		b:  bytes.NewBuffer(nil),
+		fr: flate.NewReader(nil),
+	}
 }
 
 type decompressor struct {
 	sync.Mutex
+	b  *bytes.Buffer
 	fr io.ReadCloser
+}
+
+func (c *decompressor) reset(r io.Reader) {
+	resetter := c.fr.(flate.Resetter)
+	_ = resetter.Reset(r, nil) // must return a null pointer
+	if c.b.Cap() > 256*1024 {
+		c.b = bytes.NewBuffer(nil)
+	}
+	c.b.Reset()
 }
 
 // Decompress 解压
@@ -99,9 +110,11 @@ func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error)
 	defer c.Unlock()
 
 	_, _ = src.Write(internal.FlateTail)
-	resetter := c.fr.(flate.Resetter)
-	_ = resetter.Reset(src, nil) // must return a null pointer
-	var dst, idx = elasticPool.Get(src.Len() * compressionRate)
-	_, err := c.fr.(io.WriterTo).WriteTo(dst)
-	return dst, idx, err
+	c.reset(src)
+	if _, err := c.fr.(io.WriterTo).WriteTo(c.b); err != nil {
+		return nil, 0, err
+	}
+	var dst, idx = binaryPool.Get(c.b.Len())
+	_, _ = c.b.WriteTo(dst)
+	return dst, idx, nil
 }
