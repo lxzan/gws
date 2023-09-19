@@ -242,20 +242,9 @@ func TestNewBroadcaster(t *testing.T) {
 }
 
 type broadcastHandler struct {
+	BuiltinEventHandler
 	wg      *sync.WaitGroup
 	sockets *sync.Map
-}
-
-func (b broadcastHandler) OnOpen(socket *Conn) {
-}
-
-func (b broadcastHandler) OnClose(socket *Conn, err error) {
-}
-
-func (b broadcastHandler) OnPing(socket *Conn, payload []byte) {
-}
-
-func (b broadcastHandler) OnPong(socket *Conn, payload []byte) {
 }
 
 func (b broadcastHandler) OnMessage(socket *Conn, message *Message) {

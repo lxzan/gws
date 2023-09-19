@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/lxzan/gws/internal"
 )
@@ -51,7 +50,7 @@ func (c *Conn) readControl() error {
 	case OpcodeCloseConnection:
 		return c.emitClose(bytes.NewBuffer(payload))
 	default:
-		var err = errors.New(fmt.Sprintf("unexpected opcode: %d", opcode))
+		var err = fmt.Errorf("gws: unexpected opcode %d", opcode)
 		return internal.NewError(internal.CloseProtocolError, err)
 	}
 }
