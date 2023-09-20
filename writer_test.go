@@ -111,6 +111,17 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		server.closed = 1
 		server.WriteAsync(OpcodeText, nil)
 	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CheckUtf8Enabled: true}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go client.ReadLoop()
+		var err = server.WriteAsync(OpcodeText, internal.FlateTail)
+		assert.Error(t, err)
+	})
 }
 
 func TestConn_WriteInvalidUTF8(t *testing.T) {
