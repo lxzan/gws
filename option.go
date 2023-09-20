@@ -117,6 +117,14 @@ type (
 	}
 )
 
+func (c *ServerOption) deleteProtectedHeaders() {
+	c.ResponseHeader.Del(internal.Upgrade.Key)
+	c.ResponseHeader.Del(internal.Connection.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketAccept.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketExtensions.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketProtocol.Key)
+}
+
 func initServerOption(c *ServerOption) *ServerOption {
 	if c == nil {
 		c = new(ServerOption)
@@ -158,6 +166,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
+	c.deleteProtectedHeaders()
 
 	c.config = &Config{
 		readerPool:          internal.NewPool(func() *bufio.Reader { return bufio.NewReaderSize(nil, c.ReadBufferSize) }),

@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"log"
@@ -13,6 +14,60 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
+type responseWriter struct {
+	err         error
+	b           *bytes.Buffer
+	idx         int
+	subprotocol string
+}
+
+func (c *responseWriter) Init() *responseWriter {
+	c.b, c.idx = binaryPool.Get(512)
+	c.b.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
+	c.b.WriteString("Upgrade: websocket\r\n")
+	c.b.WriteString("Connection: Upgrade\r\n")
+	return c
+}
+
+func (c *responseWriter) WithHeader(k, v string) {
+	c.b.WriteString(k)
+	c.b.WriteString(": ")
+	c.b.WriteString(v)
+	c.b.WriteString("\r\n")
+}
+
+func (c *responseWriter) WithExtraHeader(h http.Header) {
+	for k, _ := range h {
+		c.WithHeader(k, h.Get(k))
+	}
+}
+
+func (c *responseWriter) WithSubProtocol(requestHeader http.Header, expectedSubProtocols []string) {
+	if len(expectedSubProtocols) > 0 {
+		c.subprotocol = internal.GetIntersectionElem(internal.Split(requestHeader.Get(internal.SecWebSocketProtocol.Key), ","), expectedSubProtocols)
+		if c.subprotocol == "" {
+			c.err = ErrSubprotocolNegotiation
+			return
+		}
+		c.WithHeader(internal.SecWebSocketProtocol.Key, c.subprotocol)
+	}
+}
+
+func (c *responseWriter) Write(conn net.Conn, timeout time.Duration) error {
+	if c.err != nil {
+		return c.err
+	}
+	c.b.WriteString("\r\n")
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return err
+	}
+	if _, err := c.b.WriteTo(conn); err != nil {
+		return err
+	}
+	binaryPool.Put(c.b, c.idx)
+	return conn.SetDeadline(time.Time{})
+}
+
 type Upgrader struct {
 	option       *ServerOption
 	eventHandler Event
@@ -23,33 +78,6 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 		option:       initServerOption(option),
 		eventHandler: eventHandler,
 	}
-}
-
-func (c *Upgrader) connectHandshake(r *http.Request, responseHeader http.Header, conn net.Conn, websocketKey string) (subprotocol string, err error) {
-	if len(c.option.SubProtocols) > 0 {
-		subprotocol = internal.GetIntersectionElem(internal.Split(r.Header.Get(internal.SecWebSocketProtocol.Key), ","), c.option.SubProtocols)
-		if subprotocol == "" {
-			return "", ErrSubprotocolNegotiation
-		}
-		responseHeader.Set(internal.SecWebSocketProtocol.Key, subprotocol)
-	}
-
-	var buf = make([]byte, 0, 256)
-	buf = append(buf, "HTTP/1.1 101 Switching Protocols\r\n"...)
-	buf = append(buf, "Upgrade: websocket\r\n"...)
-	buf = append(buf, "Connection: Upgrade\r\n"...)
-	buf = append(buf, "Sec-WebSocket-Accept: "...)
-	buf = append(buf, internal.ComputeAcceptKey(websocketKey)...)
-	buf = append(buf, "\r\n"...)
-	for k, _ := range responseHeader {
-		buf = append(buf, k...)
-		buf = append(buf, ": "...)
-		buf = append(buf, responseHeader.Get(k)...)
-		buf = append(buf, "\r\n"...)
-	}
-	buf = append(buf, "\r\n"...)
-	_, err = conn.Write(buf)
-	return subprotocol, err
 }
 
 // Upgrade http upgrade to websocket protocol
@@ -83,12 +111,7 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
-	if err := netConn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout)); err != nil {
-		return nil, err
-	}
-
 	var session = c.option.NewSessionStorage()
-	var header = c.option.ResponseHeader.Clone()
 	if !c.option.Authorize(r, session) {
 		return nil, ErrUnauthorized
 	}
@@ -107,26 +130,27 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	if !strings.EqualFold(r.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
 		return nil, ErrHandshake
 	}
+
+	var rw = new(responseWriter).Init()
 	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.CompressEnabled {
-		header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
+		rw.WithHeader(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 		compressEnabled = true
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
 	if websocketKey == "" {
 		return nil, ErrHandshake
 	}
+	rw.WithHeader(internal.SecWebSocketAccept.Key, internal.ComputeAcceptKey(websocketKey))
+	rw.WithSubProtocol(r.Header, c.option.SubProtocols)
+	rw.WithExtraHeader(c.option.ResponseHeader)
+	if err := rw.Write(netConn, c.option.HandshakeTimeout); err != nil {
+		return nil, err
+	}
 
-	subprotocol, err := c.connectHandshake(r, header, netConn, websocketKey)
-	if err != nil {
-		return nil, err
-	}
-	if err := netConn.SetDeadline(time.Time{}); err != nil {
-		return nil, err
-	}
 	socket := &Conn{
 		SessionStorage:    session,
 		isServer:          true,
-		subprotocol:       subprotocol,
+		subprotocol:       rw.subprotocol,
 		compressEnabled:   compressEnabled,
 		conn:              netConn,
 		config:            c.option.getConfig(),

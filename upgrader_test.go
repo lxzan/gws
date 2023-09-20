@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -362,4 +363,32 @@ func TestSubprotocol(t *testing.T) {
 		})
 		assert.NoError(t, err)
 	})
+}
+
+func TestResponseWriter_Write(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		conn, _ := net.Pipe()
+		rw := &responseWriter{b: bytes.NewBuffer(nil)}
+		conn.Close()
+		err := rw.Write(conn, time.Second)
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		conn, _ := net.Pipe()
+		rw := &responseWriter{b: bytes.NewBuffer(nil)}
+		err := rw.Write(conn, time.Nanosecond)
+		assert.Error(t, err)
+	})
+}
+
+func TestServer_RunListener(t *testing.T) {
+	var s = NewServer(&BuiltinEventHandler{}, nil)
+	var ln, _ = net.Listen("tcp", ":"+nextPort())
+	_ = ln.Close()
+	go func() {
+		log.Default().SetOutput(bytes.NewBuffer(nil))
+		s.RunListener(ln)
+	}()
+	time.Sleep(time.Microsecond)
 }
