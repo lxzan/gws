@@ -51,7 +51,7 @@
 - [x] Dial via Proxy
 - [x] IO Multiplexing
 - [x] Concurrent Write
-- [x] Zero Allocs Read/Write (Compression Disabled)
+- [x] Zero Allocs Read/Write
 - [x] Passes WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention

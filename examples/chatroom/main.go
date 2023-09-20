@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const PingInterval = 15 * time.Second // 客户端心跳间隔
+const (
+	PingInterval         = 10 * time.Second // 客户端心跳间隔
+	HeartbeatWaitTimeout = 5 * time.Second  // 心跳等待超时时间
+)
 
 //go:embed index.html
 var html []byte
@@ -90,7 +93,10 @@ func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
 	log.Printf("onerror, name=%s, msg=%s\n", name, err.Error())
 }
 
-func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {}
+func (c *WebSocket) OnPing(socket *gws.Conn, payload []byte) {
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + HeartbeatWaitTimeout))
+	_ = socket.WriteString("pong")
+}
 
 func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
@@ -104,8 +110,7 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 	// chrome websocket不支持ping方法, 所以在text frame里面模拟ping
 	if b := message.Data.Bytes(); len(b) == 4 && string(b) == "ping" {
-		socket.WriteMessage(gws.OpcodeText, []byte("pong"))
-		socket.SetDeadline(time.Now().Add(3 * PingInterval))
+		c.OnPing(socket, nil)
 		return
 	}
 

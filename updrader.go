@@ -29,6 +29,11 @@ func (c *responseWriter) Init() *responseWriter {
 	return c
 }
 
+func (c *responseWriter) Close() {
+	binaryPool.Put(c.b, c.idx)
+	c.b = nil
+}
+
 func (c *responseWriter) WithHeader(k, v string) {
 	c.b.WriteString(k)
 	c.b.WriteString(": ")
@@ -64,7 +69,6 @@ func (c *responseWriter) Write(conn net.Conn, timeout time.Duration) error {
 	if _, err := c.b.WriteTo(conn); err != nil {
 		return err
 	}
-	binaryPool.Put(c.b, c.idx)
 	return conn.SetDeadline(time.Time{})
 }
 
@@ -132,6 +136,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	}
 
 	var rw = new(responseWriter).Init()
+	defer rw.Close()
 	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.CompressEnabled {
 		rw.WithHeader(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
 		compressEnabled = true

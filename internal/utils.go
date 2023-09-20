@@ -207,8 +207,6 @@ type Buffer struct {
 
 //go:nosplit
 func BufferReset(b *bytes.Buffer, p []byte) {
-	buffer := (*Buffer)(unsafe.Pointer(b))
-	buffer.buf = p
-	buffer.off = 0
-	buffer.lastRead = 0
+	buffer := (*Buffer)(unsafe.Pointer(b)) // 类型强转
+	buffer.buf = p                         // 修改后面的属性一定要加偏移量!!!
 }
