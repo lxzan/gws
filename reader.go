@@ -93,8 +93,7 @@ func (c *Conn) readMessage() error {
 
 	var fin = c.fh.GetFIN()
 	var buf, index = binaryPool.Get(contentLength)
-	var p = buf.Bytes()
-	p = p[:contentLength]
+	var p = buf.Bytes()[:contentLength]
 	if err := internal.ReadN(c.br, p); err != nil {
 		return err
 	}

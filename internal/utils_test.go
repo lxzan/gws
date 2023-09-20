@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -212,9 +213,35 @@ func TestGetIntersectionElem(t *testing.T) {
 }
 
 func TestResetBuffer(t *testing.T) {
-	var buf = bytes.NewBufferString("hello")
-	var p = buf.Bytes()
-	p = append(p, "world"...)
-	BufferReset(buf, p)
-	assert.Equal(t, "helloworld", buf.String())
+	{
+		var buf = bytes.NewBufferString("hello")
+		var p = AlphabetNumeric.Generate(1024)
+		BufferReset(buf, p)
+		assert.Equal(t, string(p), buf.String())
+	}
+
+	{
+		var buf = bytes.NewBufferString("")
+		BufferReset(buf, []byte("hello"))
+		assert.Equal(t, "hello", buf.String())
+	}
+
+	{
+		var buf = bytes.NewBufferString("hello")
+		buf.Next(2)
+		assert.Equal(t, "llo", buf.String())
+		BufferReset(buf, []byte("aha"))
+		assert.Equal(t, "a", buf.String())
+		assert.Equal(t, int64(2), reflect.ValueOf(buf).Elem().FieldByName("off").Int())
+		assert.Equal(t, int64(-1), reflect.ValueOf(buf).Elem().FieldByName("lastRead").Int())
+	}
+
+	{
+		var buf = bytes.NewBufferString("hello")
+		var p = buf.Bytes()
+		io.ReadAll(buf)
+		assert.Equal(t, "", buf.String())
+		BufferReset(buf, p)
+		assert.Equal(t, "hello", buf.String())
+	}
 }
