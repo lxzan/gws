@@ -66,9 +66,9 @@ type (
 		CompressThreshold int
 
 		// CompressorNum 压缩器数量
-		// 数值越大竞争的概率越小, 但是会耗费大量内存, 注意取舍
+		// 数值越大竞争的概率越小, 但是会耗费大量内存
 		// Number of compressors
-		// The higher the value the lower the probability of competition, but it will consume a lot of memory, so be careful about the trade-off
+		// The higher the value the lower the probability of competition, but it will consume a lot of memory
 		CompressorNum int
 
 		// 是否检查文本utf8编码, 关闭性能会好点

@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -224,6 +225,11 @@ func TestResetBuffer(t *testing.T) {
 		var buf = bytes.NewBufferString("")
 		BufferReset(buf, []byte("hello"))
 		assert.Equal(t, "hello", buf.String())
+
+		var p = buf.Bytes()
+		var sh1 = (*reflect.SliceHeader)(unsafe.Pointer(&p))
+		var sh2 = (*reflect.SliceHeader)(unsafe.Pointer(buf))
+		assert.Equal(t, sh1.Data, sh2.Data)
 	}
 
 	{
