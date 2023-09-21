@@ -212,9 +212,16 @@ func TestNewBroadcaster(t *testing.T) {
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{
 			CompressEnabled:     true,
 			WriteMaxPayloadSize: 1000,
+			Authorize: func(r *http.Request, session SessionStorage) bool {
+				session.Store("name", 1)
+				session.Store("name", 2)
+				return true
+			},
 		})
 
 		app.OnRequest = func(socket *Conn, request *http.Request) {
+			name, _ := socket.Session().Load("name")
+			as.Equal(2, name)
 			handler.sockets.Store(socket, struct{}{})
 			socket.ReadLoop()
 		}

@@ -1,4 +1,4 @@
-# gws
+# GWS
 
 ### Event-Driven Go WebSocket Server & Client
 
@@ -28,7 +28,7 @@
 
 [12]: https://github.com/avelino/awesome-go#networking
 
-- [gws](#gws)
+- [GWS](#gws)
     - [Feature](#feature)
     - [Attention](#attention)
     - [Install](#install)
@@ -41,6 +41,8 @@
         - [Broadcast](#broadcast)
     - [Autobahn Test](#autobahn-test)
     - [Benchmark](#benchmark)
+        - [IOPS (Echo Server)](#iops-echo-server)
+        - [GoBench](#gobench)
     - [Communication](#communication)
     - [Acknowledgments](#acknowledgments)
 
@@ -230,7 +232,7 @@ func main() {
 ```go
 func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 	var b = gws.NewBroadcaster(opcode, payload)
-	defer b.Release()
+	defer b.Close()
 	for _, item := range conns {
 		_ = b.Broadcast(item)
 	}
@@ -251,22 +253,22 @@ docker run -it --rm \
 
 ### Benchmark
 
-- GOMAXPROCS = 4
-- Connection = 1000
-- Compress Disabled
+#### IOPS (Echo Server)
+GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
+#### GoBench
 ```go
-$ go test -benchmem -run=^$ -bench ^(BenchmarkConn_WriteMessage|BenchmarkConn_ReadMessage)$ github.com/lxzan/gws
-
-goos: darwin
-goarch: arm64
+goos: linux
+goarch: amd64
 pkg: github.com/lxzan/gws
-BenchmarkConn_WriteMessage/compress_disabled-8           8713082               138.0 ns/op             0 B/op          0 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-8             144266              8066 ns/op             235 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-8           11608689               102.8 ns/op            12 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-8              435176              2498 ns/op              98 B/op          1 allocs/op
+cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	       165.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-8          	   97394	     10391 ns/op	     349 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	       152.3 ns/op	      16 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-8           	  368712	      3248 ns/op	     108 B/op	       0 allocs/op
+PASS
 ```
 
 ### Communication

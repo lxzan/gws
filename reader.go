@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/lxzan/gws/internal"
+	"unsafe"
 )
 
 func (c *Conn) checkMask(enabled bool) error {
@@ -106,7 +107,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	if fin && opcode != OpcodeContinuation {
-		internal.BufferReset(buf, p)
+		*(*[]byte)(unsafe.Pointer(buf)) = p
 		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
 
