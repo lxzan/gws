@@ -63,12 +63,12 @@ type WebSocket struct {
 }
 
 func (c *WebSocket) getName(socket *gws.Conn) string {
-	name, _ := socket.SessionStorage.Load("name")
+	name, _ := socket.Session().Load("name")
 	return name.(string)
 }
 
 func (c *WebSocket) getKey(socket *gws.Conn) string {
-	name, _ := socket.SessionStorage.Load("key")
+	name, _ := socket.Session().Load("key")
 	return name.(string)
 }
 
@@ -77,7 +77,7 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 	if conn, ok := c.sessions.Load(name); ok {
 		conn.WriteClose(1000, []byte("connection replaced"))
 	}
-	socket.SetDeadline(time.Now().Add(3 * PingInterval))
+	socket.SetDeadline(time.Now().Add(PingInterval + HeartbeatWaitTimeout))
 	c.sessions.Store(name, socket)
 	log.Printf("%s connected\n", name)
 }

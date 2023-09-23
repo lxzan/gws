@@ -14,7 +14,10 @@ import (
 )
 
 type Conn struct {
-	SessionStorage    SessionStorage    // 会话
+	// 已废弃, 请使用Session()方法替代
+	// Deprecated: please use Session() method instead
+	SessionStorage SessionStorage // 会话
+
 	err               atomic.Value      // 错误
 	isServer          bool              // 是否为服务器
 	subprotocol       string            // 子协议
@@ -206,3 +209,7 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 // SubProtocol 获取协商的子协议
 // Get negotiated sub-protocols
 func (c *Conn) SubProtocol() string { return c.subprotocol }
+
+// Session 获取会话存储
+// get session storage
+func (c *Conn) Session() SessionStorage { return c.SessionStorage }

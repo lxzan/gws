@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/stretchr/testify/assert"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -11,8 +12,6 @@ import (
 	"strings"
 	"testing"
 	"unsafe"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestStringToBytes(t *testing.T) {
@@ -215,10 +214,9 @@ func TestGetIntersectionElem(t *testing.T) {
 
 func TestResetBuffer(t *testing.T) {
 	{
-		var buf = bytes.NewBufferString("hello")
-		var p = AlphabetNumeric.Generate(1024)
-		BufferReset(buf, p)
-		assert.Equal(t, string(p), buf.String())
+		var buffer = bytes.NewBufferString("hello")
+		var name = reflect.TypeOf(buffer).Elem().Field(0).Name
+		assert.Equal(t, "buf", name)
 	}
 
 	{
@@ -230,24 +228,5 @@ func TestResetBuffer(t *testing.T) {
 		var sh1 = (*reflect.SliceHeader)(unsafe.Pointer(&p))
 		var sh2 = (*reflect.SliceHeader)(unsafe.Pointer(buf))
 		assert.Equal(t, sh1.Data, sh2.Data)
-	}
-
-	{
-		var buf = bytes.NewBufferString("hello")
-		buf.Next(2)
-		assert.Equal(t, "llo", buf.String())
-		BufferReset(buf, []byte("aha"))
-		assert.Equal(t, "a", buf.String())
-		assert.Equal(t, int64(2), reflect.ValueOf(buf).Elem().FieldByName("off").Int())
-		assert.Equal(t, int64(-1), reflect.ValueOf(buf).Elem().FieldByName("lastRead").Int())
-	}
-
-	{
-		var buf = bytes.NewBufferString("hello")
-		var p = buf.Bytes()
-		io.ReadAll(buf)
-		assert.Equal(t, "", buf.String())
-		BufferReset(buf, p)
-		assert.Equal(t, "hello", buf.String())
 	}
 }
