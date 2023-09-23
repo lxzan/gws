@@ -66,9 +66,9 @@ type (
 		CompressThreshold int
 
 		// CompressorNum 压缩器数量
-		// 数值越大竞争的概率越小, 但是会耗费大量内存, 注意取舍
+		// 数值越大竞争的概率越小, 但是会耗费大量内存
 		// Number of compressors
-		// The higher the value the lower the probability of competition, but it will consume a lot of memory, so be careful about the trade-off
+		// The higher the value the lower the probability of competition, but it will consume a lot of memory
 		CompressorNum int
 
 		// 是否检查文本utf8编码, 关闭性能会好点
@@ -117,6 +117,14 @@ type (
 	}
 )
 
+func (c *ServerOption) deleteProtectedHeaders() {
+	c.ResponseHeader.Del(internal.Upgrade.Key)
+	c.ResponseHeader.Del(internal.Connection.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketAccept.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketExtensions.Key)
+	c.ResponseHeader.Del(internal.SecWebSocketProtocol.Key)
+}
+
 func initServerOption(c *ServerOption) *ServerOption {
 	if c == nil {
 		c = new(ServerOption)
@@ -158,6 +166,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
+	c.deleteProtectedHeaders()
 
 	c.config = &Config{
 		readerPool:          internal.NewPool(func() *bufio.Reader { return bufio.NewReaderSize(nil, c.ReadBufferSize) }),

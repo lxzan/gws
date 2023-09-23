@@ -111,6 +111,17 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		server.closed = 1
 		server.WriteAsync(OpcodeText, nil)
 	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CheckUtf8Enabled: true}
+		var clientOption = &ClientOption{}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go client.ReadLoop()
+		var err = server.WriteAsync(OpcodeText, internal.FlateTail)
+		assert.Error(t, err)
+	})
 }
 
 func TestConn_WriteInvalidUTF8(t *testing.T) {
@@ -201,9 +212,16 @@ func TestNewBroadcaster(t *testing.T) {
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{
 			CompressEnabled:     true,
 			WriteMaxPayloadSize: 1000,
+			Authorize: func(r *http.Request, session SessionStorage) bool {
+				session.Store("name", 1)
+				session.Store("name", 2)
+				return true
+			},
 		})
 
 		app.OnRequest = func(socket *Conn, request *http.Request) {
+			name, _ := socket.Session().Load("name")
+			as.Equal(2, name)
 			handler.sockets.Store(socket, struct{}{})
 			socket.ReadLoop()
 		}

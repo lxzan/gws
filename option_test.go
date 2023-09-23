@@ -2,6 +2,7 @@ package gws
 
 import (
 	"compress/flate"
+	"net/http"
 	"testing"
 	"time"
 
@@ -49,7 +50,12 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 // 检查默认配置
 func TestDefaultUpgrader(t *testing.T) {
 	var as = assert.New(t)
-	var updrader = NewUpgrader(new(BuiltinEventHandler), nil)
+	var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
+		ResponseHeader: http.Header{
+			"Sec-Websocket-Extensions": []string{"chat"},
+			"X-Server":                 []string{"gws"},
+		},
+	})
 	var config = updrader.option.getConfig()
 	as.Equal(false, config.CompressEnabled)
 	as.Equal(false, config.ReadAsyncEnabled)
@@ -66,6 +72,8 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.NotNil(updrader.option.Authorize)
 	as.NotNil(updrader.option.NewSessionStorage)
 	as.Nil(updrader.option.SubProtocols)
+	as.Equal("", updrader.option.ResponseHeader.Get("Sec-Websocket-Extensions"))
+	as.Equal("gws", updrader.option.ResponseHeader.Get("X-Server"))
 	validateServerOption(as, updrader)
 }
 

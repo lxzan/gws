@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/lxzan/gws/internal"
+	"unsafe"
 )
 
 func (c *Conn) checkMask(enabled bool) error {
@@ -93,8 +94,7 @@ func (c *Conn) readMessage() error {
 
 	var fin = c.fh.GetFIN()
 	var buf, index = binaryPool.Get(contentLength)
-	var p = buf.Bytes()
-	p = p[:contentLength]
+	var p = buf.Bytes()[:contentLength]
 	if err := internal.ReadN(c.br, p); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (c *Conn) readMessage() error {
 	}
 
 	if fin && opcode != OpcodeContinuation {
-		internal.BufferReset(buf, p)
+		*(*[]byte)(unsafe.Pointer(buf)) = p
 		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
 

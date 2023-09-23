@@ -2,6 +2,7 @@ package gws
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -86,4 +87,64 @@ func TestConn_Close(t *testing.T) {
 	assert.Error(t, socket.SetDeadline(time.Time{}))
 	assert.Error(t, socket.SetReadDeadline(time.Time{}))
 	assert.Error(t, socket.SetWriteDeadline(time.Time{}))
+}
+
+func TestConn_SubProtocol(t *testing.T) {
+	conn := new(Conn)
+	conn.SubProtocol()
+}
+
+func TestConn_EmitClose(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CheckUtf8Enabled: true}
+		var clientOption = &ClientOption{}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		clientHandler.onClose = func(socket *Conn, err error) {
+			if err.(*CloseError).Code == internal.CloseProtocolError.Uint16() {
+				wg.Done()
+			}
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go client.ReadLoop()
+		server.emitClose(bytes.NewBuffer(internal.StatusCode(500).Bytes()))
+		wg.Wait()
+	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{CheckUtf8Enabled: true}
+		var clientOption = &ClientOption{}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		clientHandler.onClose = func(socket *Conn, err error) {
+			if err.(*CloseError).Code == 4000 {
+				wg.Done()
+			}
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go client.ReadLoop()
+		server.emitClose(bytes.NewBuffer(internal.StatusCode(4000).Bytes()))
+		wg.Wait()
+	})
+}
+
+func TestConn_EmitError(t *testing.T) {
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{CheckUtf8Enabled: true}
+	var clientOption = &ClientOption{}
+	var wg = &sync.WaitGroup{}
+	wg.Add(1)
+	clientHandler.onClose = func(socket *Conn, err error) {
+		wg.Done()
+	}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	go client.ReadLoop()
+	err := errors.New(string(internal.AlphabetNumeric.Generate(500)))
+	server.emitError(err)
+	wg.Wait()
 }

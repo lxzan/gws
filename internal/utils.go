@@ -199,16 +199,6 @@ func ToBinaryNumber[T Integer](n T) T {
 	return x
 }
 
-type Buffer struct {
-	buf      []byte
-	off      int
-	lastRead int8
-}
-
-//go:nosplit
-func BufferReset(b *bytes.Buffer, p []byte) {
-	buffer := (*Buffer)(unsafe.Pointer(b))
-	buffer.buf = p
-	buffer.off = 0
-	buffer.lastRead = 0
-}
+// BufferReset 重置buffer底层切片
+// 修改后面的属性一定要加偏移量!!!
+func BufferReset(b *bytes.Buffer, p []byte) { *(*[]byte)(unsafe.Pointer(b)) = p }

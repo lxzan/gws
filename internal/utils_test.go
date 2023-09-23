@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/stretchr/testify/assert"
 	"hash/fnv"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"unsafe"
 )
 
 func TestStringToBytes(t *testing.T) {
@@ -212,9 +213,20 @@ func TestGetIntersectionElem(t *testing.T) {
 }
 
 func TestResetBuffer(t *testing.T) {
-	var buf = bytes.NewBufferString("hello")
-	var p = buf.Bytes()
-	p = append(p, "world"...)
-	BufferReset(buf, p)
-	assert.Equal(t, "helloworld", buf.String())
+	{
+		var buffer = bytes.NewBufferString("hello")
+		var name = reflect.TypeOf(buffer).Elem().Field(0).Name
+		assert.Equal(t, "buf", name)
+	}
+
+	{
+		var buf = bytes.NewBufferString("")
+		BufferReset(buf, []byte("hello"))
+		assert.Equal(t, "hello", buf.String())
+
+		var p = buf.Bytes()
+		var sh1 = (*reflect.SliceHeader)(unsafe.Pointer(&p))
+		var sh2 = (*reflect.SliceHeader)(unsafe.Pointer(buf))
+		assert.Equal(t, sh1.Data, sh2.Data)
+	}
 }

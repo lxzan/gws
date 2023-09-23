@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"net"
 	"sync"
 	"testing"
+	"time"
 )
 
 // 测试同步读
@@ -293,4 +295,59 @@ func TestMessage(t *testing.T) {
 	}
 	_, _ = msg.Read(make([]byte, 2))
 	msg.Close()
+}
+
+func TestFrameHeader_Parse(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		s, c := net.Pipe()
+		c.Close()
+		var fh = frameHeader{}
+		var _, err = fh.Parse(s)
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		s, c := net.Pipe()
+		go func() {
+			h := frameHeader{}
+			h.GenerateHeader(false, true, false, OpcodeText, 500)
+			c.Write(h[:2])
+			c.Close()
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+		var fh = frameHeader{}
+		var _, err = fh.Parse(s)
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		s, c := net.Pipe()
+		go func() {
+			h := frameHeader{}
+			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024)
+			c.Write(h[:2])
+			c.Close()
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+		var fh = frameHeader{}
+		var _, err = fh.Parse(s)
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		s, c := net.Pipe()
+		go func() {
+			h := frameHeader{}
+			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024)
+			c.Write(h[:10])
+			c.Close()
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+		var fh = frameHeader{}
+		var _, err = fh.Parse(s)
+		assert.Error(t, err)
+	})
 }
