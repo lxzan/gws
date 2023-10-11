@@ -52,6 +52,12 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 		return nil, nil, err
 	}
 	if tlsEnabled {
+		if option.TlsConfig == nil {
+			option.TlsConfig = &tls.Config{}
+		}
+		if option.TlsConfig.ServerName == "" {
+			option.TlsConfig.ServerName = URL.Host
+		}
 		c.conn = tls.Client(c.conn, option.TlsConfig)
 	}
 

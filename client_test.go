@@ -346,11 +346,21 @@ func TestNewClientWSS(t *testing.T) {
 	}()
 
 	t.Run("", func(t *testing.T) {
-		_, _, err = NewClient(&BuiltinEventHandler{}, &ClientOption{
+		opts := &ClientOption{
 			Addr:      "wss://" + addr,
 			TlsConfig: &tls.Config{InsecureSkipVerify: true},
-		})
+		}
+		_, _, err = NewClient(&BuiltinEventHandler{}, opts)
 		as.NoError(err)
+		as.Equal(addr, opts.TlsConfig.ServerName)
+	})
+
+	t.Run("", func(t *testing.T) {
+		opts := &ClientOption{
+			Addr: "wss://" + addr,
+		}
+		_, _, err = NewClient(&BuiltinEventHandler{}, opts)
+		as.Error(err)
 	})
 
 	t.Run("", func(t *testing.T) {
