@@ -49,7 +49,7 @@ func (c *responseWriter) WithExtraHeader(h http.Header) {
 
 func (c *responseWriter) WithSubProtocol(requestHeader http.Header, expectedSubProtocols []string) {
 	if len(expectedSubProtocols) > 0 {
-		c.subprotocol = internal.GetIntersectionElem(internal.Split(requestHeader.Get(internal.SecWebSocketProtocol.Key), ","), expectedSubProtocols)
+		c.subprotocol = internal.GetIntersectionElem(expectedSubProtocols, internal.Split(requestHeader.Get(internal.SecWebSocketProtocol.Key), ","))
 		if c.subprotocol == "" {
 			c.err = ErrSubprotocolNegotiation
 			return
