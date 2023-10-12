@@ -67,6 +67,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			config:   upgrader.option.getConfig(),
 		}
 		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
+		var closer = &bufferWrapper{}
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -79,11 +80,12 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			internal.BufferReset(reader, buf.Bytes())
 			conn2.br.Reset(reader)
-			_ = conn2.readMessage()
+			_ = conn2.readMessage(closer)
 		}
 	})
 
 	b.Run("compress enabled", func(b *testing.B) {
+		var closer = &bufferWrapper{}
 		var upgrader = NewUpgrader(handler, &ServerOption{CompressEnabled: true})
 		var config = upgrader.option.getConfig()
 		var conn1 = &Conn{
@@ -110,7 +112,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			internal.BufferReset(reader, buf.Bytes())
 			conn2.br.Reset(reader)
-			_ = conn2.readMessage()
+			_ = conn2.readMessage(closer)
 		}
 	})
 }
