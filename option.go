@@ -74,6 +74,10 @@ type (
 		// 是否检查文本utf8编码, 关闭性能会好点
 		// Whether to check the text utf8 encoding, turn off the performance will be better
 		CheckUtf8Enabled bool
+
+		// OnMessage调用器, 可用于异常恢复
+		// OnMessage caller, can be used for exception recovery
+		Caller Caller
 	}
 
 	ServerOption struct {
@@ -93,6 +97,7 @@ type (
 		CompressThreshold   int
 		CompressorNum       int
 		CheckUtf8Enabled    bool
+		Caller              Caller
 
 		// TLS设置
 		TlsConfig *tls.Config
@@ -168,6 +173,9 @@ func initServerOption(c *ServerOption) *ServerOption {
 	if c.HandshakeTimeout <= 0 {
 		c.HandshakeTimeout = defaultHandshakeTimeout
 	}
+	if c.Caller == nil {
+		c.Caller = func(f func()) { f() }
+	}
 	c.CompressorNum = internal.ToBinaryNumber(c.CompressorNum)
 	c.deleteProtectedHeaders()
 
@@ -184,6 +192,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
 		CompressorNum:       c.CompressorNum,
+		Caller:              c.Caller,
 	}
 	if c.config.CompressEnabled {
 		c.config.compressors = new(compressors).initialize(c.CompressorNum, c.config.CompressLevel)
@@ -210,6 +219,7 @@ type ClientOption struct {
 	CompressLevel       int
 	CompressThreshold   int
 	CheckUtf8Enabled    bool
+	Caller              Caller
 
 	// 连接地址, 例如 wss://example.com/connect
 	// server address, eg: wss://example.com/connect
@@ -277,6 +287,9 @@ func initClientOption(c *ClientOption) *ClientOption {
 	if c.NewSessionStorage == nil {
 		c.NewSessionStorage = func() SessionStorage { return new(sliceMap) }
 	}
+	if c.Caller == nil {
+		c.Caller = func(f func()) { f() }
+	}
 	return c
 }
 
@@ -292,6 +305,7 @@ func (c *ClientOption) getConfig() *Config {
 		CompressLevel:       c.CompressLevel,
 		CompressThreshold:   c.CompressThreshold,
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
+		Caller:              c.Caller,
 		CompressorNum:       1,
 	}
 	if config.CompressEnabled {

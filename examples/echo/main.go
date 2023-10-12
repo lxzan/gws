@@ -9,6 +9,7 @@ func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
 		CompressEnabled:  true,
 		CheckUtf8Enabled: true,
+		Caller:           gws.Recovery(gws.StdLogger),
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)

@@ -24,6 +24,7 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
 	as.Equal(config.CompressorNum, option.CompressorNum)
 	as.NotNil(config.readerPool)
+	as.NotNil(config.Caller)
 
 	_, ok := u.option.NewSessionStorage().(*sliceMap)
 	as.True(ok)
@@ -42,6 +43,7 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
 	as.Nil(config.readerPool)
+	as.NotNil(config.Caller)
 
 	_, ok := option.NewSessionStorage().(*sliceMap)
 	as.True(ok)
