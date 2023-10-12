@@ -52,9 +52,8 @@ func (c *Conn) init() *Conn {
 // If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
 func (c *Conn) ReadLoop() {
 	c.handler.OnOpen(c)
-	closer := &bufferWrapper{}
 	for {
-		if err := c.readMessage(closer); err != nil {
+		if err := c.readMessage(); err != nil {
 			c.emitError(err)
 			break
 		}
