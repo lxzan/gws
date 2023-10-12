@@ -142,7 +142,7 @@ func (c *Conn) readMessage() error {
 }
 
 func (c *Conn) dispatch(msg *Message) error {
-	defer Recovery(c.config.Logger)
+	defer c.config.Recovery(c.config.Logger)
 	c.handler.OnMessage(c, msg)
 	return nil
 }

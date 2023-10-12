@@ -274,7 +274,7 @@ func TestRecovery(t *testing.T) {
 	var as = assert.New(t)
 	var serverHandler = new(webSocketMocker)
 	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{}
+	var serverOption = &ServerOption{Recovery: Recovery}
 	var clientOption = &ClientOption{}
 	serverHandler.onMessage = func(socket *Conn, message *Message) {
 		var m map[string]uint8
