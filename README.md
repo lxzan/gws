@@ -100,18 +100,13 @@ package main
 import (
 	"github.com/lxzan/gws"
 	"net/http"
-	"time"
-)
-
-const (
-	PingInterval = 10 * time.Second
-	PingWait     = 5 * time.Second
 )
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,
 		CompressEnabled:  true,
+		CheckUtf8Enabled: true,
+		Recovery:         gws.Recovery,
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -119,31 +114,23 @@ func main() {
 			return
 		}
 		go func() {
-			// Blocking prevents the context from being GC.
 			socket.ReadLoop()
 		}()
 	})
-	http.ListenAndServe(":6666", nil)
+	http.ListenAndServe(":8000", nil)
 }
 
-type Handler struct{}
-
-func (c *Handler) OnOpen(socket *gws.Conn) {
-	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
+type Handler struct {
+	gws.BuiltinEventHandler
 }
-
-func (c *Handler) OnClose(socket *gws.Conn, err error) {}
 
 func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
-	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
-	_ = socket.WritePong(nil)
+	_ = socket.WritePong(payload)
 }
-
-func (c *Handler) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	socket.WriteMessage(message.Opcode, message.Bytes())
+	_ = socket.WriteMessage(message.Opcode, message.Bytes())
 }
 ```
 
