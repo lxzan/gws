@@ -56,7 +56,7 @@ func (c *Conn) readControl() error {
 	}
 }
 
-func (c *Conn) readMessage(closer *bufferWrapper) error {
+func (c *Conn) readMessage() error {
 	if c.isClosed() {
 		return internal.CloseNormalClosure
 	}
@@ -95,7 +95,7 @@ func (c *Conn) readMessage(closer *bufferWrapper) error {
 	var fin = c.fh.GetFIN()
 	var buf, index = binaryPool.Get(contentLength)
 	var p = buf.Bytes()[:contentLength]
-	closer.Buffer, closer.index = buf, index
+	var closer = bufferWrapper{buf, index}
 	defer closer.Close()
 
 	if err := internal.ReadN(c.br, p); err != nil {
