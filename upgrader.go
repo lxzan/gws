@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -185,7 +184,7 @@ type Server struct {
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.option = c.upgrader.option
-	c.OnError = func(conn net.Conn, err error) { log.Println("gws: " + err.Error()) }
+	c.OnError = func(conn net.Conn, err error) { c.option.Logger.Error("gws: " + err.Error()) }
 	c.OnRequest = func(socket *Conn, request *http.Request) { socket.ReadLoop() }
 	return c
 }
