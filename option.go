@@ -94,6 +94,9 @@ type (
 		CompressorNum       int
 		CheckUtf8Enabled    bool
 
+		// TLS设置
+		TlsConfig *tls.Config
+
 		// 握手超时时间
 		HandshakeTimeout time.Duration
 

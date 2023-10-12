@@ -170,6 +170,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 
 type Server struct {
 	upgrader *Upgrader
+	option   *ServerOption
 
 	// OnError 接收握手过程中产生的错误回调
 	// Receive error callbacks generated during the handshake
@@ -183,13 +184,14 @@ type Server struct {
 // create a websocket server
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
+	c.option = c.upgrader.option
 	c.OnError = func(conn net.Conn, err error) { log.Println("gws: " + err.Error()) }
 	c.OnRequest = func(socket *Conn, request *http.Request) { socket.ReadLoop() }
 	return c
 }
 
-// Run runs ws server
-// addr: Address of the listener
+// Run 运行. 可以被多次调用, 监听不同的地址.
+// It can be called multiple times, listening to different addresses.
 func (c *Server) Run(addr string) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -198,15 +200,21 @@ func (c *Server) Run(addr string) error {
 	return c.RunListener(listener)
 }
 
-// RunTLS runs wss server
-// addr: Address of the listener
-// config: tls config
+// RunTLS 运行. 可以被多次调用, 监听不同的地址.
+// It can be called multiple times, listening to different addresses.
 func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return err
 	}
-	config := &tls.Config{Certificates: []tls.Certificate{cert}, NextProtos: []string{"http/1.1"}}
+
+	if c.option.TlsConfig == nil {
+		c.option.TlsConfig = &tls.Config{}
+	}
+	config := c.option.TlsConfig.Clone()
+	config.Certificates = []tls.Certificate{cert}
+	config.NextProtos = []string{"http/1.1"}
+
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -214,6 +222,8 @@ func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	return c.RunListener(tls.NewListener(listener, config))
 }
 
+// RunListener 运行网络监听器
+// Running the network listener
 func (c *Server) RunListener(listener net.Listener) error {
 	defer listener.Close()
 
@@ -225,7 +235,7 @@ func (c *Server) RunListener(listener net.Listener) error {
 		}
 
 		go func(conn net.Conn) {
-			br := c.upgrader.option.config.readerPool.Get()
+			br := c.option.config.readerPool.Get()
 			br.Reset(conn)
 			r, err := http.ReadRequest(br)
 			if err != nil {
