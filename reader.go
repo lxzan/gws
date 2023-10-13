@@ -93,9 +93,9 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf, index = binaryPool.Get(contentLength)
+	var buf, index = binaryPool.Get(contentLength + len(flateTail))
 	var p = buf.Bytes()[:contentLength]
-	var closer = bufferWrapper{buf, index}
+	var closer = Message{Data: buf, index: index}
 	defer closer.Close()
 
 	if err := internal.ReadN(c.br, p); err != nil {
@@ -112,7 +112,7 @@ func (c *Conn) readMessage() error {
 	if fin && opcode != OpcodeContinuation {
 		*(*[]byte)(unsafe.Pointer(buf)) = p
 		if !compressed {
-			closer.Buffer, closer.index = nil, 0
+			closer.Data, closer.index = nil, 0
 		}
 		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
