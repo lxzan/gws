@@ -75,8 +75,8 @@ type (
 		// Whether to check the text utf8 encoding, turn off the performance will be better
 		CheckUtf8Enabled bool
 
-		// 恢复程序
-		// Recovery program
+		// 消息回调(OnMessage)的恢复程序
+		// Message callback (OnMessage) recovery program
 		Recovery func(logger Logger)
 
 		// 日志工具

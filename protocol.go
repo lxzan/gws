@@ -264,13 +264,3 @@ func (c *continuationFrame) reset() {
 	c.opcode = 0
 	c.buffer = nil
 }
-
-type bufferWrapper struct {
-	*bytes.Buffer
-	index int
-}
-
-func (c *bufferWrapper) Close() error {
-	binaryPool.Put(c.Buffer, c.index)
-	return nil
-}

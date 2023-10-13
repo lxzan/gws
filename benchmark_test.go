@@ -151,7 +151,7 @@ func BenchmarkStdDeCompress(b *testing.B) {
 	src := bytes.NewBuffer(nil)
 	for i := 0; i < b.N; i++ {
 		internal.BufferReset(src, buffer.Bytes())
-		_, _ = src.Write(internal.FlateTail)
+		_, _ = src.Write(flateTail)
 		resetter := fr.(flate.Resetter)
 		_ = resetter.Reset(src, nil)
 		io.CopyBuffer(io.Discard, fr, p)
@@ -169,7 +169,7 @@ func BenchmarkKlauspostDeCompress(b *testing.B) {
 	src := bytes.NewBuffer(nil)
 	for i := 0; i < b.N; i++ {
 		internal.BufferReset(src, buffer.Bytes())
-		_, _ = src.Write(internal.FlateTail)
+		_, _ = src.Write(flateTail)
 		resetter := fr.(klauspost.Resetter)
 		_ = resetter.Reset(src, nil)
 		fr.(io.WriterTo).WriteTo(io.Discard)

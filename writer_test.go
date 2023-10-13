@@ -119,7 +119,7 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		go client.ReadLoop()
-		var err = server.WriteAsync(OpcodeText, internal.FlateTail)
+		var err = server.WriteAsync(OpcodeText, flateTail)
 		assert.Error(t, err)
 	})
 }

@@ -124,8 +124,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		return nil, ErrHandshake
 	}
 	if !strings.EqualFold(r.Header.Get(internal.SecWebSocketVersion.Key), internal.SecWebSocketVersion.Val) {
-		msg := "websocket version not supported"
-		return nil, errors.New(msg)
+		return nil, errors.New("gws: websocket version not supported")
 	}
 	if !internal.HttpHeaderContains(r.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return nil, ErrHandshake
