@@ -119,7 +119,7 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		go client.ReadLoop()
-		var err = server.WriteAsync(OpcodeText, internal.FlateTail)
+		var err = server.WriteAsync(OpcodeText, flateTail)
 		assert.Error(t, err)
 	})
 }
@@ -268,4 +268,21 @@ type broadcastHandler struct {
 func (b broadcastHandler) OnMessage(socket *Conn, message *Message) {
 	defer message.Close()
 	b.wg.Done()
+}
+
+func TestRecovery(t *testing.T) {
+	var as = assert.New(t)
+	var serverHandler = new(webSocketMocker)
+	var clientHandler = new(webSocketMocker)
+	var serverOption = &ServerOption{Recovery: Recovery}
+	var clientOption = &ClientOption{}
+	serverHandler.onMessage = func(socket *Conn, message *Message) {
+		var m map[string]uint8
+		m[""] = 1
+	}
+	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+	go server.ReadLoop()
+	go client.ReadLoop()
+	as.NoError(client.WriteString("hi"))
+	time.Sleep(100 * time.Millisecond)
 }

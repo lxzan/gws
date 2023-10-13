@@ -3,6 +3,7 @@ package gws
 import "github.com/lxzan/gws/internal"
 
 var (
-	myPadding  = frameHeader{}            // 帧头填充物
-	binaryPool = internal.NewBufferPool() // 静态缓冲池
+	myPadding     = frameHeader{}            // 帧头填充物
+	binaryPool    = internal.NewBufferPool() // 缓冲池
+	defaultLogger = new(stdLogger)           // 默认日志工具
 )

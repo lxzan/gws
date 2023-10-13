@@ -75,10 +75,11 @@ func (c channel) add() { c <- struct{}{} }
 
 func (c channel) done() { <-c }
 
-func (c channel) Go(f func()) {
+func (c channel) Go(m *Message, f func(*Message) error) error {
 	c.add()
 	go func() {
-		f()
+		f(m)
 		c.done()
 	}()
+	return nil
 }

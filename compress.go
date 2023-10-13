@@ -11,6 +11,10 @@ import (
 	"sync/atomic"
 )
 
+// FlateTail Add four bytes as specified in RFC
+// Add final block to squelch unexpected EOF error from flate reader.
+var flateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
+
 type compressors struct {
 	serial      uint64
 	size        uint64
@@ -109,7 +113,7 @@ func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error)
 	c.Lock()
 	defer c.Unlock()
 
-	_, _ = src.Write(internal.FlateTail)
+	_, _ = src.Write(flateTail)
 	c.reset(src)
 	if _, err := c.fr.(io.WriterTo).WriteTo(c.b); err != nil {
 		return nil, 0, err

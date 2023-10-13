@@ -93,8 +93,11 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf, index = binaryPool.Get(contentLength)
+	var buf, index = binaryPool.Get(contentLength + len(flateTail))
 	var p = buf.Bytes()[:contentLength]
+	var closer = Message{Data: buf, index: index}
+	defer closer.Close()
+
 	if err := internal.ReadN(c.br, p); err != nil {
 		return err
 	}
@@ -108,6 +111,9 @@ func (c *Conn) readMessage() error {
 
 	if fin && opcode != OpcodeContinuation {
 		*(*[]byte)(unsafe.Pointer(buf)) = p
+		if !compressed {
+			closer.Data, closer.index = nil, 0
+		}
 		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
 	}
 
@@ -121,11 +127,8 @@ func (c *Conn) readMessage() error {
 	if !c.continuationFrame.initialized {
 		return internal.CloseProtocolError
 	}
-	if err := internal.WriteN(c.continuationFrame.buffer, p); err != nil {
-		return err
-	} else {
-		binaryPool.Put(buf, index)
-	}
+
+	c.continuationFrame.buffer.Write(p)
 	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
 		return internal.CloseMessageTooLarge
 	}
@@ -138,11 +141,15 @@ func (c *Conn) readMessage() error {
 	return c.emitMessage(msg)
 }
 
+func (c *Conn) dispatch(msg *Message) error {
+	defer c.config.Recovery(c.config.Logger)
+	c.handler.OnMessage(c, msg)
+	return nil
+}
+
 func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
-		data, index := msg.Data, msg.index
 		msg.Data, msg.index, err = c.decompressor.Decompress(msg.Data)
-		binaryPool.Put(data, index)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
@@ -150,11 +157,8 @@ func (c *Conn) emitMessage(msg *Message) (err error) {
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
-
 	if c.config.ReadAsyncEnabled {
-		c.readQueue.Go(func() { c.handler.OnMessage(c, msg) })
-	} else {
-		c.handler.OnMessage(c, msg)
+		return c.readQueue.Go(msg, c.dispatch)
 	}
-	return nil
+	return c.dispatch(msg)
 }
