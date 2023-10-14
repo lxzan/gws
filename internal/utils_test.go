@@ -41,13 +41,13 @@ func TestMethodExists(t *testing.T) {
 	})
 
 	t.Run("non struct", func(t *testing.T) {
-		var m = make(map[string]interface{})
+		var m = make(map[string]any)
 		_, ok := MethodExists(m, "Delete")
 		as.Equal(false, ok)
 	})
 
 	t.Run("nil", func(t *testing.T) {
-		var v interface{}
+		var v any
 		_, ok := MethodExists(v, "XXX")
 		as.Equal(false, ok)
 	})
@@ -176,7 +176,7 @@ func TestIsNil(t *testing.T) {
 	}
 	{
 		var v *http.Request
-		var v1 interface{} = v
+		var v1 any = v
 		assert.True(t, IsNil(v1))
 	}
 }

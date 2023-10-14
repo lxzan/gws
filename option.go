@@ -16,7 +16,7 @@ const (
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
 	defaultCompressThreshold   = 512
-	defaultCompressorNum       = 64
+	defaultCompressorNum       = 32
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 	defaultHandshakeTimeout    = 5 * time.Second
