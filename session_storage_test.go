@@ -8,7 +8,7 @@ import (
 
 func TestMap(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[string]interface{})
+	var m1 = make(map[string]any)
 	var m2 = &sliceMap{}
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
@@ -59,7 +59,7 @@ func TestSliceMap(t *testing.T) {
 
 func TestMap_Range(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[interface{}]interface{})
+	var m1 = make(map[any]any)
 	var m2 = &sliceMap{}
 	var count = 1000
 	for i := 0; i < count; i++ {
@@ -70,8 +70,8 @@ func TestMap_Range(t *testing.T) {
 	}
 
 	{
-		var keys []interface{}
-		m2.Range(func(key string, value interface{}) bool {
+		var keys []any
+		m2.Range(func(key string, value any) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)
@@ -82,8 +82,8 @@ func TestMap_Range(t *testing.T) {
 	}
 
 	{
-		var keys []interface{}
-		m2.Range(func(key string, value interface{}) bool {
+		var keys []any
+		m2.Range(func(key string, value any) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
 			as.Equal(v, value)
@@ -96,7 +96,7 @@ func TestMap_Range(t *testing.T) {
 
 func TestConcurrentMap(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[string]interface{})
+	var m1 = make(map[string]any)
 	var m2 = NewConcurrentMap[string, uint32](5)
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
@@ -125,7 +125,7 @@ func TestConcurrentMap(t *testing.T) {
 
 func TestConcurrentMap_Range(t *testing.T) {
 	var as = assert.New(t)
-	var m1 = make(map[interface{}]interface{})
+	var m1 = make(map[any]any)
 	var m2 = NewConcurrentMap[string, uint32](13)
 	var count = 1000
 	for i := 0; i < count; i++ {
@@ -136,7 +136,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 	}
 
 	{
-		var keys []interface{}
+		var keys []any
 		m2.Range(func(key string, value uint32) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)
@@ -148,7 +148,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 	}
 
 	{
-		var keys []interface{}
+		var keys []any
 		m2.Range(func(key string, value uint32) bool {
 			v, ok := m1[key]
 			as.Equal(true, ok)

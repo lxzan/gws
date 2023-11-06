@@ -104,8 +104,8 @@ import (
 )
 
 const (
-	PingInterval = 10 * time.Second
-	PingWait     = 5 * time.Second
+	PingInterval = 5 * time.Second
+	PingWait     = 10 * time.Second
 )
 
 func main() {
@@ -273,7 +273,7 @@ PASS
 ```
 
 ### Communication
-> 微信二维码在讨论区不定时更新 
+> 微信需要先添加好友, 然后拉人入群, 请注明来意.
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>

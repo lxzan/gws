@@ -43,7 +43,7 @@ func NewMaskKey() [4]byte {
 
 // MethodExists
 // if nil return false
-func MethodExists(in interface{}, method string) (reflect.Value, bool) {
+func MethodExists(in any, method string) (reflect.Value, bool) {
 	if in == nil || method == "" {
 		return reflect.Value{}, false
 	}
@@ -184,7 +184,7 @@ func SelectValue[T any](ok bool, a, b T) T {
 	return b
 }
 
-func IsNil(v interface{}) bool {
+func IsNil(v any) bool {
 	if v == nil {
 		return true
 	}

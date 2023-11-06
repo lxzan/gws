@@ -306,7 +306,7 @@ func TestNewServer(t *testing.T) {
 func TestBuiltinEventEngine(t *testing.T) {
 	{
 		var ev = &webSocketMocker{}
-		_, ok := interface{}(ev).(Event)
+		_, ok := any(ev).(Event)
 		assert.Equal(t, true, ok)
 
 		ev.OnOpen(nil)

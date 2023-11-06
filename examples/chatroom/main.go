@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	PingInterval         = 10 * time.Second // 客户端心跳间隔
-	HeartbeatWaitTimeout = 5 * time.Second  // 心跳等待超时时间
+	PingInterval         = 5 * time.Second  // 客户端心跳间隔
+	HeartbeatWaitTimeout = 10 * time.Second // 心跳等待超时时间
 )
 
 //go:embed index.html

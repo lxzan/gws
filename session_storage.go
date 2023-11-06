@@ -6,10 +6,10 @@ import (
 )
 
 type SessionStorage interface {
-	Load(key string) (value interface{}, exist bool)
+	Load(key string) (value any, exist bool)
 	Delete(key string)
-	Store(key string, value interface{})
-	Range(f func(key string, value interface{}) bool)
+	Store(key string, value any)
+	Range(f func(key string, value any) bool)
 }
 
 type (
@@ -21,7 +21,7 @@ type (
 	kv struct {
 		deleted bool
 		key     string
-		value   interface{}
+		value   any
 	}
 )
 
@@ -37,7 +37,7 @@ func (c *sliceMap) Len() int {
 	return n
 }
 
-func (c *sliceMap) Load(key string) (value interface{}, exist bool) {
+func (c *sliceMap) Load(key string) (value any, exist bool) {
 	c.RLock()
 	defer c.RUnlock()
 	for _, v := range c.data {
@@ -60,7 +60,7 @@ func (c *sliceMap) Delete(key string) {
 	}
 }
 
-func (c *sliceMap) Store(key string, value interface{}) {
+func (c *sliceMap) Store(key string, value any) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -79,7 +79,7 @@ func (c *sliceMap) Store(key string, value interface{}) {
 	})
 }
 
-func (c *sliceMap) Range(f func(key string, value interface{}) bool) {
+func (c *sliceMap) Range(f func(key string, value any) bool) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -118,7 +118,7 @@ func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V]
 	return cm
 }
 
-func (c *ConcurrentMap[K, V]) hash(key interface{}) uint64 {
+func (c *ConcurrentMap[K, V]) hash(key any) uint64 {
 	switch k := key.(type) {
 	case string:
 		return internal.FnvString(k)
