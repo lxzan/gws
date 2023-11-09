@@ -93,9 +93,9 @@ func (c *Conn) readMessage() error {
 	}
 
 	var fin = c.fh.GetFIN()
-	var buf, index = binaryPool.Get(contentLength + len(flateTail))
+	var buf = binaryPool.Get(contentLength + len(flateTail))
 	var p = buf.Bytes()[:contentLength]
-	var closer = Message{Data: buf, index: index}
+	var closer = Message{Data: buf}
 	defer closer.Close()
 
 	if err := internal.ReadN(c.br, p); err != nil {
@@ -112,9 +112,9 @@ func (c *Conn) readMessage() error {
 	if fin && opcode != OpcodeContinuation {
 		*(*[]byte)(unsafe.Pointer(buf)) = p
 		if !compressed {
-			closer.Data, closer.index = nil, 0
+			closer.Data = nil
 		}
-		return c.emitMessage(&Message{index: index, Opcode: opcode, Data: buf, compressed: compressed})
+		return c.emitMessage(&Message{Opcode: opcode, Data: buf, compressed: compressed})
 	}
 
 	if !fin && opcode != OpcodeContinuation {
@@ -149,7 +149,7 @@ func (c *Conn) dispatch(msg *Message) error {
 
 func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
-		msg.Data, msg.index, err = c.decompressor.Decompress(msg.Data)
+		msg.Data, err = c.decompressor.Decompress(msg.Data)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}

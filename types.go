@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"github.com/lxzan/gws/internal"
 	"io"
+	"log"
 	"net"
+	"runtime"
+	"unsafe"
 )
 
 const frameHeaderSize = 14
@@ -226,9 +229,6 @@ type Message struct {
 	// 是否压缩
 	compressed bool
 
-	// 内存池下标索引
-	index int
-
 	// 操作码
 	Opcode Opcode
 
@@ -246,7 +246,7 @@ func (c *Message) Bytes() []byte {
 
 // Close recycle buffer
 func (c *Message) Close() error {
-	binaryPool.Put(c.Data, c.index)
+	binaryPool.Put(c.Data)
 	c.Data = nil
 	return nil
 }
@@ -263,4 +263,24 @@ func (c *continuationFrame) reset() {
 	c.compressed = false
 	c.opcode = 0
 	c.buffer = nil
+}
+
+type Logger interface {
+	Error(v ...any)
+}
+
+type stdLogger struct{}
+
+func (c *stdLogger) Error(v ...any) {
+	log.Println(v...)
+}
+
+func Recovery(logger Logger) {
+	if e := recover(); e != nil {
+		const size = 64 << 10
+		buf := make([]byte, size)
+		buf = buf[:runtime.Stack(buf, false)]
+		msg := *(*string)(unsafe.Pointer(&buf))
+		logger.Error("fatal error:", e, msg)
+	}
 }

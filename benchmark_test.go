@@ -66,7 +66,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			conn:     &benchConn{},
 			config:   upgrader.option.getConfig(),
 		}
-		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
+		var buf, _ = conn1.genFrame(OpcodeText, githubData)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -94,7 +94,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			compressor:      config.compressors.Select(),
 			decompressor:    config.decompressors.Select(),
 		}
-		var buf, _, _ = conn1.genFrame(OpcodeText, githubData)
+		var buf, _ = conn1.genFrame(OpcodeText, githubData)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{

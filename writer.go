@@ -43,7 +43,7 @@ func (c *Conn) WriteString(s string) error {
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blocking
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	frame, index, err := c.genFrame(opcode, payload)
+	frame, err := c.genFrame(opcode, payload)
 	if err != nil {
 		c.emitError(err)
 		return err
@@ -54,7 +54,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 			return
 		}
 		err = internal.WriteN(c.conn, frame.Bytes())
-		binaryPool.Put(frame, index)
+		binaryPool.Put(frame)
 		c.emitError(err)
 	})
 	return nil
@@ -74,21 +74,21 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
 // Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
 func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	frame, index, err := c.genFrame(opcode, payload)
+	frame, err := c.genFrame(opcode, payload)
 	if err != nil {
 		return err
 	}
 
 	err = internal.WriteN(c.conn, frame.Bytes())
-	binaryPool.Put(frame, index)
+	binaryPool.Put(frame)
 	return err
 }
 
 // 帧生成
-func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
+func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 	// 不要删除 opcode == OpcodeText
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
-		return nil, 0, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
+		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
 	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
@@ -97,32 +97,32 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, int, erro
 
 	var n = len(payload)
 	if n > c.config.WriteMaxPayloadSize {
-		return nil, 0, internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
-	var buf, index = binaryPool.Get(n + headerLength)
+	var buf = binaryPool.Get(n + headerLength)
 	buf.Write(header[:headerLength])
 	buf.Write(payload)
 	var contents = buf.Bytes()
 	if !c.isServer {
 		internal.MaskXOR(contents[headerLength:], maskBytes)
 	}
-	return buf, index, nil
+	return buf, nil
 }
 
-func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, error) {
-	var buf, index = binaryPool.Get(len(payload) + frameHeaderSize)
+func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
+	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
 	buf.Write(myPadding[0:])
 	err := c.compressor.Compress(payload, buf)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	if payloadSize > c.config.WriteMaxPayloadSize {
-		return nil, 0, internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
@@ -131,7 +131,7 @@ func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, int, 
 	}
 	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
 	buf.Next(frameHeaderSize - headerLength)
-	return buf, index, nil
+	return buf, nil
 }
 
 type (
@@ -145,7 +145,6 @@ type (
 	broadcastMessageWrapper struct {
 		once  sync.Once
 		err   error
-		index int
 		frame *bytes.Buffer
 	}
 )
@@ -169,7 +168,7 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
 	var msg = c.msgs[idx]
-	msg.once.Do(func() { msg.frame, msg.index, msg.err = socket.genFrame(c.opcode, c.payload) })
+	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload) })
 	if msg.err != nil {
 		return msg.err
 	}
@@ -189,7 +188,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 func (c *Broadcaster) doClose() {
 	for _, item := range c.msgs {
 		if item != nil {
-			binaryPool.Put(item.frame, item.index)
+			binaryPool.Put(item.frame)
 		}
 	}
 }

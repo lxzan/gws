@@ -20,43 +20,81 @@ const (
 )
 
 type BufferPool struct {
-	pools  [poolSize]*sync.Pool
-	limits [poolSize]int
+	pools  []*sync.Pool
+	limits []int
 }
 
 func NewBufferPool() *BufferPool {
-	var p BufferPool
-	p.limits = [poolSize]int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8, Lv9}
+	var p = &BufferPool{
+		pools:  make([]*sync.Pool, poolSize),
+		limits: []int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8, Lv9},
+	}
 	for i := 1; i < poolSize; i++ {
 		var capacity = p.limits[i]
 		p.pools[i] = &sync.Pool{New: func() any {
 			return bytes.NewBuffer(make([]byte, 0, capacity))
 		}}
 	}
-	return &p
+	return p
 }
 
-func (p *BufferPool) Put(b *bytes.Buffer, index int) {
-	if index == 0 || b == nil {
+func (p *BufferPool) Put(b *bytes.Buffer) {
+	if b == nil || b.Cap() == 0 {
 		return
 	}
-	if b.Cap() <= p.limits[index] {
-		p.pools[index].Put(b)
+	if i := p.getIndex(uint32(b.Cap())); i > 0 {
+		p.pools[i].Put(b)
 	}
 }
 
-func (p *BufferPool) Get(n int) (*bytes.Buffer, int) {
-	for i := 1; i < poolSize; i++ {
-		if n <= p.limits[i] {
-			b := p.pools[i].Get().(*bytes.Buffer)
-			if b.Cap() < n {
-				b.Grow(p.limits[i])
-			}
-			b.Reset()
-			return b, i
-		}
+func (p *BufferPool) Get(n int) *bytes.Buffer {
+	var index = p.getIndex(uint32(n))
+	if index == 0 {
+		return bytes.NewBuffer(make([]byte, 0, n))
 	}
-	return bytes.NewBuffer(make([]byte, 0, n)), 0
+
+	buf := p.pools[index].Get().(*bytes.Buffer)
+	if buf.Cap() < n {
+		buf.Grow(p.limits[index])
+	}
+	buf.Reset()
+	return buf
+}
+
+func (p *BufferPool) getIndex(v uint32) int {
+	if v > Lv9 {
+		return 0
+	}
+	if v <= 128 {
+		return 1
+	}
+
+	v--
+	v |= v >> 1
+	v |= v >> 2
+	v |= v >> 4
+	v |= v >> 8
+	v |= v >> 16
+	v++
+
+	switch v {
+	case Lv3:
+		return 3
+	case Lv4:
+		return 4
+	case Lv5:
+		return 5
+	case Lv6:
+		return 6
+	case Lv7:
+		return 7
+	case Lv8:
+		return 8
+	case Lv9:
+		return 9
+	default:
+		return 2
+	}
 }
 
 func NewPool[T any](f func() T) *Pool[T] {

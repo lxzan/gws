@@ -22,3 +22,5 @@ jobs:
         go-version: 1.18
     - name: Test
       run: go test -v ./...
+    - name: Bench
+      run: make bench

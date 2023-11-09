@@ -16,12 +16,11 @@ import (
 type responseWriter struct {
 	err         error
 	b           *bytes.Buffer
-	idx         int
 	subprotocol string
 }
 
 func (c *responseWriter) Init() *responseWriter {
-	c.b, c.idx = binaryPool.Get(512)
+	c.b = binaryPool.Get(512)
 	c.b.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
 	c.b.WriteString("Upgrade: websocket\r\n")
 	c.b.WriteString("Connection: Upgrade\r\n")
@@ -29,7 +28,7 @@ func (c *responseWriter) Init() *responseWriter {
 }
 
 func (c *responseWriter) Close() {
-	binaryPool.Put(c.b, c.idx)
+	binaryPool.Put(c.b)
 	c.b = nil
 }
 
