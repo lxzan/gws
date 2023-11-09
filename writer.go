@@ -40,6 +40,15 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
+func writeAsync(socket *Conn, buffer *bytes.Buffer) {
+	if socket.isClosed() {
+		return
+	}
+	err := internal.WriteN(socket.conn, buffer.Bytes())
+	binaryPool.Put(buffer)
+	socket.emitError(err)
+}
+
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blocking
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
@@ -48,15 +57,8 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		c.emitError(err)
 		return err
 	}
-
-	c.writeQueue.Push(func() {
-		if c.isClosed() {
-			return
-		}
-		err = internal.WriteN(c.conn, frame.Bytes())
-		binaryPool.Put(frame)
-		c.emitError(err)
-	})
+	job := &asyncJob{socket: c, frame: frame, execute: writeAsync}
+	c.writeQueue.Push(job)
 	return nil
 }
 
@@ -162,6 +164,15 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
+func (c *Broadcaster) writeAsync(socket *Conn, buffer *bytes.Buffer) {
+	if !socket.isClosed() {
+		socket.emitError(internal.WriteN(socket.conn, buffer.Bytes()))
+	}
+	if atomic.AddInt64(&c.state, -1) == 0 {
+		c.doClose()
+	}
+}
+
 // Broadcast 广播
 // 向客户端发送广播消息
 // Send a broadcast message to a client.
@@ -174,14 +185,8 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	}
 
 	atomic.AddInt64(&c.state, 1)
-	socket.writeQueue.Push(func() {
-		if !socket.isClosed() {
-			socket.emitError(internal.WriteN(socket.conn, msg.frame.Bytes()))
-		}
-		if atomic.AddInt64(&c.state, -1) == 0 {
-			c.doClose()
-		}
-	})
+	var job = &asyncJob{socket: socket, frame: msg.frame, execute: c.writeAsync}
+	socket.writeQueue.Push(job)
 	return nil
 }
 

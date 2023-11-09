@@ -42,8 +42,8 @@ func (p *BufferPool) Put(b *bytes.Buffer) {
 	if b == nil || b.Cap() == 0 {
 		return
 	}
-	if i := p.getIndex(uint32(b.Cap())); i > 0 {
-		p.pools[i].Put(b)
+	if index := p.getIndex(uint32(b.Cap())); index > 0 {
+		p.pools[index].Put(b)
 	}
 }
 
@@ -53,12 +53,12 @@ func (p *BufferPool) Get(n int) *bytes.Buffer {
 		return bytes.NewBuffer(make([]byte, 0, n))
 	}
 
-	buf := p.pools[index].Get().(*bytes.Buffer)
-	if buf.Cap() < n {
-		buf.Grow(p.limits[index])
+	b := p.pools[index].Get().(*bytes.Buffer)
+	if b.Cap() < n {
+		b.Grow(p.limits[index])
 	}
-	buf.Reset()
-	return buf
+	b.Reset()
+	return b
 }
 
 func (p *BufferPool) getIndex(v uint32) int {
