@@ -279,7 +279,7 @@ func TestSegments(t *testing.T) {
 		go client.ReadLoop()
 
 		go func() {
-			frame, _, _ := client.genFrame(OpcodeText, testdata)
+			frame, _ := client.genFrame(OpcodeText, testdata)
 			data := frame.Bytes()
 			data[20] = 'x'
 			client.conn.Write(data)

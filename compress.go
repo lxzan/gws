@@ -109,16 +109,16 @@ func (c *decompressor) reset(r io.Reader) {
 }
 
 // Decompress 解压
-func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, int, error) {
+func (c *decompressor) Decompress(src *bytes.Buffer) (*bytes.Buffer, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	_, _ = src.Write(flateTail)
 	c.reset(src)
 	if _, err := c.fr.(io.WriterTo).WriteTo(c.b); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	var dst, idx = binaryPool.Get(c.b.Len())
+	var dst = binaryPool.Get(c.b.Len())
 	_, _ = c.b.WriteTo(dst)
-	return dst, idx, nil
+	return dst, nil
 }

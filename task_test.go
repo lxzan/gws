@@ -2,8 +2,10 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -233,14 +235,14 @@ func TestTaskQueue(t *testing.T) {
 			listA = append(listA, i)
 
 			v := i
-			q.Push(func() {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
 				defer wg.Done()
 				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
 				time.Sleep(latency)
 				mu.Lock()
 				listB = append(listB, v)
 				mu.Unlock()
-			})
+			}})
 		}
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
@@ -253,11 +255,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(func() {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
-			})
+			}})
 		}
 		wg.Wait()
 		as.Equal(sum, int64(500500))
@@ -270,11 +272,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(func() {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
-			})
+			}})
 		}
 		wg.Wait()
 		as.Equal(sum, int64(500500))
@@ -348,7 +350,7 @@ func TestRQueue(t *testing.T) {
 		var serial = int64(0)
 		var done = make(chan struct{})
 		for i := 0; i < total; i++ {
-			q.Push(func() {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
 				time.Sleep(10 * time.Millisecond)
@@ -356,8 +358,34 @@ func TestRQueue(t *testing.T) {
 				if atomic.AddInt64(&serial, 1) == total {
 					done <- struct{}{}
 				}
-			})
+			}})
 		}
 		<-done
 	})
+}
+
+func TestHeap_Sort(t *testing.T) {
+	var count = 1000
+	var list0 []int
+	var list1 []int
+	var h heap
+	for i := 0; i < count; i++ {
+		var v = internal.Numeric.Intn(count) + 1
+		list0 = append(list0, v)
+		h.Push(&asyncJob{serial: v})
+	}
+
+	sort.Ints(list0)
+	for h.Len() > 0 {
+		list1 = append(list1, h.Pop().serial)
+	}
+	for i := 0; i < count; i++ {
+		assert.Equal(t, list0[i], list1[i])
+	}
+	assert.Zero(t, h.Len())
+}
+
+func TestHeap_Pop(t *testing.T) {
+	var h = heap{}
+	assert.Nil(t, h.Pop())
 }
