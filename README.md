@@ -7,26 +7,11 @@
 
 <h3 align="center">Simple, Fast, Reliable WebSocket Server & Client</h3>
 
-<p align="center">
-    <a href="https://github.com/avelino/awesome-go#networking">
-        <img src="https://awesome.re/mentioned-badge-flat.svg" alt="">
-    </a>
-    <a href="https://github.com/lxzan/gws/actions?query=branch%3Amaster">
-        <img src="https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master" alt="">
-    </a>
-    <a href="https://app.codecov.io/gh/lxzan/gws">
-        <img src="https://codecov.io/github/lxzan/gws/branch/master/graph/badge.svg?token=DJU7YXWN05" alt="">
-    </a>
-    <a href="https://goreportcard.com/report/github.com/lxzan/gws">
-        <img src="https://goreportcard.com/badge/github.com/lxzan/gws" alt="">
-    </a>
-    <a href="LICENSE">
-        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="">
-    </a>
-    <a href="https://github.com/lxzan/gws">
-        <img src="https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go" alt="">
-    </a>
-</p>
+<div align="center">
+
+[![awesome](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#networking) [![codecov](https://codecov.io/gh/lxzan/gws/graph/badge.svg?token=DJU7YXWN05)](https://codecov.io/gh/lxzan/gws) [![go-test](https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/gws/actions?query=branch%3Amaster) [![go-reportcard](https://goreportcard.com/badge/github.com/lxzan/gws)](https://goreportcard.com/report/github.com/lxzan/gws) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
+
+</div>
 
 ### Introduction
 
