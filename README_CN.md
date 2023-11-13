@@ -1,11 +1,9 @@
-[中文](README_CN.md)
-
 <div align="center">
 	<h1>GWS</h1>
 	<img src="assets/logo.png" alt="logo" width="300px">
 </div>
 
-<h3 align="center">Simple, Fast, Reliable WebSocket Server & Client</h3>
+<h3 align="center">简单, 快速, 可靠的 WebSocket 服务器和客户端</h3>
 
 <p align="center">
     <a href="https://github.com/avelino/awesome-go#networking">
@@ -28,33 +26,26 @@
     </a>
 </p>
 
-### Introduction
+### 介绍
 
-GWS (Go WebSocket) is a very simple, fast, reliable and feature-rich WebSocket implementation written in Go. It is
-designed to be used in highly-concurrent environments, and it is suitable for
-building `API`, `PROXY`, `GAME`, `Live Video`, `MESSAGE`, etc. It supports both server and client side with a simple API
-which mean you can easily write a server or client by yourself.
+GWS（Go WebSocket）是一个用 Go 编写的非常简单、快速、可靠且功能丰富的 WebSocket 实现。它设计用于高并发环境，构建"接口", "代理", "游戏", "流媒体", "消息发布订阅"等服务。它提供非常简单的 API,
+您可以轻松编写自己的服务器或客户端。
 
-GWS developed base on Event-Driven model. every connection has a goroutine to handle the event, and the event is able
-to be processed in a non-blocking way.
+### 为什么选择 GWS
 
-### Why GWS
+- <font size=3>简单易用</font>
+    - **用户友好的 API 设计**: 简单易懂的应用程序接口，让服务器和客户端的设置变得轻松简单。
+    - **编码效率**: 最大限度地减少实施复杂的 WebSocket 解决方案所需的代码量。
 
-- <font size=3>Simplicity and Ease of Use</font>
-    - **User-Friendly API**: Straightforward and easy-to-understand API, making server and client setup hassle-free.
-    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
+- <font size=3>性能良好</font>
+    - **零动态内存分配 I/O**: 内置多级内存池，可最大限度地减少读写过程中的动态内存分配。
+    - **性能优化**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选。
 
-- <font size=3>High-Performance</font>
-    - **Zero Allocs IO**: Built-in multi-level memory pool to minimize dynamic memory allocation during reads and
-      writes.
-    - **Optimized for Speed**: Designed for rapid data transmission and reception, ideal for time-sensitive
-      applications.
-
-- <font size=3>Reliability and Stability</font>
-    - **Event-Driven Architecture**: Ensures stable performance even in highly concurrent environments.
-    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-
-### Benchmark
+- <font size=3>稳定可靠</font>
+    - **事件驱动式架构**: 即使在高度并发的环境中，也能确保稳定的性能。
+    - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行。
+  
+### 基准测试
 
 #### IOPS (Echo Server)
 
@@ -62,7 +53,7 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla and nhooyr not using streaming api
+> gorilla 和 nhooyr 未使用流式 API
 
 #### GoBench
 
@@ -80,48 +71,49 @@ PASS
 
 ### Index
 
-- [Introduction](#introduction)
-- [Why GWS](#why-gws)
-- [Benchmark](#benchmark)
+- [介绍](#介绍)
+- [为什么选择 GWS](#为什么选择-gws)
+- [基准测试](#基准测试)
 	- [IOPS (Echo Server)](#iops-echo-server)
 	- [GoBench](#gobench)
 - [Index](#index)
-- [Feature](#feature)
-- [Attention](#attention)
-- [Install](#install)
-- [Event](#event)
-- [Quick Start](#quick-start)
-- [Best Practice](#best-practice)
-- [More Examples](#more-examples)
+- [特性](#特性)
+- [注意](#注意)
+- [安装](#安装)
+- [事件](#事件)
+- [快速上手](#快速上手)
+- [最佳实践](#最佳实践)
+- [更多用例](#更多用例)
 	- [KCP](#kcp)
-	- [Proxy](#proxy)
-	- [Broadcast](#broadcast)
-- [Autobahn Test](#autobahn-test)
-- [Communication](#communication)
-- [Acknowledgments](#acknowledgments)
+	- [代理](#代理)
+	- [广播](#广播)
+- [Autobahn 测试](#autobahn-测试)
+- [交流](#交流)
+- [致谢](#致谢)
 
-### Feature
 
-- [x] Event API
-- [x] Broadcast
-- [x] Dial via Proxy
-- [x] Zero Allocs Read / Write
-- [x] Concurrent & Asynchronous Non-Blocking Write
-- [x] Passed WebSocket [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/)
+### 特性
 
-### Attention
+- [x] 事件驱动式 API
+- [x] 广播
+- [x] 代理拨号
+- [x] 读写过程零动态内存分配
+- [x] 支持并发和异步非阻塞写入
+- [x] 通过 [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/) 所有测试用例
 
-- The errors returned by the gws.Conn export methods are ignorable, and are handled internally.
-- Transferring large files with gws tends to block the connection.
-- If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
+### 注意
 
-### Install
+- 所有 gws.Conn 导出的方法错误都是可忽略的, 它们在内部已经被妥善处理了
+- 传输大文件有阻塞连接的风险
+- 如果复用HTTP服务器, 建议调用ReadLoop时开启新的goroutine, 以避免请求上下文内存不能被回收.
+
+### 安装
 
 ```bash
 go get -v github.com/lxzan/gws@latest
 ```
 
-### Event
+### 事件
 
 ```go
 type Event interface {
@@ -133,11 +125,11 @@ type Event interface {
 }
 ```
 
-### Quick Start
+### 快速上手
 
-Very, very, very simple example.
+非常、非常、非常简单的例子。
 
-The example let you know how to use the `gws` package without any other dependencies.
+这个例子让你知道如何在没有任何其他依赖的情况下使用 `gws` 软件包。
 
 ```go
 package main
@@ -149,7 +141,7 @@ func main() {
 }
 ```
 
-### Best Practice
+### 最佳实践
 
 ```go
 package main
@@ -167,9 +159,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // Parallel message processing
-		CompressEnabled:  true,         // Enable compression
-		Recovery:         gws.Recovery, // Exception recovery
+		ReadAsyncEnabled: true,         // 开启并行消息处理
+		CompressEnabled:  true,         // 开启压缩
+		Recovery:         gws.Recovery, // 开启异常恢复
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -177,7 +169,7 @@ func main() {
 			return
 		}
 		go func() {
-			socket.ReadLoop() // Blocking prevents the context from being GC.
+			socket.ReadLoop() // 此处阻塞会使请求上下文不能顺利被GC
 		}()
 	})
 	http.ListenAndServe(":6666", nil)
@@ -204,7 +196,7 @@ func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
-### More Examples
+### 更多用例
 
 #### KCP
 
@@ -257,9 +249,9 @@ func main() {
 
 ```
 
-#### Proxy
+#### 代理
 
-Dial via proxy, using socks5 protocol.
+通过代理拨号, 使用socks5协议.
 
 ```go
 package main
@@ -287,10 +279,10 @@ func main() {
 }
 ```
 
-#### Broadcast
+#### 广播
 
-Create a Broadcaster instance, call the Broadcast method in a loop to send messages to each client, and close the
-broadcaster to reclaim memory. The message is compressed only once.
+先创建一个 Broadcaster 实例，然后在循环中调用 Broadcast 方法向每个客户端发送消息，最后关闭
+广播程序以回收内存。整个过程中消息只会被压缩一次。
 
 ```go
 func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
@@ -302,7 +294,7 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 }
 ```
 
-### Autobahn Test
+### Autobahn 测试
 
 ```bash
 cd examples/autobahn
@@ -314,7 +306,7 @@ docker run -it --rm \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
 
-### Communication
+### 交流
 
 > 微信需要先添加好友, 然后拉人入群, 请注明来意.
 
@@ -324,9 +316,7 @@ docker run -it --rm \
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
 
-### Acknowledgments
-
-The following project had particular influence on gws's design.
+### 致谢
 
 - [crossbario/autobahn-testsuite](https://github.com/crossbario/autobahn-testsuite)
 - [klauspost/compress](https://github.com/klauspost/compress)
