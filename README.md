@@ -1,64 +1,120 @@
-# GWS
+<h1 align="center">GWS</h1>
 
-### Event-Driven Go WebSocket Server & Client
+<div align="center">
+<img src="assets/logo.png" alt="logo" width="300px">
+</div>
 
-[![Mentioned in Awesome Go][11]][12] [![Build Status][1]][2] [![MIT licensed][3]][4] [![Go Version][5]][6] [![codecov][7]][8] [![Go Report Card][9]][10]
+<h3 align="center">Simple, Fast, Reliable WebSocket Server & Client</h3>
 
-[1]: https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master
+<p align="center">
+    <a href="https://github.com/avelino/awesome-go#networking">
+        <img src="https://awesome.re/mentioned-badge-flat.svg" alt="">
+    </a>
+    <a href="https://github.com/lxzan/gws/actions?query=branch%3Amaster">
+        <img src="https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master" alt="">
+    </a>
+    <a href="https://app.codecov.io/gh/lxzan/gws">
+        <img src="https://codecov.io/github/lxzan/gws/branch/master/graph/badge.svg?token=DJU7YXWN05" alt="">
+    </a>
+    <a href="https://goreportcard.com/report/github.com/lxzan/gws">
+        <img src="https://goreportcard.com/badge/github.com/lxzan/gws" alt="">
+    </a>
+    <a href="LICENSE">
+        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="">
+    </a>
+    <a href="https://github.com/lxzan/gws">
+        <img src="https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go" alt="">
+    </a>
+</p>
 
-[2]: https://github.com/lxzan/gws/actions?query=branch%3Amaster
+### Introduction
 
-[3]: https://img.shields.io/badge/license-MIT-blue.svg
+GWS (Go WebSocket) is a very simple, fast, reliable and feature-rich WebSocket implementation written in Go. It is
+designed to be used in highly-concurrent environments, and it is suitable for
+building `API`, `PROXY`, `GAME`, `Live Video`, `MESSAGE`, etc. It supports both server and client side with a simple API
+which mean you can easily write a server or client by yourself.
 
-[4]: LICENSE
+GWS developed base on Event-Driven model. every connection has a goroutine to handle the event, and the event is able
+to be processed in a non-blocking way.
 
-[5]: https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go
+### Why GWS
 
-[6]: https://github.com/lxzan/gws
+- <font size=4>Simplicity and Ease of Use</font>
+    - **User-Friendly API**: Straightforward and easy-to-understand API, making server and client setup hassle-free.
+    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
 
-[7]: https://codecov.io/github/lxzan/gws/branch/master/graph/badge.svg?token=DJU7YXWN05
+- <font size=4>High-Performance</font>
+    - **Zero Allocs IO**: Built-in multi-level memory pool to minimize dynamic memory allocation during reads and
+      writes.
+    - **Optimized for Speed**: Designed for rapid data transmission and reception, ideal for time-sensitive
+      applications.
 
-[8]: https://app.codecov.io/gh/lxzan/gws
+- <font size=4>Reliability and Stability</font>
+    - **Event-Driven Architecture**: Ensures stable performance even in highly concurrent environments.
+    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
 
-[9]: https://goreportcard.com/badge/github.com/lxzan/gws
+- <font size=4>Versatility in Application</font>
+    - **Wide Range of Use Cases**: Suitable for APIs, proxy servers, gaming, live video streaming, messaging, and more.
+    - **Cross-Platform Compatibility**: Seamless integration across various platforms and environments.
 
-[10]: https://goreportcard.com/report/github.com/lxzan/gws
+### Benchmark
 
-[11]: https://awesome.re/mentioned-badge-flat.svg
+#### IOPS (Echo Server)
 
-[12]: https://github.com/avelino/awesome-go#networking
+GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
-- [GWS](#gws)
-    - [Feature](#feature)
-    - [Attention](#attention)
-    - [Install](#install)
-    - [Event](#event)
-    - [Quick Start](#quick-start)
-    - [Best Practice](#best-practice)
-    - [Usage](#usage)
-        - [KCP](#kcp)
-        - [Proxy](#proxy)
-        - [Broadcast](#broadcast)
-    - [Autobahn Test](#autobahn-test)
-    - [Benchmark](#benchmark)
-        - [IOPS (Echo Server)](#iops-echo-server)
-        - [GoBench](#gobench)
-    - [Communication](#communication)
-    - [Acknowledgments](#acknowledgments)
+![performance](assets/performance-compress-disabled.png)
+
+> gorilla and nhooyr not using streaming api
+
+#### GoBench
+
+```go
+goos: linux
+goarch: amd64
+pkg: github.com/lxzan/gws
+cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	     165.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-8          	   97394	     10391 ns/op	     349 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	     152.3 ns/op	      16 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-8           	  368712	      3248 ns/op	     108 B/op	       0 allocs/op
+PASS
+```
+
+### Index
+
+- [Introduction](#introduction)
+- [Why GWS](#why-gws)
+- [Benchmark](#benchmark)
+	- [IOPS (Echo Server)](#iops-echo-server)
+	- [GoBench](#gobench)
+- [Index](#index)
+- [Feature](#feature)
+- [Attention](#attention)
+- [Install](#install)
+- [Event](#event)
+- [Quick Start](#quick-start)
+- [Best Practice](#best-practice)
+- [More Examples](#more-examples)
+	- [KCP](#kcp)
+	- [Proxy](#proxy)
+	- [Broadcast](#broadcast)
+- [Autobahn Test](#autobahn-test)
+- [Communication](#communication)
+- [Acknowledgments](#acknowledgments)
 
 ### Feature
 
 - [x] Event API
 - [x] Broadcast
 - [x] Dial via Proxy
-- [x] IO Multiplexing
-- [x] Concurrent Write
-- [x] Zero Allocs Read/Write
-- [x] Passes WebSocket [autobahn-testsuite](https://lxzan.github.io/gws/reports/servers/)
+- [x] Zero Allocs Read / Write
+- [x] Concurrent & Asynchronous Non-Blocking Write
+- [x] Passed WebSocket [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
 
-- The errors returned by the gws.Conn export methods are ignored, and are handled internally.
+- The errors returned by the gws.Conn export methods are ignorable, and are handled internally.
 - Transferring large files with gws tends to block the connection.
 - If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
 
@@ -72,15 +128,19 @@ go get -v github.com/lxzan/gws@latest
 
 ```go
 type Event interface {
-	OnOpen(socket *Conn)
-	OnClose(socket *Conn, err error)
-	OnPing(socket *Conn, payload []byte)
-	OnPong(socket *Conn, payload []byte)
-	OnMessage(socket *Conn, message *Message)
+    OnOpen(socket *Conn)                        // the connection is established
+    OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
+    OnPing(socket *Conn, payload []byte)        // receive a ping frame
+    OnPong(socket *Conn, payload []byte)        // receive a pong frame
+    OnMessage(socket *Conn, message *Message)   // receive a text/binary frame
 }
 ```
 
 ### Quick Start
+
+Very, very, very simple example.
+
+The example let you know how to use the `gws` package without any other dependencies.
 
 ```go
 package main
@@ -88,7 +148,7 @@ package main
 import "github.com/lxzan/gws"
 
 func main() {
-	gws.NewServer(new(gws.BuiltinEventHandler), nil).Run(":6666")
+	gws.NewServer(&gws.BuiltinEventHandler{}, nil).Run(":6666")
 }
 ```
 
@@ -110,9 +170,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,
-		CompressEnabled:  true,
-		Recovery:         gws.Recovery,
+		ReadAsyncEnabled: true,         // Parallel message processing
+		CompressEnabled:  true,         // Enable compression
+		Recovery:         gws.Recovery, // Exception recovery
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -120,8 +180,7 @@ func main() {
 			return
 		}
 		go func() {
-			// Blocking prevents the context from being GC.
-			socket.ReadLoop()
+			socket.ReadLoop() // Blocking prevents the context from being GC.
 		}()
 	})
 	http.ListenAndServe(":6666", nil)
@@ -148,7 +207,7 @@ func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 }
 ```
 
-### Usage
+### More Examples
 
 #### KCP
 
@@ -198,9 +257,12 @@ func main() {
 	}
 	app.ReadLoop()
 }
+
 ```
 
 #### Proxy
+
+Dial via proxy, using socks5 protocol.
 
 ```go
 package main
@@ -230,13 +292,16 @@ func main() {
 
 #### Broadcast
 
+Create a Broadcaster instance, call the Broadcast method in a loop to send messages to each client, and close the
+broadcaster to reclaim memory. The message is compressed only once.
+
 ```go
 func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
-	var b = gws.NewBroadcaster(opcode, payload)
-	defer b.Close()
-	for _, item := range conns {
-		_ = b.Broadcast(item)
-	}
+    var b = gws.NewBroadcaster(opcode, payload)
+    defer b.Close()
+    for _, item := range conns {
+        _ = b.Broadcast(item)
+    }
 }
 ```
 
@@ -252,27 +317,8 @@ docker run -it --rm \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
 
-### Benchmark
-
-#### IOPS (Echo Server)
-GOMAXPROCS=4, Connection=1000, CompressEnabled=false
-
-![performance](assets/performance-compress-disabled.png)
-
-#### GoBench
-```go
-goos: linux
-goarch: amd64
-pkg: github.com/lxzan/gws
-cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	       165.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-8          	   97394	     10391 ns/op	     349 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	       152.3 ns/op	      16 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-8           	  368712	      3248 ns/op	     108 B/op	       0 allocs/op
-PASS
-```
-
 ### Communication
+
 > 微信需要先添加好友, 然后拉人入群, 请注明来意.
 
 <div>
@@ -280,7 +326,6 @@ PASS
 <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
-
 
 ### Acknowledgments
 
