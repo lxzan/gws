@@ -1,8 +1,6 @@
 <h1 align="center">GWS</h1>
 
-<div align="center">
-<img src="assets/logo.png" alt="logo" width="300px">
-</div>
+<p align="center"> <img src="assets/gws_logo.png" alt="GWS" width="400" height="400"></p>
 
 <h3 align="center">Simple, Fast, Reliable WebSocket Server & Client</h3>
 
@@ -29,7 +27,7 @@
 
 ### Introduction
 
-GWS (Go WebSocket) is a very simple, fast, reliable and feature-rich WebSocket implementation written in Go. It is
+GWS (Go WebSocket) is a very simple, fast, reliable and fully-featured WebSocket implementation written in Go. It is
 designed to be used in highly-concurrent environments, and it is suitable for
 building `API`, `PROXY`, `GAME`, `Live Video`, `MESSAGE`, etc. It supports both server and client side with a simple API
 which mean you can easily write a server or client by yourself.
@@ -40,22 +38,47 @@ to be processed in a non-blocking way.
 ### Why GWS
 
 - <font size=4>Simplicity and Ease of Use</font>
-    - **User-Friendly API**: Straightforward and easy-to-understand API, making server and client setup hassle-free.
-    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
+
+  - **User-Friendly API**: Straightforward and easy-to-understand API, making server and client setup hassle-free.
+  - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
 
 - <font size=4>High-Performance</font>
-    - **Zero Allocs IO**: Built-in multi-level memory pool to minimize dynamic memory allocation during reads and
-      writes.
-    - **Optimized for Speed**: Designed for rapid data transmission and reception, ideal for time-sensitive
-      applications.
+
+  - **Zero Allocs IO**: Built-in multi-level memory pool to minimize dynamic memory allocation during reads and
+    writes.
+  - **Optimized for Speed**: Designed for rapid data transmission and reception, ideal for time-sensitive
+    applications.
 
 - <font size=4>Reliability and Stability</font>
-    - **Event-Driven Architecture**: Ensures stable performance even in highly concurrent environments.
-    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
+
+  - **Event-Driven Architecture**: Ensures stable performance even in highly concurrent environments.
+  - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
 
 - <font size=4>Versatility in Application</font>
-    - **Wide Range of Use Cases**: Suitable for APIs, proxy servers, gaming, live video streaming, messaging, and more.
-    - **Cross-Platform Compatibility**: Seamless integration across various platforms and environments.
+  - **Wide Range of Use Cases**: Suitable for APIs, proxy servers, gaming, live video streaming, messaging, and more.
+  - **Cross-Platform Compatibility**: Seamless integration across various platforms and environments.
+
+### Attention
+
+- Errors produced by `gws.Conn` export methods are internally resolved without external exposure.
+- Large file transfers in GWS may lead to connection blockages.
+- If HTTP Server reused in GWS, activating goroutines is suggested to avoid blocking issues that hinder effective garbage collection.
+
+### Protocol Compliance
+
+The GWS package passes the server tests in the [Autobahn TestSuite](https://github.com/crossbario/autobahn-testsuite) using the application in the [autobahn](https://github.com/lxzan/gws/tree/master/autobahn)
+
+**Autobahn Test**
+
+```bash
+cd examples/autobahn
+mkdir reports
+docker run -it --rm \
+    -v ${PWD}/config:/config \
+    -v ${PWD}/reports:/reports \
+    crossbario/autobahn-testsuite \
+    wstest -m fuzzingclient -s /config/fuzzingclient.json
+```
 
 ### Benchmark
 
@@ -63,9 +86,11 @@ to be processed in a non-blocking way.
 
 GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
+> Gorilla and Nhooyr not using Streaming API
+
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla and nhooyr not using streaming api
+Ohh!!!, IOPS is `270K`+ with `8K` message size. It's amazing.
 
 #### GoBench
 
@@ -74,57 +99,46 @@ goos: linux
 goarch: amd64
 pkg: github.com/lxzan/gws
 cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	     165.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	       165.4 ns/op	       0 B/op	       0 allocs/op
 BenchmarkConn_WriteMessage/compress_enabled-8          	   97394	     10391 ns/op	     349 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	     152.3 ns/op	      16 B/op	       0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	       152.3 ns/op	      16 B/op	       0 allocs/op
 BenchmarkConn_ReadMessage/compress_enabled-8           	  368712	      3248 ns/op	     108 B/op	       0 allocs/op
 PASS
 ```
 
-### Index
-
-- [Introduction](#introduction)
-- [Why GWS](#why-gws)
-- [Benchmark](#benchmark)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
-- [Index](#index)
-- [Feature](#feature)
-- [Attention](#attention)
-- [Install](#install)
-- [Event](#event)
-- [Quick Start](#quick-start)
-- [Best Practice](#best-practice)
-- [More Examples](#more-examples)
-	- [KCP](#kcp)
-	- [Proxy](#proxy)
-	- [Broadcast](#broadcast)
-- [Autobahn Test](#autobahn-test)
-- [Communication](#communication)
-- [Acknowledgments](#acknowledgments)
-
-### Feature
-
-- [x] Event API
-- [x] Broadcast
-- [x] Dial via Proxy
-- [x] Zero Allocs Read / Write
-- [x] Concurrent & Asynchronous Non-Blocking Write
-- [x] Passed WebSocket [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/)
-
-### Attention
-
-- The errors returned by the gws.Conn export methods are ignorable, and are handled internally.
-- Transferring large files with gws tends to block the connection.
-- If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
-
-### Install
+## Install
 
 ```bash
 go get -v github.com/lxzan/gws@latest
 ```
 
-### Event
+### Quick Start
+
+Very, very, very simple example. **(Don't use it in production)**
+
+The example let you know how to use the `gws` package without any other dependencies.
+
+```go
+package main
+
+import "github.com/lxzan/gws"
+
+func main() {
+	gws.NewServer(new(gws.BuiltinEventHandler), nil).Run(":6666")
+}
+```
+
+### Best Practice
+
+#### Event
+
+Event struct is used to handle the event of the connection.
+
+- [x] **OnOpen** is called when the connection is established.
+- [x] **OnClose** is called when the connection is closed.
+- [x] **OnPing** is called when the connection send a ping control message.
+- [x] **OnPong** is called when the connection receive a pong control message.
+- [x] **OnMessage** is called when the connection receive a message.
 
 ```go
 type Event interface {
@@ -136,23 +150,13 @@ type Event interface {
 }
 ```
 
-### Quick Start
+#### Server
 
-Very, very, very simple example.
+Frist of all, you need to implement the `Event` interface.
 
-The example let you know how to use the `gws` package without any other dependencies.
+The Event implementation will be used in `gws.NewUpgrader`, a `*gws.Upgrader` instance be created and bind the `http.Handler` to the `http.Server`.
 
-```go
-package main
-
-import "github.com/lxzan/gws"
-
-func main() {
-	gws.NewServer(&gws.BuiltinEventHandler{}, nil).Run(":6666")
-}
-```
-
-### Best Practice
+Http server will be started by `http.ListenAndServe`.
 
 ```go
 package main
@@ -170,9 +174,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // Parallel message processing
-		CompressEnabled:  true,         // Enable compression
-		Recovery:         gws.Recovery, // Exception recovery
+		ReadAsyncEnabled: true,
+		CompressEnabled:  true,
+		Recovery:         gws.Recovery,
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -180,10 +184,72 @@ func main() {
 			return
 		}
 		go func() {
-			socket.ReadLoop() // Blocking prevents the context from being GC.
+			// Blocking prevents the context from being GC.
+			socket.ReadLoop()
 		}()
 	})
 	http.ListenAndServe(":6666", nil)
+}
+
+type Handler struct{}
+
+func (c *Handler) OnOpen(socket *gws.Conn) {
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
+}
+
+func (c *Handler) OnClose(socket *gws.Conn, err error) {}
+
+func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + PingWait))
+	_ = socket.WritePong(nil)
+}
+
+func (c *Handler) OnPong(socket *gws.Conn, payload []byte) {}
+
+func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
+	defer message.Close()
+	socket.WriteMessage(message.Opcode, message.Bytes())
+}
+```
+
+#### Client
+
+Like the server, you need to implement the `Event` interface.
+
+The Event implementation in `gws.NewClient`, a `*gws.Conn` instance be created and run it.
+
+```go
+package main
+
+import (
+	"github.com/lxzan/gws"
+	"net/http"
+	"time"
+)
+
+const (
+	PingInterval = 5 * time.Second
+	PingWait     = 10 * time.Second
+)
+
+func main() {
+	socket, _, err := gws.NewClient(&Handler{}, &gws.ClientOption{
+		Addr: "ws://127.0.0.1:3000/connect",
+	})
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
+	go socket.ReadLoop()
+
+	for {
+		var text = ""
+		fmt.Scanf("%s", &text)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		socket.WriteString(text)
+	}
 }
 
 type Handler struct{}
@@ -211,7 +277,11 @@ func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 #### KCP
 
-- server
+KCP: A Fast and Reliable ARQ Protocol, [kcp-go](github.com/xtaci/kcp-go) is a Production-Grade Reliable-UDP Library for golang.
+
+- **server**
+
+the `kcp-go` package is used to create a listener. The `gws` package is used to create a server with listener.
 
 ```go
 package main
@@ -233,7 +303,9 @@ func main() {
 }
 ```
 
-- client
+- **client**
+
+the `kcp-go` package is used to create a connection. The `gws` package is used to create a client with connection.
 
 ```go
 package main
@@ -257,12 +329,11 @@ func main() {
 	}
 	app.ReadLoop()
 }
-
 ```
 
 #### Proxy
 
-Dial via proxy, using socks5 protocol.
+The gws client sets the proxy server. Here is an example of using the `SOCKS5` proxy server.
 
 ```go
 package main
@@ -292,34 +363,21 @@ func main() {
 
 #### Broadcast
 
-Create a Broadcaster instance, call the Broadcast method in a loop to send messages to each client, and close the
-broadcaster to reclaim memory. The message is compressed only once.
+The `gws` package provides a `*gws.Broadcaster` to broadcast messages to multiple connections.
 
 ```go
 func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
-    var b = gws.NewBroadcaster(opcode, payload)
-    defer b.Close()
-    for _, item := range conns {
-        _ = b.Broadcast(item)
-    }
+	var b = gws.NewBroadcaster(opcode, payload)
+	defer b.Close()
+	for _, item := range conns {
+		_ = b.Broadcast(item)
+	}
 }
 ```
 
-### Autobahn Test
+### Contact
 
-```bash
-cd examples/autobahn
-mkdir reports
-docker run -it --rm \
-    -v ${PWD}/config:/config \
-    -v ${PWD}/reports:/reports \
-    crossbario/autobahn-testsuite \
-    wstest -m fuzzingclient -s /config/fuzzingclient.json
-```
-
-### Communication
-
-> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+If you have questions, feel free to reach out to us in the following ways:
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>
@@ -327,7 +385,9 @@ docker run -it --rm \
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
 
-### Acknowledgments
+> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+
+### Thanks to
 
 The following project had particular influence on gws's design.
 
