@@ -1,4 +1,4 @@
-<h1 align="center">GWS</h1>
+<p align="center"><b><font size="7">GWS</font></b></p>
 
 <p align="center"> <img src="assets/gws_logo.png" alt="GWS" width="400" height="400"></p>
 
