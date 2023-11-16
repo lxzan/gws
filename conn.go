@@ -14,10 +14,7 @@ import (
 )
 
 type Conn struct {
-	// 已废弃, 请使用Session()方法替代
-	// Deprecated: please use Session() method instead
-	SessionStorage SessionStorage // 会话
-
+	ss                SessionStorage    // 会话
 	err               atomic.Value      // 错误
 	isServer          bool              // 是否为服务器
 	subprotocol       string            // 子协议
@@ -155,9 +152,6 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 
 // SetDeadline sets deadline
 func (c *Conn) SetDeadline(t time.Time) error {
-	if c.isClosed() {
-		return ErrConnClosed
-	}
 	err := c.conn.SetDeadline(t)
 	c.emitError(err)
 	return err
@@ -165,9 +159,6 @@ func (c *Conn) SetDeadline(t time.Time) error {
 
 // SetReadDeadline sets read deadline
 func (c *Conn) SetReadDeadline(t time.Time) error {
-	if c.isClosed() {
-		return ErrConnClosed
-	}
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(err)
 	return err
@@ -175,9 +166,6 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 
 // SetWriteDeadline sets write deadline
 func (c *Conn) SetWriteDeadline(t time.Time) error {
-	if c.isClosed() {
-		return ErrConnClosed
-	}
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(err)
 	return err
@@ -212,4 +200,4 @@ func (c *Conn) SubProtocol() string { return c.subprotocol }
 
 // Session 获取会话存储
 // get session storage
-func (c *Conn) Session() SessionStorage { return c.SessionStorage }
+func (c *Conn) Session() SessionStorage { return c.ss }

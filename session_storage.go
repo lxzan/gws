@@ -12,82 +12,45 @@ type SessionStorage interface {
 	Range(f func(key string, value any) bool)
 }
 
-type (
-	sliceMap struct {
-		sync.RWMutex
-		data []kv
-	}
+func newSmap() *smap { return &smap{data: make(map[string]any)} }
 
-	kv struct {
-		deleted bool
-		key     string
-		value   any
-	}
-)
+type smap struct {
+	sync.RWMutex
+	data map[string]any
+}
 
-func (c *sliceMap) Len() int {
+func (c *smap) Len() int {
 	c.RLock()
 	defer c.RUnlock()
-	var n = len(c.data)
-	for _, v := range c.data {
-		if v.deleted {
-			n--
-		}
-	}
-	return n
+	return len(c.data)
 }
 
-func (c *sliceMap) Load(key string) (value any, exist bool) {
+func (c *smap) Load(key string) (value any, exist bool) {
 	c.RLock()
 	defer c.RUnlock()
-	for _, v := range c.data {
-		if v.key == key && !v.deleted {
-			return v.value, true
-		}
-	}
-	return nil, false
+	value, exist = c.data[key]
+	return
 }
 
-func (c *sliceMap) Delete(key string) {
+func (c *smap) Delete(key string) {
 	c.Lock()
 	defer c.Unlock()
-	for i, v := range c.data {
-		if v.key == key {
-			c.data[i].value = nil
-			c.data[i].deleted = true
+	delete(c.data, key)
+}
+
+func (c *smap) Store(key string, value any) {
+	c.Lock()
+	defer c.Unlock()
+	c.data[key] = value
+}
+
+func (c *smap) Range(f func(key string, value any) bool) {
+	c.Lock()
+	defer c.Unlock()
+
+	for k, v := range c.data {
+		if !f(k, v) {
 			return
-		}
-	}
-}
-
-func (c *sliceMap) Store(key string, value any) {
-	c.Lock()
-	defer c.Unlock()
-
-	for i, v := range c.data {
-		if v.key == key {
-			c.data[i].value = value
-			c.data[i].deleted = false
-			return
-		}
-	}
-
-	c.data = append(c.data, kv{
-		deleted: false,
-		key:     key,
-		value:   value,
-	})
-}
-
-func (c *sliceMap) Range(f func(key string, value any) bool) {
-	c.Lock()
-	defer c.Unlock()
-
-	for _, v := range c.data {
-		if !v.deleted {
-			if !f(v.key, v.value) {
-				return
-			}
 		}
 	}
 }

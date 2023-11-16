@@ -202,7 +202,7 @@ func TestNewBroadcaster(t *testing.T) {
 			_ = b.Broadcast(key.(*Conn))
 			return true
 		})
-		b.Release()
+		b.Close()
 		handler.wg.Wait()
 	})
 
@@ -254,7 +254,7 @@ func TestNewBroadcaster(t *testing.T) {
 			return true
 		})
 		time.Sleep(500 * time.Millisecond)
-		b.Release()
+		b.Close()
 		handler.wg.Wait()
 	})
 }

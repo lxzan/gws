@@ -57,10 +57,6 @@ func (c *Conn) readControl() error {
 }
 
 func (c *Conn) readMessage() error {
-	if c.isClosed() {
-		return internal.CloseNormalClosure
-	}
-
 	contentLength, err := c.fh.Parse(c.br)
 	if err != nil {
 		return err

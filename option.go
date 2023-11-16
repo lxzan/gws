@@ -126,7 +126,7 @@ type (
 		// 创建session存储空间
 		// 用于自定义SessionStorage实现
 		// For custom SessionStorage implementations
-		NewSessionStorage func() SessionStorage
+		NewSession func() SessionStorage
 	}
 )
 
@@ -169,8 +169,8 @@ func initServerOption(c *ServerOption) *ServerOption {
 	if c.Authorize == nil {
 		c.Authorize = func(r *http.Request, session SessionStorage) bool { return true }
 	}
-	if c.NewSessionStorage == nil {
-		c.NewSessionStorage = func() SessionStorage { return new(sliceMap) }
+	if c.NewSession == nil {
+		c.NewSession = func() SessionStorage { return newSmap() }
 	}
 	if c.ResponseHeader == nil {
 		c.ResponseHeader = http.Header{}
@@ -257,7 +257,7 @@ type ClientOption struct {
 	// 创建session存储空间
 	// 用于自定义SessionStorage实现
 	// For custom SessionStorage implementations
-	NewSessionStorage func() SessionStorage
+	NewSession func() SessionStorage
 }
 
 func initClientOption(c *ClientOption) *ClientOption {
@@ -294,8 +294,8 @@ func initClientOption(c *ClientOption) *ClientOption {
 	if c.NewDialer == nil {
 		c.NewDialer = func() (Dialer, error) { return &net.Dialer{Timeout: defaultDialTimeout}, nil }
 	}
-	if c.NewSessionStorage == nil {
-		c.NewSessionStorage = func() SessionStorage { return new(sliceMap) }
+	if c.NewSession == nil {
+		c.NewSession = func() SessionStorage { return newSmap() }
 	}
 	if c.Logger == nil {
 		c.Logger = defaultLogger

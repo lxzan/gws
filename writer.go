@@ -198,10 +198,6 @@ func (c *Broadcaster) doClose() {
 	}
 }
 
-// Release 已废弃, 请使用Release方法替代
-// Deprecated: please use Close() method instead
-func (c *Broadcaster) Release() { _ = c.Close() }
-
 // Close 释放资源
 // 在完成所有Broadcast调用之后执行Close方法释放资源.
 // Call the Close method after all the Broadcasts have been completed to release the resources.

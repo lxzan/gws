@@ -113,7 +113,7 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 }
 
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
-	var session = c.option.NewSessionStorage()
+	var session = c.option.NewSession()
 	if !c.option.Authorize(r, session) {
 		return nil, ErrUnauthorized
 	}
@@ -150,7 +150,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 	}
 
 	socket := &Conn{
-		SessionStorage:    session,
+		ss:                session,
 		isServer:          true,
 		subprotocol:       rw.subprotocol,
 		compressEnabled:   compressEnabled,
