@@ -3,8 +3,9 @@ package gws
 import (
 	"bytes"
 	"fmt"
-	"github.com/lxzan/gws/internal"
 	"unsafe"
+
+	"github.com/lxzan/gws/internal"
 )
 
 func (c *Conn) checkMask(enabled bool) error {

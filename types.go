@@ -5,12 +5,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/lxzan/gws/internal"
 	"io"
 	"log"
 	"net"
 	"runtime"
 	"unsafe"
+
+	"github.com/lxzan/gws/internal"
 )
 
 const frameHeaderSize = 14

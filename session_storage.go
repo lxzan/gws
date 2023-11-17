@@ -1,8 +1,9 @@
 package gws
 
 import (
-	"github.com/lxzan/gws/internal"
 	"sync"
+
+	"github.com/lxzan/gws/internal"
 )
 
 type SessionStorage interface {
@@ -45,8 +46,8 @@ func (c *smap) Store(key string, value any) {
 }
 
 func (c *smap) Range(f func(key string, value any) bool) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 
 	for k, v := range c.data {
 		if !f(k, v) {
@@ -74,7 +75,7 @@ type (
 func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V] {
 	segments = internal.SelectValue(segments == 0, 16, segments)
 	segments = internal.ToBinaryNumber(segments)
-	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments, segments)}
+	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments)}
 	for i, _ := range cm.buckets {
 		cm.buckets[i] = &bucket[K, V]{m: make(map[K]V)}
 	}

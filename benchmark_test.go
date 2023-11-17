@@ -6,11 +6,12 @@ import (
 	"compress/flate"
 	_ "embed"
 	"encoding/binary"
-	klauspost "github.com/klauspost/compress/flate"
-	"github.com/lxzan/gws/internal"
 	"io"
 	"net"
 	"testing"
+
+	klauspost "github.com/klauspost/compress/flate"
+	"github.com/lxzan/gws/internal"
 )
 
 //go:embed assets/github.json

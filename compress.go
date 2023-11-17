@@ -3,12 +3,13 @@ package gws
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/klauspost/compress/flate"
-	"github.com/lxzan/gws/internal"
 	"io"
 	"math"
 	"sync"
 	"sync/atomic"
+
+	"github.com/klauspost/compress/flate"
+	"github.com/lxzan/gws/internal"
 )
 
 // FlateTail Add four bytes as specified in RFC

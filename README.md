@@ -17,7 +17,7 @@
 
 GWS (Go WebSocket) is a very simple, fast, reliable and feature-rich WebSocket implementation written in Go. It is
 designed to be used in highly-concurrent environments, and it is suitable for
-building `API`, `PROXY`, `GAME`, `Live Video`, `MESSAGE`, etc. It supports both server and client side with a simple API
+building `API`, `Proxy`, `Game`, `Live Video`, `Message`, etc. It supports both server and client side with a simple API
 which mean you can easily write a server or client by yourself.
 
 GWS developed base on Event-Driven model. every connection has a goroutine to handle the event, and the event is able
@@ -26,19 +26,17 @@ to be processed in a non-blocking way.
 ### Why GWS
 
 - <font size=3>Simplicity and Ease of Use</font>
-    - **User-Friendly API**: Straightforward and easy-to-understand API, making server and client setup hassle-free.
+    - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
     - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
 
 - <font size=3>High-Performance</font>
-    - **Zero Allocs IO**: Built-in multi-level memory pool to minimize dynamic memory allocation during reads and
-      writes.
-    - **Optimized for Speed**: Designed for rapid data transmission and reception, ideal for time-sensitive
+    - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
       applications.
+    - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of ownership.
 
 - <font size=3>Reliability and Stability</font>
-    - **Event-Driven Architecture**: Ensures stable performance even in highly concurrent environments.
     - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-
+    - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 6455`. 99% unit test coverage, covering almost all conditional branches.
 ### Benchmark
 
 #### IOPS (Echo Server)
@@ -81,6 +79,7 @@ PASS
 	- [KCP](#kcp)
 	- [Proxy](#proxy)
 	- [Broadcast](#broadcast)
+	- [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
 - [Acknowledgments](#acknowledgments)
@@ -110,11 +109,11 @@ go get -v github.com/lxzan/gws@latest
 
 ```go
 type Event interface {
-    OnOpen(socket *Conn)                        // the connection is established
+    OnOpen(socket *Conn)                        // connection is established
     OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
-    OnPing(socket *Conn, payload []byte)        // receive a ping frame
-    OnPong(socket *Conn, payload []byte)        // receive a pong frame
-    OnMessage(socket *Conn, message *Message)   // receive a text/binary frame
+    OnPing(socket *Conn, payload []byte)        // received a ping frame
+    OnPong(socket *Conn, payload []byte)        // received a pong frame
+    OnMessage(socket *Conn, message *Message)   // received a text/binary frame
 }
 ```
 
@@ -284,6 +283,37 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     for _, item := range conns {
         _ = b.Broadcast(item)
     }
+}
+```
+
+#### Pub / Sub
+
+```go
+package main
+
+import (
+	"github.com/lxzan/event_emitter"
+	"github.com/lxzan/gws"
+)
+
+type Socket struct{ *gws.Conn }
+
+// GetSubscriberID gets the subscription ID, which needs to be unique.
+func (c *Socket) GetSubscriberID() int64 {
+	userId, _ := c.Session().Load("userId")
+	return userId.(int64)
+}
+
+func Sub(em *event_emitter.EventEmitter[*Socket], topic string, socket *Socket) {
+	em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
+		_ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn)
+	})
+}
+
+func Pub(em *event_emitter.EventEmitter[*Socket], topic string, op gws.Opcode, msg []byte) {
+	var broadcaster = gws.NewBroadcaster(op, msg)
+	defer broadcaster.Close()
+	em.Publish(topic, broadcaster)
 }
 ```
 

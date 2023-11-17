@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"log"
 	"net/http"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
