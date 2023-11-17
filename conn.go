@@ -91,24 +91,25 @@ func (c *Conn) emitError(err error) {
 		return
 	}
 
-	var responseCode = internal.CloseNormalClosure
-	var responseErr error = internal.CloseNormalClosure
-	switch v := err.(type) {
-	case internal.StatusCode:
-		responseCode = v
-	case *internal.Error:
-		responseCode = v.Code
-		responseErr = v.Err
-	default:
-		responseErr = err
-	}
-
-	var content = responseCode.Bytes()
-	content = append(content, err.Error()...)
-	if len(content) > internal.ThresholdV1 {
-		content = content[:internal.ThresholdV1]
-	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		var responseCode = internal.CloseNormalClosure
+		var responseErr error = internal.CloseNormalClosure
+		switch v := err.(type) {
+		case internal.StatusCode:
+			responseCode = v
+		case *internal.Error:
+			responseCode = v.Code
+			responseErr = v.Err
+		default:
+			responseErr = err
+		}
+
+		var content = responseCode.Bytes()
+		content = append(content, err.Error()...)
+		if len(content) > internal.ThresholdV1 {
+			content = content[:internal.ThresholdV1]
+		}
+
 		c.close(content, responseErr)
 	}
 }

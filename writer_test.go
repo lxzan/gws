@@ -102,7 +102,7 @@ func TestWriteClose(t *testing.T) {
 }
 
 func TestConn_WriteAsyncError(t *testing.T) {
-	t.Run("", func(t *testing.T) {
+	t.Run("write async", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
 		var serverOption = &ServerOption{}
@@ -256,6 +256,28 @@ func TestNewBroadcaster(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 		b.Close()
 		handler.wg.Wait()
+	})
+
+	t.Run("conn closed", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		serverHandler.onClose = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		_ = server.conn.Close()
+		var broadcaster = NewBroadcaster(OpcodeText, internal.AlphabetNumeric.Generate(16))
+		_ = broadcaster.Broadcast(server)
+		wg.Wait()
 	})
 }
 

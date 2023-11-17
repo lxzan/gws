@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStringToBytes(t *testing.T) {

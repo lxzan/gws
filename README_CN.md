@@ -19,16 +19,16 @@ GWS（Go WebSocket）是一个用 Go 编写的非常简单、快速、可靠且�
 ### 为什么选择 GWS
 
 - <font size=3>简单易用</font>
-    - **用户友好的 API 设计**: 简单易懂的应用程序接口，让服务器和客户端的设置变得轻松简单。
-    - **编码效率**: 最大限度地减少实施复杂的 WebSocket 解决方案所需的代码量。
+    - **用户友好**: 简单明了的 `WebSocket` 事件接口设计，让服务器和客户端的交互变得轻松简单.
+    - **编码效率**: 最大限度地减少实施复杂的解决方案所需的代码量.
 
-- <font size=3>性能良好</font>
-    - **零动态内存分配 I/O**: 内置多级内存池，可最大限度地减少读写过程中的动态内存分配。
-    - **性能优化**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选。
+- <font size=3>性能出众</font>
+    - **高吞吐低延迟**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选.
+    - **低内存占用**: 高度优化的内存复用系统, 最大限度降低内存占用，降低您的使用成本.
 
 - <font size=3>稳定可靠</font>
-    - **事件驱动式架构**: 即使在高度并发的环境中，也能确保稳定的性能。
-    - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行。
+    - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行.
+    - **完善的测试用例**: 通过了所有 `Autobahn` 测试用例, 完全符合 `RFC 6455` 标准. 单元测试覆盖率达到99%, 几乎覆盖所有条件分支.
   
 ### 基准测试
 
@@ -72,6 +72,7 @@ PASS
 	- [KCP](#kcp)
 	- [代理](#代理)
 	- [广播](#广播)
+	- [发布订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
 - [致谢](#致谢)
@@ -102,11 +103,11 @@ go get -v github.com/lxzan/gws@latest
 
 ```go
 type Event interface {
-    OnOpen(socket *Conn)                        // the connection is established
+    OnOpen(socket *Conn)                        // connection is established
     OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
-    OnPing(socket *Conn, payload []byte)        // receive a ping frame
-    OnPong(socket *Conn, payload []byte)        // receive a pong frame
-    OnMessage(socket *Conn, message *Message)   // receive a text/binary frame
+    OnPing(socket *Conn, payload []byte)        // received a ping frame
+    OnPong(socket *Conn, payload []byte)        // received a pong frame
+    OnMessage(socket *Conn, message *Message)   // received a text/binary frame
 }
 ```
 
@@ -276,6 +277,37 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     for _, item := range conns {
         _ = b.Broadcast(item)
     }
+}
+```
+
+#### 发布订阅
+
+```go
+package main
+
+import (
+	"github.com/lxzan/event_emitter"
+	"github.com/lxzan/gws"
+)
+
+type Socket struct{ *gws.Conn }
+
+// GetSubscriberID 获取订阅ID, 需要保证唯一
+func (c *Socket) GetSubscriberID() int64 {
+	userId, _ := c.Session().Load("userId")
+	return userId.(int64)
+}
+
+func Sub(em *event_emitter.EventEmitter[*Socket], topic string, socket *Socket) {
+	em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
+		_ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn)
+	})
+}
+
+func Pub(em *event_emitter.EventEmitter[*Socket], topic string, op gws.Opcode, msg []byte) {
+	var broadcaster = gws.NewBroadcaster(op, msg)
+	defer broadcaster.Close()
+	em.Publish(topic, broadcaster)
 }
 ```
 

@@ -17,7 +17,7 @@ type (
 		serial  int
 		socket  *Conn
 		frame   *bytes.Buffer
-		execute func(conn *Conn, buffer *bytes.Buffer)
+		execute func(conn *Conn, buffer *bytes.Buffer) error
 	}
 )
 
@@ -54,7 +54,8 @@ func (c *workerQueue) getJob(newJob *asyncJob, delta int32) *asyncJob {
 // 循环执行任务
 func (c *workerQueue) do(job *asyncJob) {
 	for job != nil {
-		job.execute(job.socket, job.frame)
+		err := job.execute(job.socket, job.frame)
+		job.socket.emitError(err)
 		job = c.getJob(nil, -1)
 	}
 }

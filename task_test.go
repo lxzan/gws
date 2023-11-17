@@ -235,13 +235,14 @@ func TestTaskQueue(t *testing.T) {
 			listA = append(listA, i)
 
 			v := i
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				defer wg.Done()
 				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
 				time.Sleep(latency)
 				mu.Lock()
 				listB = append(listB, v)
 				mu.Unlock()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -255,10 +256,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -272,10 +274,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -350,7 +353,7 @@ func TestRQueue(t *testing.T) {
 		var serial = int64(0)
 		var done = make(chan struct{})
 		for i := 0; i < total; i++ {
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
 				time.Sleep(10 * time.Millisecond)
@@ -358,6 +361,7 @@ func TestRQueue(t *testing.T) {
 				if atomic.AddInt64(&serial, 1) == total {
 					done <- struct{}{}
 				}
+				return nil
 			}})
 		}
 		<-done

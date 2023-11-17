@@ -2,12 +2,13 @@ package gws
 
 import (
 	"bufio"
-	"compress/flate"
 	"crypto/tls"
-	"github.com/lxzan/gws/internal"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/klauspost/compress/flate"
+	"github.com/lxzan/gws/internal"
 )
 
 const (
