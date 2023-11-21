@@ -1,15 +1,16 @@
 package gws
 
 import (
+	"testing"
+
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMap(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[string]any)
-	var m2 = &sliceMap{}
+	var m2 = newSmap()
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -37,7 +38,7 @@ func TestMap(t *testing.T) {
 
 func TestSliceMap(t *testing.T) {
 	var as = assert.New(t)
-	var m = new(sliceMap)
+	var m = newSmap()
 	m.Store("hong", 1)
 	m.Store("mei", 2)
 	m.Store("ming", 3)
@@ -60,7 +61,7 @@ func TestSliceMap(t *testing.T) {
 func TestMap_Range(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[any]any)
-	var m2 = &sliceMap{}
+	var m2 = newSmap()
 	var count = 1000
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))

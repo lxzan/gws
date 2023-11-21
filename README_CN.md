@@ -19,17 +19,19 @@ GWS（Go WebSocket）是一个用 Go 编写的非常简单、快速、可靠且�
 ### 为什么选择 GWS
 
 - <font size=3>简单易用</font>
-    - **用户友好的 API 设计**: 简单易懂的应用程序接口，让服务器和客户端的设置变得轻松简单。
-    - **编码效率**: 最大限度地减少实施复杂的 WebSocket 解决方案所需的代码量。
 
-- <font size=3>性能良好</font>
-    - **零动态内存分配 I/O**: 内置多级内存池，可最大限度地减少读写过程中的动态内存分配。
-    - **性能优化**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选。
+  - **用户友好**: 简洁明了的 `WebSocket` 事件接口设计，让服务器和客户端的交互变得轻松简单.
+  - **编码效率**: 最大限度地减少实施复杂的解决方案所需的代码量.
+
+- <font size=3>性能出众</font>
+
+  - **高吞吐低延迟**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选.
+  - **低内存占用**: 高度优化的内存复用系统, 最大限度降低内存使用量，降低您的成本.
 
 - <font size=3>稳定可靠</font>
-    - **事件驱动式架构**: 即使在高度并发的环境中，也能确保稳定的性能。
-    - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行。
-  
+  - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行.
+  - **完善的测试用例**: 通过了所有 `Autobahn` 测试用例, 完全符合 `RFC 6455` 标准. 单元测试覆盖率达到 99%, 几乎覆盖所有条件分支.
+
 ### 基准测试
 
 #### IOPS (Echo Server)
@@ -59,8 +61,8 @@ PASS
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
+  - [IOPS (Echo Server)](#iops-echo-server)
+  - [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -69,13 +71,13 @@ PASS
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-	- [KCP](#kcp)
-	- [代理](#代理)
-	- [广播](#广播)
+  - [KCP](#kcp)
+  - [代理](#代理)
+  - [广播](#广播)
+  - [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
 - [致谢](#致谢)
-
 
 ### 特性
 
@@ -88,9 +90,9 @@ PASS
 
 ### 注意
 
-- 所有 gws.Conn 导出的方法错误都是可忽略的, 它们在内部已经被妥善处理了
+- 所有 gws.Conn 导出方法返回的错误都是可忽略的, 它们在内部已经被妥善处理了
 - 传输大文件有阻塞连接的风险
-- 如果复用HTTP服务器, 建议调用ReadLoop时开启新的goroutine, 以避免请求上下文内存不能被回收.
+- 如果复用 HTTP 服务器, 建议开启新的 Goroutine 来调用 ReadLoop, 以避免请求上下文内存不能及时回收.
 
 ### 安装
 
@@ -102,11 +104,11 @@ go get -v github.com/lxzan/gws@latest
 
 ```go
 type Event interface {
-    OnOpen(socket *Conn)                        // the connection is established
+    OnOpen(socket *Conn)                        // connection is established
     OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
-    OnPing(socket *Conn, payload []byte)        // receive a ping frame
-    OnPong(socket *Conn, payload []byte)        // receive a pong frame
-    OnMessage(socket *Conn, message *Message)   // receive a text/binary frame
+    OnPing(socket *Conn, payload []byte)        // received a ping frame
+    OnPong(socket *Conn, payload []byte)        // received a pong frame
+    OnMessage(socket *Conn, message *Message)   // received a text/binary frame
 }
 ```
 
@@ -236,7 +238,7 @@ func main() {
 
 #### 代理
 
-通过代理拨号, 使用socks5协议.
+通过代理拨号, 使用 socks5 协议.
 
 ```go
 package main
@@ -276,6 +278,41 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     for _, item := range conns {
         _ = b.Broadcast(item)
     }
+}
+```
+
+#### 发布/订阅
+
+使用 event_emitter 包实现发布订阅模式。用结构体包装 `gws.Conn`，并实现 GetSubscriberID 方法以获取订阅 ID，该 ID 必须是唯一的。订阅 ID 用于识别订阅者，订阅者只能接收其订阅主题的消息。
+
+此示例对于使用 gws 构建聊天室或消息推送非常有用。这意味着用户可以通过 websocket 订阅一个或多个主题，当向该主题发布消息时，所有订阅用户都会收到消息。
+
+```go
+package main
+
+import (
+	"github.com/lxzan/event_emitter"
+	"github.com/lxzan/gws"
+)
+
+type Socket struct{ *gws.Conn }
+
+// GetSubscriberID 获取订阅ID, 需要保证唯一
+func (c *Socket) GetSubscriberID() int64 {
+	userId, _ := c.Session().Load("userId")
+	return userId.(int64)
+}
+
+func Sub(em *event_emitter.EventEmitter[*Socket], topic string, socket *Socket) {
+	em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
+		_ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn)
+	})
+}
+
+func Pub(em *event_emitter.EventEmitter[*Socket], topic string, op gws.Opcode, msg []byte) {
+	var broadcaster = gws.NewBroadcaster(op, msg)
+	defer broadcaster.Close()
+	em.Publish(topic, broadcaster)
 }
 ```
 

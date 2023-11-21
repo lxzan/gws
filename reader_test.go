@@ -6,12 +6,13 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/lxzan/gws/internal"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 )
 
 // 测试同步读

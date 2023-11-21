@@ -3,10 +3,11 @@ package gws
 import (
 	"bytes"
 	"errors"
-	"github.com/lxzan/gws/internal"
 	"math"
 	"sync"
 	"sync/atomic"
+
+	"github.com/lxzan/gws/internal"
 )
 
 // WriteClose 发送关闭帧, 主动断开连接
@@ -40,13 +41,13 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-func writeAsync(socket *Conn, buffer *bytes.Buffer) {
+func writeAsyncFunc(socket *Conn, frame *bytes.Buffer) error {
 	if socket.isClosed() {
-		return
+		return ErrConnClosed
 	}
-	err := internal.WriteN(socket.conn, buffer.Bytes())
-	binaryPool.Put(buffer)
-	socket.emitError(err)
+	err := internal.WriteN(socket.conn, frame.Bytes())
+	binaryPool.Put(frame)
+	return err
 }
 
 // WriteAsync 异步非阻塞地写入消息
@@ -57,7 +58,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
 		c.emitError(err)
 		return err
 	}
-	job := &asyncJob{socket: c, frame: frame, execute: writeAsync}
+	job := &asyncJob{socket: c, frame: frame, execute: writeAsyncFunc}
 	c.writeQueue.Push(job)
 	return nil
 }
@@ -116,7 +117,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 
 func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
-	buf.Write(myPadding[0:])
+	buf.Write(framePadding[0:])
 	err := c.compressor.Compress(payload, buf)
 	if err != nil {
 		return nil, err
@@ -164,13 +165,15 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
-func (c *Broadcaster) writeAsync(socket *Conn, buffer *bytes.Buffer) {
-	if !socket.isClosed() {
-		socket.emitError(internal.WriteN(socket.conn, buffer.Bytes()))
+func (c *Broadcaster) writeAsyncFunc(socket *Conn, frame *bytes.Buffer) error {
+	if socket.isClosed() {
+		return ErrConnClosed
 	}
+	err := internal.WriteN(socket.conn, frame.Bytes())
 	if atomic.AddInt64(&c.state, -1) == 0 {
 		c.doClose()
 	}
+	return err
 }
 
 // Broadcast 广播
@@ -179,13 +182,14 @@ func (c *Broadcaster) writeAsync(socket *Conn, buffer *bytes.Buffer) {
 func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
 	var msg = c.msgs[idx]
+
 	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload) })
 	if msg.err != nil {
 		return msg.err
 	}
 
 	atomic.AddInt64(&c.state, 1)
-	var job = &asyncJob{socket: socket, frame: msg.frame, execute: c.writeAsync}
+	var job = &asyncJob{socket: socket, frame: msg.frame, execute: c.writeAsyncFunc}
 	socket.writeQueue.Push(job)
 	return nil
 }
@@ -197,10 +201,6 @@ func (c *Broadcaster) doClose() {
 		}
 	}
 }
-
-// Release 已废弃, 请使用Release方法替代
-// Deprecated: please use Close() method instead
-func (c *Broadcaster) Release() { _ = c.Close() }
 
 // Close 释放资源
 // 在完成所有Broadcast调用之后执行Close方法释放资源.

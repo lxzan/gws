@@ -18,7 +18,7 @@ import (
 func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
 	c := &Conn{
 		isServer:        isServer,
-		SessionStorage:  session,
+		ss:              session,
 		config:          config,
 		compressEnabled: compressEnabled,
 		conn:            netConn,
@@ -39,11 +39,11 @@ func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Even
 	s, c := net.Pipe()
 	{
 		br := bufio.NewReaderSize(s, size)
-		server = serveWebSocket(true, serverOption.getConfig(), new(sliceMap), s, br, serverHandler, serverOption.CompressEnabled, "")
+		server = serveWebSocket(true, serverOption.getConfig(), newSmap(), s, br, serverHandler, serverOption.CompressEnabled, "")
 	}
 	{
 		br := bufio.NewReaderSize(c, size)
-		client = serveWebSocket(false, clientOption.getConfig(), new(sliceMap), c, br, clientHandler, clientOption.CompressEnabled, "")
+		client = serveWebSocket(false, clientOption.getConfig(), newSmap(), c, br, clientHandler, clientOption.CompressEnabled, "")
 	}
 	return
 }
@@ -235,13 +235,14 @@ func TestTaskQueue(t *testing.T) {
 			listA = append(listA, i)
 
 			v := i
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				defer wg.Done()
 				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
 				time.Sleep(latency)
 				mu.Lock()
 				listB = append(listB, v)
 				mu.Unlock()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -255,10 +256,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -272,10 +274,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
+				return nil
 			}})
 		}
 		wg.Wait()
@@ -291,10 +294,10 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		svrConn, cliConn := net.Pipe() // no reading from another side
 		var sbrw = bufio.NewReader(svrConn)
-		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), &sliceMap{}, svrConn, sbrw, handler, false, "")
+		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), newSmap(), svrConn, sbrw, handler, false, "")
 		go svrSocket.ReadLoop()
 		var cbrw = bufio.NewReader(cliConn)
-		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), &sliceMap{}, cliConn, cbrw, handler, false, "")
+		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), newSmap(), cliConn, cbrw, handler, false, "")
 		if i == 0 { // client 0 1s后再开始读取；1s内不读取消息，则svrSocket 0在发送chan取出一个msg进行writePublic时即开始阻塞
 			time.AfterFunc(time.Second, func() {
 				cliSocket.ReadLoop()
@@ -350,7 +353,7 @@ func TestRQueue(t *testing.T) {
 		var serial = int64(0)
 		var done = make(chan struct{})
 		for i := 0; i < total; i++ {
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) {
+			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
 				time.Sleep(10 * time.Millisecond)
@@ -358,6 +361,7 @@ func TestRQueue(t *testing.T) {
 				if atomic.AddInt64(&serial, 1) == total {
 					done <- struct{}{}
 				}
+				return nil
 			}})
 		}
 		<-done

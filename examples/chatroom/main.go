@@ -3,10 +3,11 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/lxzan/gws"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/lxzan/gws"
 )
 
 const (

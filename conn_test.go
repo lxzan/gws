@@ -83,7 +83,9 @@ func TestOthers(t *testing.T) {
 
 func TestConn_Close(t *testing.T) {
 	conn, _ := net.Pipe()
-	var socket = &Conn{conn: conn, closed: 1}
+	var options = initServerOption(nil)
+	var socket = &Conn{conn: conn, config: options.getConfig()}
+	_ = conn.Close()
 	assert.Error(t, socket.SetDeadline(time.Time{}))
 	assert.Error(t, socket.SetReadDeadline(time.Time{}))
 	assert.Error(t, socket.SetWriteDeadline(time.Time{}))

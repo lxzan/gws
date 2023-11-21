@@ -136,7 +136,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		return nil, c.resp, ErrCompressionNegotiation
 	}
 	socket := &Conn{
-		SessionStorage:    c.option.NewSessionStorage(),
+		ss:                c.option.NewSession(),
 		isServer:          false,
 		subprotocol:       subprotocol,
 		compressEnabled:   compressEnabled,

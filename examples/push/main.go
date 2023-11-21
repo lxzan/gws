@@ -13,8 +13,8 @@ func main() {
 	app.OnRequest = func(socket *gws.Conn, request *http.Request) {
 		var channel = make(chan []byte, 8)
 		var closer = make(chan struct{})
-		socket.SessionStorage.Store("channel", channel)
-		socket.SessionStorage.Store("closer", closer)
+		socket.Session().Store("channel", channel)
+		socket.Session().Store("closer", closer)
 		go socket.ReadLoop()
 		go func() {
 			for {
@@ -35,13 +35,13 @@ type Handler struct {
 	gws.BuiltinEventHandler
 }
 
-func (c *Handler) MustGet(ss gws.SessionStorage, key string) any {
-	v, _ := ss.Load(key)
+func (c *Handler) getSession(socket *gws.Conn, key string) any {
+	v, _ := socket.Session().Load(key)
 	return v
 }
 
 func (c *Handler) Send(socket *gws.Conn, payload []byte) {
-	var channel = c.MustGet(socket.SessionStorage, "channel").(chan []byte)
+	var channel = c.getSession(socket, "channel").(chan []byte)
 	select {
 	case channel <- payload:
 	default:
@@ -50,7 +50,7 @@ func (c *Handler) Send(socket *gws.Conn, payload []byte) {
 }
 
 func (c *Handler) OnClose(socket *gws.Conn, err error) {
-	var closer = c.MustGet(socket.SessionStorage, "closer").(chan struct{})
+	var closer = c.getSession(socket, "closer").(chan struct{})
 	closer <- struct{}{}
 }
 

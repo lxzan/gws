@@ -27,7 +27,7 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.NotNil(config.Recovery)
 	as.Equal(config.Logger, defaultLogger)
 
-	_, ok := u.option.NewSessionStorage().(*sliceMap)
+	_, ok := u.option.NewSession().(*smap)
 	as.True(ok)
 }
 
@@ -47,7 +47,7 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.NotNil(config.Recovery)
 	as.Equal(config.Logger, defaultLogger)
 
-	_, ok := option.NewSessionStorage().(*sliceMap)
+	_, ok := option.NewSession().(*smap)
 	as.True(ok)
 }
 
@@ -74,7 +74,7 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.NotNil(updrader.option)
 	as.NotNil(updrader.option.ResponseHeader)
 	as.NotNil(updrader.option.Authorize)
-	as.NotNil(updrader.option.NewSessionStorage)
+	as.NotNil(updrader.option.NewSession)
 	as.Nil(updrader.option.SubProtocols)
 	as.Equal("", updrader.option.ResponseHeader.Get("Sec-Websocket-Extensions"))
 	as.Equal("gws", updrader.option.ResponseHeader.Get("X-Server"))
@@ -143,7 +143,7 @@ func TestDefaultClientOption(t *testing.T) {
 	as.Equal(1, config.CompressorNum)
 	as.NotNil(config)
 	as.Equal(0, len(option.RequestHeader))
-	as.NotNil(option.NewSessionStorage)
+	as.NotNil(option.NewSession)
 	validateClientOption(as, option)
 }
 
@@ -175,22 +175,22 @@ func TestCompressClientOption(t *testing.T) {
 	})
 }
 
-func TestNewSessionStorage(t *testing.T) {
+func TestNewSession(t *testing.T) {
 	{
 		var option = &ServerOption{
-			NewSessionStorage: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+			NewSession: func() SessionStorage { return NewConcurrentMap[string, any](16) },
 		}
 		initServerOption(option)
-		_, ok := option.NewSessionStorage().(*ConcurrentMap[string, any])
+		_, ok := option.NewSession().(*ConcurrentMap[string, any])
 		assert.True(t, ok)
 	}
 
 	{
 		var option = &ClientOption{
-			NewSessionStorage: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+			NewSession: func() SessionStorage { return NewConcurrentMap[string, any](16) },
 		}
 		initClientOption(option)
-		_, ok := option.NewSessionStorage().(*ConcurrentMap[string, any])
+		_, ok := option.NewSession().(*ConcurrentMap[string, any])
 		assert.True(t, ok)
 	}
 }
