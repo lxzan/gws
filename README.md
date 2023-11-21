@@ -26,17 +26,20 @@ to be processed in a non-blocking way.
 ### Why GWS
 
 - <font size=3>Simplicity and Ease of Use</font>
-    - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
-    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
+
+  - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
+  - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
 
 - <font size=3>High-Performance</font>
-    - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
-      applications.
-    - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of ownership.
+
+  - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
+    applications.
+  - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of ownership.
 
 - <font size=3>Reliability and Stability</font>
-    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-    - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 6455`. 99% unit test coverage, covering almost all conditional branches.
+  - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
+  - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 6455`. 99% unit test coverage, covering almost all conditional branches.
+
 ### Benchmark
 
 #### IOPS (Echo Server)
@@ -66,8 +69,8 @@ PASS
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
+  - [IOPS (Echo Server)](#iops-echo-server)
+  - [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -76,10 +79,10 @@ PASS
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-	- [KCP](#kcp)
-	- [Proxy](#proxy)
-	- [Broadcast](#broadcast)
-	- [Pub / Sub](#pub--sub)
+  - [KCP](#kcp)
+  - [Proxy](#proxy)
+  - [Broadcast](#broadcast)
+  - [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
 - [Acknowledgments](#acknowledgments)
@@ -287,6 +290,10 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 ```
 
 #### Pub / Sub
+
+Use the event_emitter package to implement the publish-subscribe model. Wrap `gws.Conn` in a structure and implement the GetSubscriberID method to get the subscription ID, which must be unique. The subscription ID is used to identify the subscriber, who can only receive messages on the subject of his subscription.
+
+This example is useful for building chat rooms or push messages using gws. This means that a user can subscribe to one or more topics via websocket, and when a message is posted to that topic, all subscribers will receive the message.
 
 ```go
 package main
