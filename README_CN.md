@@ -297,10 +297,13 @@ import (
 
 type Socket struct{ *gws.Conn }
 
-// GetSubscriberID 获取订阅ID, 需要保证唯一
 func (c *Socket) GetSubscriberID() int64 {
 	userId, _ := c.Session().Load("userId")
 	return userId.(int64)
+}
+
+func (c *Socket) GetMetadata() event_emitter.Metadata {
+	return c.Conn.Session()
 }
 
 func Sub(em *event_emitter.EventEmitter[*Socket], topic string, socket *Socket) {
