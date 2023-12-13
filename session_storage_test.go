@@ -3,6 +3,8 @@ package gws
 import (
 	"testing"
 
+	"github.com/dolthub/maphash"
+
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 )
@@ -162,23 +164,11 @@ func TestConcurrentMap_Range(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	m := NewConcurrentMap[string, uint32](8)
-	m.hash("1")
-
-	m.hash(int(1))
-	m.hash(int64(1))
-	m.hash(int32(1))
-	m.hash(int16(1))
-	m.hash(int8(1))
-
-	m.hash(uint(1))
-	m.hash(uint64(1))
-	m.hash(uint32(1))
-	m.hash(uint16(1))
-	m.hash(uint8(1))
-
-	assert.Equal(t, uint64(0), m.hash(map[string]string{}))
-
-	m = NewConcurrentMap[string, uint32](0)
-	assert.Equal(t, uint64(16), m.segments)
+	var h = maphash.NewHasher[string]()
+	for i := 0; i < 1000; i++ {
+		var a = string(internal.AlphabetNumeric.Generate(16))
+		var b = string(internal.AlphabetNumeric.Generate(16))
+		assert.Equal(t, h.Hash(a), h.Hash(a))
+		assert.NotEqual(t, h.Hash(a), h.Hash(b))
+	}
 }

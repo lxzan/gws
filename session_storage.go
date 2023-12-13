@@ -3,6 +3,7 @@ package gws
 import (
 	"sync"
 
+	"github.com/dolthub/maphash"
 	"github.com/lxzan/gws/internal"
 )
 
@@ -57,55 +58,35 @@ func (c *smap) Range(f func(key string, value any) bool) {
 }
 
 type (
-	Comparable interface {
-		~string | ~int | ~int64 | ~int32 | ~uint | ~uint64 | ~uint32
-	}
-
-	ConcurrentMap[K Comparable, V any] struct {
-		segments uint64
+	ConcurrentMap[K comparable, V any] struct {
+		hasher   maphash.Hasher[K]
+		sharding uint64
 		buckets  []*bucket[K, V]
 	}
 
-	bucket[K Comparable, V any] struct {
+	bucket[K comparable, V any] struct {
 		sync.Mutex
 		m map[K]V
 	}
 )
 
-func NewConcurrentMap[K Comparable, V any](segments uint64) *ConcurrentMap[K, V] {
-	segments = internal.SelectValue(segments == 0, 16, segments)
-	segments = internal.ToBinaryNumber(segments)
-	var cm = &ConcurrentMap[K, V]{segments: segments, buckets: make([]*bucket[K, V], segments)}
+func NewConcurrentMap[K comparable, V any](sharding uint64) *ConcurrentMap[K, V] {
+	sharding = internal.SelectValue(sharding == 0, 16, sharding)
+	sharding = internal.ToBinaryNumber(sharding)
+	var cm = &ConcurrentMap[K, V]{
+		hasher:   maphash.NewHasher[K](),
+		sharding: sharding,
+		buckets:  make([]*bucket[K, V], sharding),
+	}
 	for i, _ := range cm.buckets {
 		cm.buckets[i] = &bucket[K, V]{m: make(map[K]V)}
 	}
 	return cm
 }
 
-func (c *ConcurrentMap[K, V]) hash(key any) uint64 {
-	switch k := key.(type) {
-	case string:
-		return internal.FnvString(k)
-	case int:
-		return internal.FnvNumber(k)
-	case int64:
-		return internal.FnvNumber(k)
-	case int32:
-		return internal.FnvNumber(k)
-	case uint:
-		return internal.FnvNumber(k)
-	case uint64:
-		return internal.FnvNumber(k)
-	case uint32:
-		return internal.FnvNumber(k)
-	default:
-		return 0
-	}
-}
-
 func (c *ConcurrentMap[K, V]) getBucket(key K) *bucket[K, V] {
-	var hashCode = c.hash(key)
-	var index = hashCode & (c.segments - 1)
+	var hashCode = c.hasher.Hash(key)
+	var index = hashCode & (c.sharding - 1)
 	return c.buckets[index]
 }
 

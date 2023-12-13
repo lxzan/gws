@@ -3,6 +3,7 @@ module github.com/lxzan/gws
 go 1.18
 
 require (
+	github.com/dolthub/maphash v0.1.0
 	github.com/klauspost/compress v1.16.5
 	github.com/stretchr/testify v1.8.1
 )
