@@ -40,7 +40,7 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla 和 nhooyr 未使用流式 API
+> Gorilla 和 Nhooyr 未使用 Stream API
 
 #### GoBench
 
@@ -61,8 +61,8 @@ PASS
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-  - [IOPS (Echo Server)](#iops-echo-server)
-  - [GoBench](#gobench)
+	- [IOPS (Echo Server)](#iops-echo-server)
+	- [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -71,10 +71,11 @@ PASS
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-  - [KCP](#kcp)
-  - [代理](#代理)
-  - [广播](#广播)
-  - [发布/订阅](#发布订阅)
+	- [KCP](#kcp)
+	- [代理](#代理)
+	- [广播](#广播)
+	- [写入超时](#写入超时)
+	- [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
 - [致谢](#致谢)
@@ -105,7 +106,7 @@ go get -v github.com/lxzan/gws@latest
 ```go
 type Event interface {
     OnOpen(socket *Conn)                        // connection is established
-    OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
+    OnClose(socket *Conn, err error)            // received a close frame or input/output error occurs
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
@@ -113,10 +114,6 @@ type Event interface {
 ```
 
 ### 快速上手
-
-非常、非常、非常简单的例子。
-
-这个例子让你知道如何在没有任何其他依赖的情况下使用 `gws` 软件包。
 
 ```go
 package main
@@ -281,6 +278,27 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 }
 ```
 
+#### 写入超时
+
+`SetDeadline` 可以覆盖大部分使用场景, 想要精细地控制每一次写入的超时时间, 则需要自行封装下 `WriteWithTimeout`
+函数, `timer` 的创建和销毁会有一定额外开销.
+
+```go
+func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
+	var sig = atomic.Uint32{}
+	var timer = time.AfterFunc(timeout, func() {
+		if sig.CompareAndSwap(0, 1) {
+			socket.WriteClose(1000, []byte("write timeout"))
+		}
+	})
+	var err = socket.WriteMessage(gws.OpcodeText, p)
+	if sig.CompareAndSwap(0, 1) {
+		timer.Stop()
+	}
+	return err
+}
+```
+
 #### 发布/订阅
 
 使用 event_emitter 包实现发布订阅模式。用结构体包装 `gws.Conn`，并实现 GetSubscriberID 方法以获取订阅 ID，该 ID 必须是唯一的。订阅 ID 用于识别订阅者，订阅者只能接收其订阅主题的消息。
@@ -333,7 +351,7 @@ docker run -it --rm \
 
 ### 交流
 
-> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+> 微信需要先添加好友再拉群, 请注明来自 GitHub
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>
