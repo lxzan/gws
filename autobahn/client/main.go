@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	agent      = "gws/client@v1.6.10"
+	agent      = "gws/client@v1.8.0"
 	remoteAddr = "127.0.0.1:9001"
 )
 
@@ -27,10 +27,14 @@ func testCase(id int) {
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
 		Addr:                url,
 		ReadAsyncEnabled:    true,
-		CompressEnabled:     true,
 		CheckUtf8Enabled:    true,
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
 		WriteMaxPayloadSize: 32 * 1024 * 1024,
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())
@@ -81,8 +85,12 @@ func updateReports() {
 	var handler = &updateReportsHandler{onexit: make(chan struct{})}
 	socket, _, err := gws.NewClient(handler, &gws.ClientOption{
 		Addr:             url,
-		CompressEnabled:  true,
 		CheckUtf8Enabled: true,
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())

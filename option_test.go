@@ -16,13 +16,13 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
 	as.Equal(config.ReadMaxPayloadSize, option.ReadMaxPayloadSize)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
-	as.Equal(config.CompressEnabled, option.CompressEnabled)
-	as.Equal(config.CompressLevel, option.CompressLevel)
-	as.Equal(config.CompressThreshold, option.CompressThreshold)
+	as.Equal(config.PermessageDeflate.Enabled, option.PermessageDeflate.Enabled)
+	as.Equal(config.PermessageDeflate.Level, option.PermessageDeflate.Level)
+	as.Equal(config.PermessageDeflate.Threshold, option.PermessageDeflate.Threshold)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
-	as.Equal(config.CompressorNum, option.CompressorNum)
+	as.Equal(config.PermessageDeflate.PoolSize, option.PermessageDeflate.PoolSize)
 	as.NotNil(config.readerPool)
 	as.NotNil(config.Recovery)
 	as.Equal(config.Logger, defaultLogger)
@@ -37,9 +37,9 @@ func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
 	as.Equal(config.ReadMaxPayloadSize, option.ReadMaxPayloadSize)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
-	as.Equal(config.CompressEnabled, option.CompressEnabled)
-	as.Equal(config.CompressLevel, option.CompressLevel)
-	as.Equal(config.CompressThreshold, option.CompressThreshold)
+	as.Equal(config.PermessageDeflate.Enabled, option.PermessageDeflate.Enabled)
+	as.Equal(config.PermessageDeflate.Level, option.PermessageDeflate.Level)
+	as.Equal(config.PermessageDeflate.Threshold, option.PermessageDeflate.Threshold)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
@@ -61,13 +61,13 @@ func TestDefaultUpgrader(t *testing.T) {
 		},
 	})
 	var config = updrader.option.getConfig()
-	as.Equal(false, config.CompressEnabled)
+	as.Equal(false, config.PermessageDeflate.Enabled)
 	as.Equal(false, config.ReadAsyncEnabled)
 	as.Equal(false, config.CheckUtf8Enabled)
 	as.Equal(defaultReadAsyncGoLimit, config.ReadAsyncGoLimit)
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
-	as.Equal(defaultCompressorNum, config.CompressorNum)
+	as.Equal(0, config.PermessageDeflate.PoolSize)
 	as.Equal(defaultHandshakeTimeout, updrader.option.HandshakeTimeout)
 	as.NotNil(updrader.eventHandler)
 	as.NotNil(config)
@@ -86,28 +86,32 @@ func TestCompressServerOption(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
-			CompressEnabled: true,
-			CompressorNum:   60,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:  true,
+				PoolSize: 60,
+			},
 		})
 		var config = updrader.option.getConfig()
-		as.Equal(true, config.CompressEnabled)
-		as.Equal(defaultCompressLevel, config.CompressLevel)
-		as.Equal(defaultCompressThreshold, config.CompressThreshold)
-		as.Equal(64, config.CompressorNum)
+		as.Equal(true, config.PermessageDeflate.Enabled)
+		as.Equal(defaultCompressLevel, config.PermessageDeflate.Level)
+		as.Equal(defaultCompressThreshold, config.PermessageDeflate.Threshold)
+		as.Equal(64, config.PermessageDeflate.PoolSize)
 		validateServerOption(as, updrader)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
-			CompressEnabled:   true,
-			CompressLevel:     flate.BestCompression,
-			CompressThreshold: 1024,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:   true,
+				Level:     flate.BestCompression,
+				Threshold: 1024,
+			},
 		})
 		var config = updrader.option.getConfig()
-		as.Equal(true, config.CompressEnabled)
-		as.Equal(flate.BestCompression, config.CompressLevel)
-		as.Equal(1024, config.CompressThreshold)
-		as.Equal(defaultCompressorNum, config.CompressorNum)
+		as.Equal(true, config.PermessageDeflate.Enabled)
+		as.Equal(flate.BestCompression, config.PermessageDeflate.Level)
+		as.Equal(1024, config.PermessageDeflate.Threshold)
+		as.Equal(defaultCompressorNum, config.PermessageDeflate.PoolSize)
 		validateServerOption(as, updrader)
 	})
 }
@@ -134,13 +138,13 @@ func TestDefaultClientOption(t *testing.T) {
 	NewClient(new(BuiltinEventHandler), option)
 
 	var config = option.getConfig()
-	as.Equal(false, config.CompressEnabled)
+	as.Equal(false, config.PermessageDeflate.Enabled)
 	as.Equal(false, config.ReadAsyncEnabled)
 	as.Equal(false, config.CheckUtf8Enabled)
 	as.Equal(defaultReadAsyncGoLimit, config.ReadAsyncGoLimit)
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
-	as.Equal(1, config.CompressorNum)
+	as.Equal(0, config.PermessageDeflate.PoolSize)
 	as.NotNil(config)
 	as.Equal(0, len(option.RequestHeader))
 	as.NotNil(option.NewSession)
@@ -151,26 +155,28 @@ func TestCompressClientOption(t *testing.T) {
 	var as = assert.New(t)
 
 	t.Run("", func(t *testing.T) {
-		var option = &ClientOption{CompressEnabled: true}
+		var option = &ClientOption{PermessageDeflate: PermessageDeflate{Enabled: true}}
 		NewClient(new(BuiltinEventHandler), option)
 		var config = option.getConfig()
-		as.Equal(true, config.CompressEnabled)
-		as.Equal(defaultCompressLevel, config.CompressLevel)
-		as.Equal(defaultCompressThreshold, config.CompressThreshold)
+		as.Equal(true, config.PermessageDeflate.Enabled)
+		as.Equal(defaultCompressLevel, config.PermessageDeflate.Level)
+		as.Equal(defaultCompressThreshold, config.PermessageDeflate.Threshold)
 		validateClientOption(as, option)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var option = &ClientOption{
-			CompressEnabled:   true,
-			CompressLevel:     flate.BestCompression,
-			CompressThreshold: 1024,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:   true,
+				Level:     flate.BestCompression,
+				Threshold: 1024,
+			},
 		}
 		initClientOption(option)
 		var config = option.getConfig()
-		as.Equal(true, config.CompressEnabled)
-		as.Equal(flate.BestCompression, config.CompressLevel)
-		as.Equal(1024, config.CompressThreshold)
+		as.Equal(true, config.PermessageDeflate.Enabled)
+		as.Equal(flate.BestCompression, config.PermessageDeflate.Level)
+		as.Equal(1024, config.PermessageDeflate.Threshold)
 		validateClientOption(as, option)
 	})
 }

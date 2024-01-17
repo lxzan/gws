@@ -29,6 +29,9 @@ func serveWebSocket(isServer bool, config *Config, session SessionStorage, netCo
 		writeQueue:      workerQueue{maxConcurrency: 1},
 		subprotocol:     subprotocol,
 	}
+	if config.PermessageDeflate.Enabled {
+		c.deflater = new(deflaterPool).initialize(config.PermessageDeflate).Select()
+	}
 	return c.init()
 }
 
@@ -39,11 +42,11 @@ func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Even
 	s, c := net.Pipe()
 	{
 		br := bufio.NewReaderSize(s, size)
-		server = serveWebSocket(true, serverOption.getConfig(), newSmap(), s, br, serverHandler, serverOption.CompressEnabled, "")
+		server = serveWebSocket(true, serverOption.getConfig(), newSmap(), s, br, serverHandler, serverOption.PermessageDeflate.Enabled, "")
 	}
 	{
 		br := bufio.NewReaderSize(c, size)
-		client = serveWebSocket(false, clientOption.getConfig(), newSmap(), c, br, clientHandler, clientOption.CompressEnabled, "")
+		client = serveWebSocket(false, clientOption.getConfig(), newSmap(), c, br, clientHandler, clientOption.PermessageDeflate.Enabled, "")
 	}
 	return
 }
@@ -92,8 +95,12 @@ func TestConn_WriteAsync(t *testing.T) {
 	t.Run("compressed text", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
-		var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 1}
-		var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 1}
+		var serverOption = &ServerOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 1},
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 1},
+		}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 		var listA []string
@@ -188,8 +195,14 @@ func TestConn_WriteAsync(t *testing.T) {
 func TestReadAsync(t *testing.T) {
 	var serverHandler = new(webSocketMocker)
 	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
-	var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
+	var serverOption = &ServerOption{
+		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
+		ReadAsyncEnabled:  true,
+	}
+	var clientOption = &ClientOption{
+		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
+		ReadAsyncEnabled:  true,
+	}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 	var mu = &sync.Mutex{}

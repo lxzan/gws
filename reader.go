@@ -146,10 +146,11 @@ func (c *Conn) dispatch(msg *Message) error {
 
 func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
-		msg.Data, err = c.decompressor.Decompress(msg.Data)
+		msg.Data, err = c.deflater.Decompress(msg.Data, c.dpsWindow.dict)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
+		c.dpsWindow.Write(msg.Bytes())
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)

@@ -2,7 +2,6 @@ package gws
 
 import (
 	"crypto/tls"
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -77,8 +76,8 @@ func TestNewClientFromConn(t *testing.T) {
 func TestClientHandshake(t *testing.T) {
 	var as = assert.New(t)
 	option := &ClientOption{
-		CompressEnabled: true,
-		RequestHeader:   http.Header{},
+		RequestHeader:     http.Header{},
+		PermessageDeflate: PermessageDeflate{Enabled: true},
 	}
 	option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 	option = initClientOption(option)
@@ -110,8 +109,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			RequestHeader:     http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option = initClientOption(option)
@@ -138,8 +137,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+			RequestHeader:     http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option = initClientOption(option)
@@ -166,8 +165,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+			RequestHeader:     http.Header{},
 		}
 		option = initClientOption(option)
 		srv, cli := net.Pipe()
@@ -193,8 +192,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+			RequestHeader:     http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option = initClientOption(option)
@@ -221,8 +220,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+			RequestHeader:     http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option = initClientOption(option)
@@ -249,8 +248,8 @@ func TestClientHandshakeFail(t *testing.T) {
 
 	t.Run("deflate", func(t *testing.T) {
 		option := &ClientOption{
-			CompressEnabled: true,
-			RequestHeader:   http.Header{},
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+			RequestHeader:     http.Header{},
 		}
 		option.RequestHeader.Set(internal.SecWebSocketKey.Key, "1fTfP/qALD+eAWcU80P0bg==")
 		option = initClientOption(option)
@@ -272,7 +271,7 @@ func TestClientHandshakeFail(t *testing.T) {
 			}
 		}()
 		_, _, err := d.handshake()
-		as.True(errors.Is(err, ErrCompressionNegotiation))
+		as.NoError(err)
 	})
 }
 

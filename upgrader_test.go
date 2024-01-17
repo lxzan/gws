@@ -102,16 +102,16 @@ func TestNoDelay(t *testing.T) {
 
 func TestAccept(t *testing.T) {
 	var upgrader = NewUpgrader(new(webSocketMocker), &ServerOption{
-		CompressEnabled: true,
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		PermessageDeflate: PermessageDeflate{Enabled: true},
+		ReadBufferSize:    1024,
+		WriteBufferSize:   1024,
 		ResponseHeader: http.Header{
 			"Server": []string{"gws"},
 		},
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		upgrader.option.CompressEnabled = true
+		upgrader.option.PermessageDeflate.Enabled = true
 		upgrader.option.SubProtocols = []string{"chat"}
 		var request = &http.Request{
 			Header: http.Header{},
@@ -187,7 +187,7 @@ func TestAccept(t *testing.T) {
 	})
 
 	t.Run("fail check origin", func(t *testing.T) {
-		upgrader.option.CompressEnabled = true
+		upgrader.option.PermessageDeflate.Enabled = true
 		upgrader.option.Authorize = func(r *http.Request, session SessionStorage) bool {
 			return false
 		}
@@ -295,7 +295,7 @@ func TestNewServer(t *testing.T) {
 		as.Error(NewServer(new(BuiltinEventHandler), nil).RunTLS(addr, "", ""))
 		{
 			server := NewServer(new(BuiltinEventHandler), nil)
-			var dir = os.Getenv("PWD")
+			var dir = "./"
 			go server.RunTLS(":"+nextPort(), dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem")
 			time.Sleep(100 * time.Millisecond)
 			as.Error(server.RunTLS(addr, dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem"))

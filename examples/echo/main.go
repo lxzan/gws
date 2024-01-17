@@ -1,15 +1,16 @@
 package main
 
 import (
+	"github.com/lxzan/gws"
 	"log"
 	"net/http"
-
-	"github.com/lxzan/gws"
 )
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		CompressEnabled:  true,
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled: true,
+		},
 		CheckUtf8Enabled: true,
 		Recovery:         gws.Recovery,
 	})

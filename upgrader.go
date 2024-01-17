@@ -72,14 +72,19 @@ func (c *responseWriter) Write(conn net.Conn, timeout time.Duration) error {
 
 type Upgrader struct {
 	option       *ServerOption
+	deflaterPool *deflaterPool
 	eventHandler Event
 }
 
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
-	return &Upgrader{
+	u := &Upgrader{
 		option:       initServerOption(option),
 		eventHandler: eventHandler,
 	}
+	if u.option.PermessageDeflate.Enabled {
+		u.deflaterPool = new(deflaterPool).initialize(u.option.PermessageDeflate)
+	}
+	return u
 }
 
 // Upgrade http upgrade to websocket protocol
@@ -134,8 +139,8 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 
 	var rw = new(responseWriter).Init()
 	defer rw.Close()
-	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.CompressEnabled {
-		rw.WithHeader(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
+	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.PermessageDeflate.Enabled {
+		rw.WithHeader(internal.SecWebSocketExtensions.Key, c.option.PermessageDeflate.genResponseHeader())
 		compressEnabled = true
 	}
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
@@ -161,6 +166,9 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
+	}
+	if compressEnabled {
+		socket.deflater = c.deflaterPool.Select()
 	}
 	return socket.init(), nil
 }

@@ -28,8 +28,9 @@ type Conn struct {
 	readQueue         channel           // 消息处理队列
 	writeQueue        workerQueue       // 发送队列
 	compressEnabled   bool              // 是否压缩
-	compressor        *compressor       // 压缩器
-	decompressor      *decompressor     // 解压器
+	deflater          deflater          // 压缩编码器
+	dpsWindow         slideWindow       // 解压器滑动窗口
+	cpsWindow         slideWindow       // 压缩器滑动窗口
 }
 
 func (c *Conn) init() *Conn {
@@ -37,9 +38,22 @@ func (c *Conn) init() *Conn {
 	if c.config.ReadAsyncEnabled {
 		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
 	}
-	if c.compressEnabled {
-		c.compressor = c.config.compressors.Select()
-		c.decompressor = c.config.decompressors.Select()
+	if cfg := c.config.PermessageDeflate; c.compressEnabled {
+		if c.isServer {
+			if cfg.ServerContextTakeover {
+				c.cpsWindow.initialize(cfg.ServerMaxWindowBits)
+			}
+			if cfg.ClientContextTakeover {
+				c.dpsWindow.initialize(cfg.ClientMaxWindowBits)
+			}
+		} else {
+			if cfg.ServerContextTakeover {
+				c.dpsWindow.initialize(cfg.ClientMaxWindowBits)
+			}
+			if cfg.ClientContextTakeover {
+				c.cpsWindow.initialize(cfg.ServerMaxWindowBits)
+			}
+		}
 	}
 	return c
 }

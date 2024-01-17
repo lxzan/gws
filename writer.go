@@ -83,6 +83,7 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	err = internal.WriteN(c.conn, frame.Bytes())
+	c.cpsWindow.Write(payload)
 	binaryPool.Put(frame)
 	return err
 }
@@ -94,7 +95,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
-	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold {
+	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.PermessageDeflate.Threshold {
 		return c.compressData(opcode, payload)
 	}
 
@@ -118,7 +119,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
 	buf.Write(framePadding[0:])
-	err := c.compressor.Compress(payload, buf)
+	err := c.deflater.Compress(payload, buf, c.cpsWindow.dict)
 	if err != nil {
 		return nil, err
 	}

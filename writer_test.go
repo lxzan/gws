@@ -14,10 +14,10 @@ import (
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
-	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.CompressThreshold
+	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.PermessageDeflate.Threshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
-		err := c.config.compressors.Select().Compress(payload, buf)
+		err := c.deflater.Compress(payload, buf)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
@@ -65,8 +65,13 @@ func TestWriteBigMessage(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
-		var serverOption = &ServerOption{WriteMaxPayloadSize: 16, CompressEnabled: true, CompressThreshold: 1}
-		var clientOption = &ClientOption{CompressEnabled: true}
+		var serverOption = &ServerOption{
+			WriteMaxPayloadSize: 16,
+			PermessageDeflate:   PermessageDeflate{Enabled: true, Threshold: 1},
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+		}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		go server.ReadLoop()
 		go client.ReadLoop()
@@ -167,7 +172,7 @@ func TestNewBroadcaster(t *testing.T) {
 		var handler = &broadcastHandler{sockets: &sync.Map{}, wg: &sync.WaitGroup{}}
 		var addr = "127.0.0.1:" + nextPort()
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{
-			CompressEnabled: true,
+			PermessageDeflate: PermessageDeflate{Enabled: true},
 		})
 
 		app.OnRequest = func(socket *Conn, request *http.Request) {
@@ -187,7 +192,10 @@ func TestNewBroadcaster(t *testing.T) {
 		var count = 100
 		for i := 0; i < count; i++ {
 			compress := i%2 == 0
-			client, _, err := NewClient(handler, &ClientOption{Addr: "ws://" + addr, CompressEnabled: compress})
+			client, _, err := NewClient(handler, &ClientOption{
+				Addr:              "ws://" + addr,
+				PermessageDeflate: PermessageDeflate{Enabled: compress},
+			})
 			if err != nil {
 				as.NoError(err)
 				return
@@ -210,7 +218,7 @@ func TestNewBroadcaster(t *testing.T) {
 		var handler = &broadcastHandler{sockets: &sync.Map{}, wg: &sync.WaitGroup{}}
 		var addr = "127.0.0.1:" + nextPort()
 		app := NewServer(new(BuiltinEventHandler), &ServerOption{
-			CompressEnabled:     true,
+			PermessageDeflate:   PermessageDeflate{Enabled: true},
 			WriteMaxPayloadSize: 1000,
 			Authorize: func(r *http.Request, session SessionStorage) bool {
 				session.Store("name", 1)
@@ -238,7 +246,10 @@ func TestNewBroadcaster(t *testing.T) {
 		var count = 100
 		for i := 0; i < count; i++ {
 			compress := i%2 == 0
-			client, _, err := NewClient(handler, &ClientOption{Addr: "ws://" + addr, CompressEnabled: compress})
+			client, _, err := NewClient(handler, &ClientOption{
+				Addr:              "ws://" + addr,
+				PermessageDeflate: PermessageDeflate{Enabled: compress},
+			})
 			if err != nil {
 				as.NoError(err)
 				return

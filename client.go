@@ -89,8 +89,8 @@ func (c *connector) writeRequest() (*http.Request, error) {
 	r.Header.Set(internal.Connection.Key, internal.Connection.Val)
 	r.Header.Set(internal.Upgrade.Key, internal.Upgrade.Val)
 	r.Header.Set(internal.SecWebSocketVersion.Key, internal.SecWebSocketVersion.Val)
-	if c.option.CompressEnabled {
-		r.Header.Set(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
+	if c.option.PermessageDeflate.Enabled {
+		r.Header.Set(internal.SecWebSocketExtensions.Key, c.option.PermessageDeflate.genRequestHeader())
 	}
 	if c.secWebsocketKey == "" {
 		var key [16]byte
@@ -131,10 +131,8 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	}
 
 	var extensions = c.resp.Header.Get(internal.SecWebSocketExtensions.Key)
-	var compressEnabled = c.option.CompressEnabled && strings.Contains(extensions, internal.PermessageDeflate)
-	if compressEnabled && !strings.Contains(extensions, "server_no_context_takeover") {
-		return nil, c.resp, ErrCompressionNegotiation
-	}
+	var compressEnabled = c.option.PermessageDeflate.Enabled && strings.Contains(extensions, internal.PermessageDeflate)
+
 	socket := &Conn{
 		ss:                c.option.NewSession(),
 		isServer:          false,
@@ -148,6 +146,14 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		handler:           c.eventHandler,
 		closed:            0,
 	}
+	if compressEnabled {
+		d := new(deflaterC)
+		if err := d.initialize(c.option.PermessageDeflate.Level, extensions); err != nil {
+			return nil, c.resp, err
+		}
+		socket.deflater = d
+	}
+
 	return socket.init(), c.resp, nil
 }
 
