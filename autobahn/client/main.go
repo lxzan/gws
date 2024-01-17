@@ -64,7 +64,7 @@ func (c *WebSocket) OnPong(socket *gws.Conn, payload []byte) {}
 
 func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	_ = socket.WriteAsync(message.Opcode, message.Bytes())
+	socket.WriteAsync(message.Opcode, message.Bytes(), nil)
 }
 
 type updateReportsHandler struct {

@@ -111,12 +111,12 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err != nil {
 		return nil, c.resp, err
 	}
-	var channel = make(chan error)
+	var ch = make(chan error)
 	go func() {
 		c.resp, err = http.ReadResponse(br, request)
-		channel <- err
+		ch <- err
 	}()
-	if err := <-channel; err != nil {
+	if err := <-ch; err != nil {
 		return nil, c.resp, err
 	}
 	if err := c.checkHeaders(); err != nil {
@@ -138,6 +138,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		isServer:          false,
 		subprotocol:       subprotocol,
 		compressEnabled:   compressEnabled,
+		compressThreshold: c.option.PermessageDeflate.Threshold,
 		conn:              c.conn,
 		config:            c.option.getConfig(),
 		br:                br,
@@ -145,16 +146,21 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
+		deflater:          new(deflater),
+		writeQueue:        workerQueue{maxConcurrency: 1},
+		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
 	}
 	if compressEnabled {
-		d := new(deflaterC)
-		if err := d.initialize(c.option.PermessageDeflate.Level, extensions); err != nil {
-			return nil, c.resp, err
+		pd := permessageNegotiation(extensions)
+		socket.deflater.initialize(false, pd)
+		if pd.ServerContextTakeover {
+			socket.dpsWindow.initialize(pd.ServerMaxWindowBits)
 		}
-		socket.deflater = d
+		if pd.ClientContextTakeover {
+			socket.cpsWindow.initialize(pd.ClientMaxWindowBits)
+		}
 	}
-
-	return socket.init(), c.resp, nil
+	return socket, c.resp, nil
 }
 
 func (c *connector) getSubProtocol() (string, error) {

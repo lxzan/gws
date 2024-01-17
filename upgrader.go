@@ -117,6 +117,19 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	return netConn, br, nil
 }
 
+// 检查压缩参数是否合法
+func (c *Upgrader) checkPermessageDeflate(str string) error {
+	clientPD := permessageNegotiation(str)
+	serverPD := c.option.PermessageDeflate
+	if (serverPD.ServerContextTakeover && !clientPD.ServerContextTakeover) ||
+		(serverPD.ClientContextTakeover && !clientPD.ClientContextTakeover) ||
+		(clientPD.ServerMaxWindowBits < serverPD.ServerMaxWindowBits) ||
+		(clientPD.ClientMaxWindowBits < serverPD.ClientMaxWindowBits) {
+		return ErrCompressionNegotiation
+	}
+	return nil
+}
+
 func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
 	var session = c.option.NewSession()
 	if !c.option.Authorize(r, session) {
@@ -139,10 +152,18 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 
 	var rw = new(responseWriter).Init()
 	defer rw.Close()
-	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.PermessageDeflate.Enabled {
-		rw.WithHeader(internal.SecWebSocketExtensions.Key, c.option.PermessageDeflate.genResponseHeader())
+
+	var extensions = r.Header.Get(internal.SecWebSocketExtensions.Key)
+	if strings.Contains(extensions, internal.PermessageDeflate) && c.option.PermessageDeflate.Enabled {
 		compressEnabled = true
 	}
+	if compressEnabled {
+		if err := c.checkPermessageDeflate(extensions); err != nil {
+			return nil, err
+		}
+		rw.WithHeader(internal.SecWebSocketExtensions.Key, c.option.PermessageDeflate.genResponseHeader())
+	}
+
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
 	if websocketKey == "" {
 		return nil, ErrHandshake
@@ -159,6 +180,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		isServer:          true,
 		subprotocol:       rw.subprotocol,
 		compressEnabled:   compressEnabled,
+		compressThreshold: c.option.PermessageDeflate.Threshold,
 		conn:              netConn,
 		config:            c.option.getConfig(),
 		br:                br,
@@ -166,11 +188,19 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
+		writeQueue:        workerQueue{maxConcurrency: 1},
+		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
 	}
 	if compressEnabled {
 		socket.deflater = c.deflaterPool.Select()
+		if c.option.PermessageDeflate.ServerContextTakeover {
+			socket.cpsWindow.initialize(c.option.PermessageDeflate.ServerMaxWindowBits)
+		}
+		if c.option.PermessageDeflate.ClientContextTakeover {
+			socket.dpsWindow.initialize(c.option.PermessageDeflate.ClientMaxWindowBits)
+		}
 	}
-	return socket.init(), nil
+	return socket, nil
 }
 
 type Server struct {

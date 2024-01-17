@@ -17,7 +17,7 @@ const (
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
 	defaultCompressThreshold   = 512
-	defaultCompressorNum       = 32
+	defaultCompressorPoolSize  = 32
 	defaultReadBufferSize      = 4 * 1024
 	defaultWriteBufferSize     = 4 * 1024
 	defaultHandshakeTimeout    = 5 * time.Second
@@ -26,9 +26,7 @@ const (
 
 type (
 	// PermessageDeflate 压缩拓展配置
-	// 对于gws server, 这些参数是给客户端下达命令而不是协商. 这可能不符合WebSocket规范, 但是为了性能我必须这么做.
-	// For a gws server, these parameters are commands to the client, not negotiations.
-	// This may not be in line with the WebSocket specification, but I had to do it for performance.
+	// 对于gws client, 建议开启上下文接管, 不修改滑动窗口指数, 提供最好的兼容性.
 	PermessageDeflate struct {
 		// 是否开启压缩
 		// Whether to turn on compression
@@ -49,11 +47,11 @@ type (
 		PoolSize int
 
 		// 服务端上下文接管
-		// 对于gws client: 建议开启, 提供最好的兼容性
+		// Server side context takeover
 		ServerContextTakeover bool
 
 		// 客户端上下文接管
-		// 对于gws client: 建议开启, 提供最好的兼容性
+		// Client side context takeover
 		ClientContextTakeover bool
 
 		// 服务端滑动窗口指数
@@ -71,8 +69,6 @@ type (
 
 	Config struct {
 		readerPool *internal.Pool[*bufio.Reader]
-
-		PermessageDeflate PermessageDeflate
 
 		// 是否开启异步读, 开启的话会并行调用OnMessage
 		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
@@ -214,7 +210,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 			c.PermessageDeflate.Level = defaultCompressLevel
 		}
 		if c.PermessageDeflate.PoolSize <= 0 {
-			c.PermessageDeflate.PoolSize = defaultCompressorNum
+			c.PermessageDeflate.PoolSize = defaultCompressorPoolSize
 		}
 		c.PermessageDeflate.PoolSize = internal.ToBinaryNumber(c.PermessageDeflate.PoolSize)
 	}
@@ -223,7 +219,6 @@ func initServerOption(c *ServerOption) *ServerOption {
 
 	c.config = &Config{
 		readerPool:          internal.NewPool(func() *bufio.Reader { return bufio.NewReaderSize(nil, c.ReadBufferSize) }),
-		PermessageDeflate:   c.PermessageDeflate,
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
@@ -342,7 +337,6 @@ func initClientOption(c *ClientOption) *ClientOption {
 
 func (c *ClientOption) getConfig() *Config {
 	config := &Config{
-		PermessageDeflate:   c.PermessageDeflate,
 		ReadAsyncEnabled:    c.ReadAsyncEnabled,
 		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,

@@ -231,3 +231,37 @@ func TestResetBuffer(t *testing.T) {
 		assert.Equal(t, sh1.Data, sh2.Data)
 	}
 }
+
+func TestWithDefault(t *testing.T) {
+	assert.Equal(t, WithDefault(0, 1), 1)
+	assert.Equal(t, WithDefault(2, 1), 2)
+}
+
+func TestBinaryPow(t *testing.T) {
+	assert.Equal(t, BinaryPow(0), 1)
+	assert.Equal(t, BinaryPow(1), 2)
+	assert.Equal(t, BinaryPow(3), 8)
+	assert.Equal(t, BinaryPow(10), 1024)
+}
+
+func TestMin(t *testing.T) {
+	assert.Equal(t, Min(1, 2), 1)
+	assert.Equal(t, Min(4, 3), 3)
+}
+
+func TestIsSameSlice(t *testing.T) {
+	assert.True(t, IsSameSlice(
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+	))
+
+	assert.False(t, IsSameSlice(
+		[]int{1, 2, 3},
+		[]int{1, 2},
+	))
+
+	assert.False(t, IsSameSlice(
+		[]int{1, 2, 3},
+		[]int{1, 2, 4},
+	))
+}

@@ -14,10 +14,10 @@ import (
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
-	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.PermessageDeflate.Threshold
+	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.compressThreshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
-		err := c.deflater.Compress(payload, buf)
+		err := c.deflater.Compress(payload, buf, c.cpsWindow.dict)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
@@ -102,7 +102,7 @@ func TestWriteClose(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var socket = &Conn{closed: 1, config: server.config}
 		socket.WriteMessage(OpcodeText, nil)
-		socket.WriteAsync(OpcodeText, nil)
+		socket.WriteAsync(OpcodeText, nil, nil)
 	})
 }
 
@@ -114,7 +114,7 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, _ := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		server.closed = 1
-		server.WriteAsync(OpcodeText, nil)
+		server.WriteAsync(OpcodeText, nil, nil)
 	})
 
 	t.Run("", func(t *testing.T) {
@@ -124,8 +124,9 @@ func TestConn_WriteAsyncError(t *testing.T) {
 		var clientOption = &ClientOption{}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 		go client.ReadLoop()
-		var err = server.WriteAsync(OpcodeText, flateTail)
-		assert.Error(t, err)
+		server.WriteAsync(OpcodeText, flateTail, func(err error) {
+			assert.Error(t, err)
+		})
 	})
 }
 

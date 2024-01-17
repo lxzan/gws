@@ -13,10 +13,10 @@ import (
 func main() {
 
 	var upgrader = gws.NewUpgrader(new(WebSocket), &gws.ServerOption{
-		CompressEnabled:     true,
 		CheckUtf8Enabled:    true,
 		ReadMaxPayloadSize:  32 * 1024 * 1024,
 		WriteMaxPayloadSize: 32 * 1024 * 1024,
+		PermessageDeflate:   gws.PermessageDeflate{Enabled: true},
 	})
 
 	mux := &http.ServeMux{}

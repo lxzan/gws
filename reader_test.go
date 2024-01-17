@@ -25,8 +25,18 @@ func TestReadSync(t *testing.T) {
 
 	var serverHandler = new(webSocketMocker)
 	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true}}
-	var clientOption = &ClientOption{PermessageDeflate: PermessageDeflate{Enabled: true}}
+	var serverOption = &ServerOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: false,
+		ServerMaxWindowBits:   10,
+		ClientMaxWindowBits:   10,
+	}}
+	var clientOption = &ClientOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+	}}
 
 	serverHandler.onMessage = func(socket *Conn, message *Message) {
 		mu.Lock()
@@ -43,7 +53,7 @@ func TestReadSync(t *testing.T) {
 		var n = internal.AlphabetNumeric.Intn(1024)
 		var message = internal.AlphabetNumeric.Generate(n)
 		listA = append(listA, string(message))
-		client.WriteAsync(OpcodeText, message)
+		client.WriteAsync(OpcodeText, message, nil)
 	}
 
 	wg.Wait()
@@ -141,7 +151,7 @@ func TestRead(t *testing.T) {
 		go server.ReadLoop()
 
 		if item.Fin {
-			server.WriteAsync(Opcode(item.Opcode), testCloneBytes(payload))
+			server.WriteAsync(Opcode(item.Opcode), testCloneBytes(payload), nil)
 		} else {
 			testWrite(server, false, Opcode(item.Opcode), testCloneBytes(payload))
 		}
@@ -277,7 +287,7 @@ func TestSegments(t *testing.T) {
 		go client.ReadLoop()
 
 		go func() {
-			frame, _ := client.genFrame(OpcodeText, testdata)
+			frame, _ := client.genFrame(OpcodeText, testdata, false)
 			data := frame.Bytes()
 			data[20] = 'x'
 			client.conn.Write(data)

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -14,12 +15,16 @@ import (
 )
 
 type Conn struct {
-	ss                SessionStorage    // 会话
-	err               atomic.Value      // 错误
-	isServer          bool              // 是否为服务器
-	subprotocol       string            // 子协议
-	conn              net.Conn          // 底层连接
-	config            *Config           // 配置
+	mu          sync.Mutex
+	ss          SessionStorage // 会话
+	err         atomic.Value   // 错误
+	isServer    bool           // 是否为服务器
+	subprotocol string         // 子协议
+	conn        net.Conn       // 底层连接
+	config      *Config        // 配置
+	//pd                PermessageDeflate // 压缩配置
+	compressEnabled   bool
+	compressThreshold int
 	br                *bufio.Reader     // 读缓存
 	continuationFrame continuationFrame // 连续帧
 	fh                frameHeader       // 帧头
@@ -27,36 +32,29 @@ type Conn struct {
 	closed            uint32            // 是否关闭
 	readQueue         channel           // 消息处理队列
 	writeQueue        workerQueue       // 发送队列
-	compressEnabled   bool              // 是否压缩
-	deflater          deflater          // 压缩编码器
+	deflater          *deflater         // 压缩编码器
 	dpsWindow         slideWindow       // 解压器滑动窗口
 	cpsWindow         slideWindow       // 压缩器滑动窗口
 }
 
-func (c *Conn) init() *Conn {
-	c.writeQueue = workerQueue{maxConcurrency: 1}
-	if c.config.ReadAsyncEnabled {
-		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
-	}
-	if cfg := c.config.PermessageDeflate; c.compressEnabled {
-		if c.isServer {
-			if cfg.ServerContextTakeover {
-				c.cpsWindow.initialize(cfg.ServerMaxWindowBits)
-			}
-			if cfg.ClientContextTakeover {
-				c.dpsWindow.initialize(cfg.ClientMaxWindowBits)
-			}
-		} else {
-			if cfg.ServerContextTakeover {
-				c.dpsWindow.initialize(cfg.ClientMaxWindowBits)
-			}
-			if cfg.ClientContextTakeover {
-				c.cpsWindow.initialize(cfg.ServerMaxWindowBits)
-			}
-		}
-	}
-	return c
-}
+//func (c *Conn) init() *Conn {
+//	c.writeQueue = workerQueue{maxConcurrency: 1}
+//	if c.config.ReadAsyncEnabled {
+//		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
+//	}
+//	if c.pd.Enabled {
+//		if c.pd.ServerContextTakeover {
+//			c.cpsWindow.initialize(c.pd.ServerMaxWindowBits)
+//		}
+//		if c.pd.ClientContextTakeover {
+//			c.dpsWindow.initialize(c.pd.ClientMaxWindowBits)
+//		}
+//		if !c.isServer {
+//			c.cpsWindow, c.dpsWindow = c.dpsWindow, c.cpsWindow
+//		}
+//	}
+//	return c
+//}
 
 // ReadLoop 循环读取消息. 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
 // Read messages in a loop.
@@ -96,7 +94,7 @@ func (c *Conn) isClosed() bool { return atomic.LoadUint32(&c.closed) == 1 }
 
 func (c *Conn) close(reason []byte, err error) {
 	c.err.Store(err)
-	_ = c.doWrite(OpcodeCloseConnection, reason)
+	_ = c.doWritePayload(OpcodeCloseConnection, reason)
 	_ = c.conn.Close()
 }
 

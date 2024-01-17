@@ -199,10 +199,6 @@ func ToBinaryNumber[T Integer](n T) T {
 	return x
 }
 
-// BufferReset 重置buffer底层切片
-// 修改后面的属性一定要加偏移量!!!
-func BufferReset(b *bytes.Buffer, p []byte) { *(*[]byte)(unsafe.Pointer(b)) = p }
-
 func BinaryPow(n int) int {
 	var ans = 1
 	for i := 0; i < n; i++ {
@@ -210,6 +206,10 @@ func BinaryPow(n int) int {
 	}
 	return ans
 }
+
+// BufferReset 重置buffer底层切片
+// 修改后面的属性一定要加偏移量!!!
+func BufferReset(b *bytes.Buffer, p []byte) { *(*[]byte)(unsafe.Pointer(b)) = p }
 
 // IsZero 零值判断
 func IsZero[T comparable](v T) bool {
@@ -230,4 +230,16 @@ func Min[T int | int64](a, b T) T {
 		return a
 	}
 	return b
+}
+
+func IsSameSlice[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

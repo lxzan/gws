@@ -1,64 +1,10 @@
 package gws
 
 import (
-	"github.com/klauspost/compress/flate"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
-
-//func TestFlate(t *testing.T) {
-//	var as = assert.New(t)
-//
-//	t.Run("ok", func(t *testing.T) {
-//		for i := 0; i < 100; i++ {
-//			var cps = newCompressor(flate.BestSpeed)
-//			var dps = newDecompressor()
-//			var n = internal.AlphabetNumeric.Intn(1024)
-//			var rawText = internal.AlphabetNumeric.Generate(n)
-//			var compressedBuf = bytes.NewBufferString("")
-//			if err := cps.Compress(rawText, compressedBuf); err != nil {
-//				as.NoError(err)
-//				return
-//			}
-//
-//			var buf = bytes.NewBufferString("")
-//			buf.Write(compressedBuf.Bytes())
-//			plainText, err := dps.Decompress(buf)
-//			if err != nil {
-//				as.NoError(err)
-//				return
-//			}
-//			as.Equal(string(rawText), plainText.String())
-//		}
-//	})
-//
-//	t.Run("deflate error", func(t *testing.T) {
-//		var cps = newCompressor(flate.BestSpeed)
-//		var dps = newDecompressor()
-//		var n = internal.AlphabetNumeric.Intn(1024)
-//		var rawText = internal.AlphabetNumeric.Generate(n)
-//		var compressedBuf = bytes.NewBufferString("")
-//		if err := cps.Compress(rawText, compressedBuf); err != nil {
-//			as.NoError(err)
-//			return
-//		}
-//
-//		var buf = bytes.NewBufferString("")
-//		buf.Write(compressedBuf.Bytes())
-//		buf.WriteString("1234")
-//		_, err := dps.Decompress(buf)
-//		as.Error(err)
-//	})
-//}
-//
-//func TestDecompressor_Init(t *testing.T) {
-//	var d = &decompressor{
-//		b:  bytes.NewBuffer(internal.AlphabetNumeric.Generate(512 * 1024)),
-//		fr: flate.NewReader(nil),
-//	}
-//	d.reset(nil)
-//	assert.Equal(t, d.b.Cap(), 0)
-//}
 
 func TestSlideWindow(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -83,8 +29,119 @@ func TestSlideWindow(t *testing.T) {
 	})
 }
 
-func TestDeflaterC_Negotiation(t *testing.T) {
-	d := new(deflaterC)
-	d.initialize(flate.BestSpeed, "permessage-deflate; client_no_context_takeover; client_max_window_bits=9")
-	println(1)
+func TestNegotiation(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var pd = permessageNegotiation("permessage-deflate; client_no_context_takeover; client_max_window_bits=9")
+		assert.Equal(t, pd.ClientMaxWindowBits, 9)
+		assert.Equal(t, pd.ServerMaxWindowBits, 15)
+		assert.True(t, pd.ServerContextTakeover)
+		assert.False(t, pd.ClientContextTakeover)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var pd = permessageNegotiation("permessage-deflate; client_max_window_bits=9; server_max_window_bits=10")
+		assert.Equal(t, pd.ClientMaxWindowBits, 9)
+		assert.Equal(t, pd.ServerMaxWindowBits, 10)
+		assert.True(t, pd.ServerContextTakeover)
+		assert.True(t, pd.ClientContextTakeover)
+	})
+}
+
+func TestPermessageNegotiation(t *testing.T) {
+	t.Run("ok 1", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, client.cpsWindow.size, 1024)
+		assert.Equal(t, client.dpsWindow.size, 1024)
+	})
+
+	t.Run("ok 2", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: false,
+			ClientContextTakeover: false,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, client.cpsWindow.size, 0)
+		assert.Equal(t, client.dpsWindow.size, 0)
+	})
+
+	t.Run("fail 1", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				ServerMaxWindowBits:   9,
+			},
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("fail 1", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: false,
+				ClientContextTakeover: false,
+			},
+		})
+		assert.Error(t, err)
+	})
 }

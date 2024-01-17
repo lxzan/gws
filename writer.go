@@ -41,62 +41,64 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-func writeAsyncFunc(socket *Conn, frame *bytes.Buffer) error {
-	if socket.isClosed() {
-		return ErrConnClosed
-	}
-	err := internal.WriteN(socket.conn, frame.Bytes())
-	binaryPool.Put(frame)
-	return err
-}
-
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blocking
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte) error {
-	frame, err := c.genFrame(opcode, payload)
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
+	frame, err := c.genFrame(opcode, payload, false)
 	if err != nil {
 		c.emitError(err)
-		return err
+		callback(err)
+		return
 	}
-	job := &asyncJob{socket: c, frame: frame, execute: writeAsyncFunc}
-	c.writeQueue.Push(job)
-	return nil
+	c.writeQueue.Push(func() {
+		var err = c.doWriteFrame(opcode, payload, frame, false)
+		c.emitError(err)
+		if callback != nil {
+			callback(err)
+		}
+	})
 }
 
 // WriteMessage 写入文本/二进制消息, 文本消息应该使用UTF8编码
 // Write text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
-	if c.isClosed() {
-		return ErrConnClosed
-	}
-	err := c.doWrite(opcode, payload)
+	err := c.doWritePayload(opcode, payload)
 	c.emitError(err)
 	return err
 }
 
-// 执行写入逻辑, 关闭状态置为1后还能写, 以便发送关闭帧
-// Execute the write logic, and write after the close state is set to 1, so that the close frame can be sent
-func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
-	frame, err := c.genFrame(opcode, payload)
+// 执行写入逻辑
+func (c *Conn) doWritePayload(opcode Opcode, payload []byte) error {
+	frame, err := c.genFrame(opcode, payload, false)
 	if err != nil {
 		return err
 	}
+	return c.doWriteFrame(opcode, payload, frame, false)
+}
 
-	err = internal.WriteN(c.conn, frame.Bytes())
-	c.cpsWindow.Write(payload)
-	binaryPool.Put(frame)
+func (c *Conn) doWriteFrame(op Opcode, raw []byte, frame *bytes.Buffer, isBroadcast bool) error {
+	if op != OpcodeCloseConnection && c.isClosed() {
+		return ErrConnClosed
+	}
+	c.mu.Lock()
+	var err = internal.WriteN(c.conn, frame.Bytes())
+	c.cpsWindow.Write(raw)
+	c.mu.Unlock()
+	if !isBroadcast {
+		binaryPool.Put(frame)
+	}
 	return err
 }
 
 // 帧生成
-func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
+func (c *Conn) genFrame(opcode Opcode, payload []byte, isBroadcast bool) (*bytes.Buffer, error) {
 	// 不要删除 opcode == OpcodeText
 	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
-	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.config.PermessageDeflate.Threshold {
-		return c.compressData(opcode, payload)
+	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.compressThreshold {
+		return c.compressData(opcode, payload, isBroadcast)
 	}
 
 	var n = len(payload)
@@ -116,10 +118,11 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
-func (c *Conn) compressData(opcode Opcode, payload []byte) (*bytes.Buffer, error) {
+func (c *Conn) compressData(opcode Opcode, payload []byte, isBroadcast bool) (*bytes.Buffer, error) {
 	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
 	buf.Write(framePadding[0:])
-	err := c.deflater.Compress(payload, buf, c.cpsWindow.dict)
+	var dict = internal.SelectValue(isBroadcast, nil, c.cpsWindow.dict) // 广播模式不使用上下文接管压缩数据
+	err := c.deflater.Compress(payload, buf, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -166,17 +169,6 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
-func (c *Broadcaster) writeAsyncFunc(socket *Conn, frame *bytes.Buffer) error {
-	if socket.isClosed() {
-		return ErrConnClosed
-	}
-	err := internal.WriteN(socket.conn, frame.Bytes())
-	if atomic.AddInt64(&c.state, -1) == 0 {
-		c.doClose()
-	}
-	return err
-}
-
 // Broadcast 广播
 // 向客户端发送广播消息
 // Send a broadcast message to a client.
@@ -184,14 +176,19 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
 	var msg = c.msgs[idx]
 
-	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload) })
+	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload, true) })
 	if msg.err != nil {
 		return msg.err
 	}
 
 	atomic.AddInt64(&c.state, 1)
-	var job = &asyncJob{socket: socket, frame: msg.frame, execute: c.writeAsyncFunc}
-	socket.writeQueue.Push(job)
+	socket.writeQueue.Push(func() {
+		var err = socket.doWriteFrame(c.opcode, c.payload, msg.frame, true)
+		socket.emitError(err)
+		if atomic.AddInt64(&c.state, -1) == 0 {
+			c.doClose()
+		}
+	})
 	return nil
 }
 
