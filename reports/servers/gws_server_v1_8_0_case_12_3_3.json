@@ -1,0 +1,203 @@
+{
+   "agent": "gws/server@v1.8.0",
+   "behavior": "OK",
+   "behaviorClose": "OK",
+   "case": 340,
+   "closedByMe": true,
+   "createStats": true,
+   "createWirelog": true,
+   "description": "Send 1000 compressed messages each of payload size 256, auto-fragment to 0 octets. Use default permessage-deflate offer.",
+   "droppedByMe": false,
+   "duration": 116,
+   "expectation": "Receive echo'ed messages (with payload as sent). Timeout case after 120 secs.",
+   "expected": {},
+   "expectedClose": {
+      "closeCode": [
+         1000
+      ],
+      "closedByMe": true,
+      "requireClean": true
+   },
+   "failedByMe": false,
+   "httpRequest": "GET /connect HTTP/1.1\r\nUser-Agent: AutobahnTestSuite/0.8.2-0.10.9\r\nHost: 127.0.0.1:8000\r\nUpgrade: WebSocket\r\nConnection: Upgrade\r\nPragma: no-cache\r\nCache-Control: no-cache\r\nSec-WebSocket-Key: ti/iys37PsApBbjW/SYkYg==\r\nSec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover; client_max_window_bits\r\nSec-WebSocket-Version: 13\r\n\r\n",
+   "httpResponse": "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\nSec-WebSocket-Accept: 9faWIhbSx/fEP2748UlgLLaF2dg=\r\n\r\n",
+   "id": "12.3.3",
+   "isServer": false,
+   "localCloseCode": 1000,
+   "localCloseReason": null,
+   "received": [],
+   "remoteCloseCode": 1000,
+   "remoteCloseReason": null,
+   "reportCompressionRatio": true,
+   "reportTime": true,
+   "result": "Ok, received all echo'ed messages in time.",
+   "resultClose": "Connection was properly closed",
+   "rxFrameStats": {
+      "2": 1000,
+      "8": 1
+   },
+   "rxOctetStats": {
+      "4": 1,
+      "231": 1,
+      "260": 1000
+   },
+   "started": "2024-01-17T21:07:57.409Z",
+   "trafficStats": {
+      "incomingCompressionRatio": 1.0,
+      "incomingOctetsAppLevel": 256000,
+      "incomingOctetsWebSocketLevel": 256000,
+      "incomingOctetsWireLevel": 260000,
+      "incomingWebSocketFrames": 1000,
+      "incomingWebSocketMessages": 1000,
+      "incomingWebSocketOverhead": 0.015625,
+      "outgoingCompressionRatio": 0.72540234375,
+      "outgoingOctetsAppLevel": 256000,
+      "outgoingOctetsWebSocketLevel": 185703,
+      "outgoingOctetsWireLevel": 193703,
+      "outgoingWebSocketFrames": 1000,
+      "outgoingWebSocketMessages": 1000,
+      "outgoingWebSocketOverhead": 0.043079540987490776,
+      "preopenIncomingOctetsWireLevel": 231,
+      "preopenOutgoingOctetsWireLevel": 345
+   },
+   "txFrameStats": {
+      "2": 1000,
+      "8": 1
+   },
+   "txOctetStats": {
+      "8": 1,
+      "148": 1,
+      "154": 1,
+      "155": 1,
+      "156": 1,
+      "161": 1,
+      "162": 2,
+      "163": 1,
+      "165": 1,
+      "166": 1,
+      "167": 1,
+      "168": 2,
+      "169": 3,
+      "170": 5,
+      "171": 5,
+      "172": 4,
+      "173": 2,
+      "174": 5,
+      "175": 3,
+      "176": 8,
+      "177": 8,
+      "178": 6,
+      "179": 6,
+      "180": 9,
+      "181": 8,
+      "182": 16,
+      "183": 19,
+      "184": 17,
+      "185": 30,
+      "186": 22,
+      "187": 32,
+      "188": 28,
+      "189": 41,
+      "190": 30,
+      "191": 44,
+      "192": 44,
+      "193": 50,
+      "194": 41,
+      "195": 52,
+      "196": 48,
+      "197": 39,
+      "198": 44,
+      "199": 48,
+      "200": 42,
+      "201": 35,
+      "202": 36,
+      "203": 23,
+      "204": 28,
+      "205": 15,
+      "206": 25,
+      "207": 19,
+      "208": 11,
+      "209": 9,
+      "210": 12,
+      "211": 5,
+      "212": 6,
+      "213": 2,
+      "219": 2,
+      "345": 1
+   },
+   "wasClean": true,
+   "wasCloseHandshakeTimeout": false,
+   "wasNotCleanReason": null,
+   "wasOpenHandshakeTimeout": false,
+   "wasServerConnectionDropTimeout": false,
+   "wirelog": [
+      [
+         "TO",
+         [
+            345,
+            "474554202f636f6e6e65637420485454502f312e310d0a557365722d4167656e743a204175746f6261686e5465737453756974652f302e382e322d302e31302e ..."
+         ],
+         false
+      ],
+      [
+         "RO",
+         [
+            231,
+            "485454502f312e312031303120537769746368696e672050726f746f636f6c730d0a557067726164653a20776562736f636b65740d0a436f6e6e656374696f6e ..."
+         ]
+      ],
+      [
+         "WLM",
+         false
+      ],
+      [
+         "TI",
+         120
+      ],
+      [
+         "WLM",
+         true
+      ],
+      [
+         "TF",
+         [
+            2,
+            "0x03e8"
+         ],
+         8,
+         true,
+         0,
+         "0d1369d6",
+         null,
+         null,
+         false
+      ],
+      [
+         "TO",
+         [
+            8,
+            "88820d1369d60efb"
+         ],
+         false
+      ],
+      [
+         "RO",
+         [
+            4,
+            "880203e8"
+         ]
+      ],
+      [
+         "RF",
+         [
+            2,
+            "0x03e8"
+         ],
+         8,
+         true,
+         0,
+         false,
+         null
+      ]
+   ]
+}
