@@ -102,6 +102,21 @@ func (c *connector) writeRequest() (*http.Request, error) {
 	return r, r.Write(c.conn)
 }
 
+func (c *connector) getPermessageDeflate(extensions string) PermessageDeflate {
+	serverPD := permessageNegotiation(extensions)
+	clientPD := c.option.PermessageDeflate
+	return PermessageDeflate{
+		Enabled:               clientPD.Enabled && strings.Contains(extensions, internal.PermessageDeflate),
+		Threshold:             clientPD.Threshold,
+		Level:                 clientPD.Level,
+		PoolSize:              clientPD.PoolSize,
+		ServerContextTakeover: serverPD.ServerContextTakeover,
+		ClientContextTakeover: serverPD.ClientContextTakeover,
+		ServerMaxWindowBits:   serverPD.ServerMaxWindowBits,
+		ClientMaxWindowBits:   serverPD.ClientMaxWindowBits,
+	}
+}
+
 func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err := c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout)); err != nil {
 		return nil, c.resp, err
@@ -131,14 +146,12 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	}
 
 	var extensions = c.resp.Header.Get(internal.SecWebSocketExtensions.Key)
-	var compressEnabled = c.option.PermessageDeflate.Enabled && strings.Contains(extensions, internal.PermessageDeflate)
-
+	var pd = c.getPermessageDeflate(extensions)
 	socket := &Conn{
 		ss:                c.option.NewSession(),
 		isServer:          false,
 		subprotocol:       subprotocol,
-		compressEnabled:   compressEnabled,
-		compressThreshold: c.option.PermessageDeflate.Threshold,
+		pd:                pd,
 		conn:              c.conn,
 		config:            c.option.getConfig(),
 		br:                br,
@@ -150,8 +163,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		writeQueue:        workerQueue{maxConcurrency: 1},
 		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
 	}
-	if compressEnabled {
-		pd := permessageNegotiation(extensions)
+	if pd.Enabled {
 		socket.deflater.initialize(false, pd)
 		if pd.ServerContextTakeover {
 			socket.dpsWindow.initialize(pd.ServerMaxWindowBits)

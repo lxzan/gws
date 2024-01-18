@@ -52,6 +52,11 @@ func TestDefaultUpgrader(t *testing.T) {
 			"Sec-Websocket-Extensions": []string{"chat"},
 			"X-Server":                 []string{"gws"},
 		},
+		PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	var config = updrader.option.getConfig()
 	as.Equal(false, config.ReadAsyncEnabled)
@@ -69,6 +74,8 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.Nil(updrader.option.SubProtocols)
 	as.Equal("", updrader.option.ResponseHeader.Get("Sec-Websocket-Extensions"))
 	as.Equal("gws", updrader.option.ResponseHeader.Get("X-Server"))
+	as.Equal(updrader.option.PermessageDeflate.ServerMaxWindowBits, 12)
+	as.Equal(updrader.option.PermessageDeflate.ClientMaxWindowBits, 12)
 	validateServerOption(as, updrader)
 }
 
@@ -78,14 +85,18 @@ func TestCompressServerOption(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
 			PermessageDeflate: PermessageDeflate{
-				Enabled:  true,
-				PoolSize: 60,
+				Enabled:               true,
+				PoolSize:              60,
+				ServerContextTakeover: false,
+				ClientContextTakeover: false,
 			},
 		})
 		as.Equal(true, updrader.option.PermessageDeflate.Enabled)
 		as.Equal(defaultCompressLevel, updrader.option.PermessageDeflate.Level)
 		as.Equal(defaultCompressThreshold, updrader.option.PermessageDeflate.Threshold)
 		as.Equal(64, updrader.option.PermessageDeflate.PoolSize)
+		as.Equal(updrader.option.PermessageDeflate.ServerMaxWindowBits, 15)
+		as.Equal(updrader.option.PermessageDeflate.ClientMaxWindowBits, 15)
 		validateServerOption(as, updrader)
 	})
 
@@ -147,6 +158,8 @@ func TestCompressClientOption(t *testing.T) {
 		as.Equal(true, option.PermessageDeflate.Enabled)
 		as.Equal(defaultCompressLevel, option.PermessageDeflate.Level)
 		as.Equal(defaultCompressThreshold, option.PermessageDeflate.Threshold)
+		as.Equal(option.PermessageDeflate.ServerMaxWindowBits, 15)
+		as.Equal(option.PermessageDeflate.ClientMaxWindowBits, 15)
 		validateClientOption(as, option)
 	})
 

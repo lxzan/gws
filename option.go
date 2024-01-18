@@ -27,6 +27,9 @@ const (
 type (
 	// PermessageDeflate 压缩拓展配置
 	// 对于gws client, 建议开启上下文接管, 不修改滑动窗口指数, 提供最好的兼容性.
+	// 对于gws server, 如果开启上下文接管, 每个连接会占用更多内存, 合理配置滑动窗口指数.
+	// For gws client, it is recommended to enable contextual takeover and not modify the sliding window index to provide the best compatibility.
+	// For gws server, if you turn on context-side takeover, each connection takes up more memory, configure the sliding window index appropriately.
 	PermessageDeflate struct {
 		// 是否开启压缩
 		// Whether to turn on compression
@@ -198,10 +201,10 @@ func initServerOption(c *ServerOption) *ServerOption {
 
 	if c.PermessageDeflate.Enabled {
 		if c.PermessageDeflate.ServerMaxWindowBits < 8 || c.PermessageDeflate.ServerMaxWindowBits > 15 {
-			c.PermessageDeflate.ServerMaxWindowBits = 15
+			c.PermessageDeflate.ServerMaxWindowBits = internal.SelectValue(c.PermessageDeflate.ServerContextTakeover, 12, 15)
 		}
 		if c.PermessageDeflate.ClientMaxWindowBits < 8 || c.PermessageDeflate.ClientMaxWindowBits > 15 {
-			c.PermessageDeflate.ClientMaxWindowBits = 15
+			c.PermessageDeflate.ClientMaxWindowBits = internal.SelectValue(c.PermessageDeflate.ClientContextTakeover, 12, 15)
 		}
 		if c.PermessageDeflate.Threshold <= 0 {
 			c.PermessageDeflate.Threshold = defaultCompressThreshold

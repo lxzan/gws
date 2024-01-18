@@ -25,18 +25,18 @@ func serveWebSocket(
 	pd PermessageDeflate,
 ) *Conn {
 	socket := &Conn{
-		isServer:        isServer,
-		ss:              session,
-		config:          config,
-		compressEnabled: compressEnabled,
-		conn:            netConn,
-		closed:          0,
-		br:              br,
-		fh:              frameHeader{},
-		handler:         handler,
-		subprotocol:     subprotocol,
-		writeQueue:      workerQueue{maxConcurrency: 1},
-		readQueue:       make(channel, 8),
+		isServer:    isServer,
+		ss:          session,
+		config:      config,
+		conn:        netConn,
+		closed:      0,
+		br:          br,
+		fh:          frameHeader{},
+		handler:     handler,
+		subprotocol: subprotocol,
+		writeQueue:  workerQueue{maxConcurrency: 1},
+		readQueue:   make(channel, 8),
+		pd:          pd,
 	}
 	if compressEnabled {
 		if isServer {

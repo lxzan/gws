@@ -1,18 +1,17 @@
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"log"
 	"net/http"
+
+	"github.com/lxzan/gws"
 )
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		PermessageDeflate: gws.PermessageDeflate{
-			Enabled: true,
-		},
-		CheckUtf8Enabled: true,
-		Recovery:         gws.Recovery,
+		CheckUtf8Enabled:  true,
+		Recovery:          gws.Recovery,
+		PermessageDeflate: gws.PermessageDeflate{Enabled: true},
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)

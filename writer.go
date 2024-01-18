@@ -44,6 +44,9 @@ func (c *Conn) WriteString(s string) error {
 // WriteAsync 异步非阻塞地写入消息
 // Write messages asynchronously and non-blocking
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
+	if callback == nil {
+		callback = callbackFunc
+	}
 	frame, err := c.genFrame(opcode, payload, false)
 	if err != nil {
 		c.emitError(err)
@@ -53,9 +56,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 	c.writeQueue.Push(func() {
 		var err = c.doWriteFrame(opcode, payload, frame, false)
 		c.emitError(err)
-		if callback != nil {
-			callback(err)
-		}
+		callback(err)
 	})
 }
 
@@ -97,7 +98,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte, isBroadcast bool) (*bytes
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
-	if c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.compressThreshold {
+	if c.pd.Enabled && opcode.isDataFrame() && len(payload) >= c.pd.Threshold {
 		return c.compressData(opcode, payload, isBroadcast)
 	}
 
@@ -121,8 +122,7 @@ func (c *Conn) genFrame(opcode Opcode, payload []byte, isBroadcast bool) (*bytes
 func (c *Conn) compressData(opcode Opcode, payload []byte, isBroadcast bool) (*bytes.Buffer, error) {
 	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
 	buf.Write(framePadding[0:])
-	var dict = internal.SelectValue(isBroadcast, nil, c.cpsWindow.dict) // 广播模式不使用上下文接管压缩数据
-	err := c.deflater.Compress(payload, buf, dict)
+	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 // 向客户端发送广播消息
 // Send a broadcast message to a client.
 func (c *Broadcaster) Broadcast(socket *Conn) error {
-	var idx = internal.SelectValue(socket.compressEnabled, 1, 0)
+	var idx = internal.SelectValue(socket.pd.Enabled, 1, 0)
 	var msg = c.msgs[idx]
 
 	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload, true) })

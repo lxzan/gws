@@ -61,8 +61,8 @@ PASS
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
+  - [IOPS (Echo Server)](#iops-echo-server)
+  - [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -71,11 +71,11 @@ PASS
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-	- [KCP](#kcp)
-	- [代理](#代理)
-	- [广播](#广播)
-	- [写入超时](#写入超时)
-	- [发布/订阅](#发布订阅)
+  - [KCP](#kcp)
+  - [代理](#代理)
+  - [广播](#广播)
+  - [写入超时](#写入超时)
+  - [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
 - [致谢](#致谢)
@@ -85,9 +85,10 @@ PASS
 - [x] 事件驱动式 API
 - [x] 广播
 - [x] 代理拨号
+- [x] 上下文接管 
 - [x] 读写过程零动态内存分配
 - [x] 支持并发和异步非阻塞写入
-- [x] 通过 [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/) 所有测试用例
+- [x] 通过所有 `Autobahn` 测试用例 [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 
 ### 注意
 
@@ -131,9 +132,10 @@ func main() {
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"net/http"
 	"time"
+
+	"github.com/lxzan/gws"
 )
 
 const (
@@ -143,9 +145,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // 开启并行消息处理
-		CompressEnabled:  true,         // 开启压缩
-		Recovery:         gws.Recovery, // 开启异常恢复
+		ReadAsyncEnabled:  true,                                 // 开启并行消息处理
+		Recovery:          gws.Recovery,                         // 开启异常恢复
+		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // 开启压缩
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -254,6 +256,11 @@ func main() {
 		NewDialer: func() (gws.Dialer, error) {
 			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 		},
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())
@@ -261,6 +268,7 @@ func main() {
 	}
 	socket.ReadLoop()
 }
+
 ```
 
 #### 广播

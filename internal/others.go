@@ -11,6 +11,7 @@ const (
 	ClientMaxWindowBits     = "client_max_window_bits"
 	ServerNoContextTakeover = "server_no_context_takeover"
 	ClientNoContextTakeover = "client_no_context_takeover"
+	EQ                      = "="
 )
 
 type Pair struct {

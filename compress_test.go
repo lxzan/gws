@@ -72,6 +72,8 @@ func TestPermessageNegotiation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, client.cpsWindow.size, 1024)
 		assert.Equal(t, client.dpsWindow.size, 1024)
+		assert.Equal(t, client.pd.ServerContextTakeover, true)
+		assert.Equal(t, client.pd.ClientContextTakeover, true)
 	})
 
 	t.Run("ok 2", func(t *testing.T) {
@@ -97,9 +99,11 @@ func TestPermessageNegotiation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, client.cpsWindow.size, 0)
 		assert.Equal(t, client.dpsWindow.size, 0)
+		assert.Equal(t, client.pd.ServerContextTakeover, false)
+		assert.Equal(t, client.pd.ClientContextTakeover, false)
 	})
 
-	t.Run("fail 1", func(t *testing.T) {
+	t.Run("ok 3", func(t *testing.T) {
 		var addr = ":" + nextPort()
 		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
 			Enabled:               true,
@@ -111,31 +115,7 @@ func TestPermessageNegotiation(t *testing.T) {
 		go server.Run(addr)
 
 		time.Sleep(100 * time.Millisecond)
-		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
-			Addr: "ws://localhost" + addr,
-			PermessageDeflate: PermessageDeflate{
-				Enabled:               true,
-				ServerContextTakeover: true,
-				ClientContextTakeover: true,
-				ServerMaxWindowBits:   9,
-			},
-		})
-		assert.Error(t, err)
-	})
-
-	t.Run("fail 1", func(t *testing.T) {
-		var addr = ":" + nextPort()
-		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
-			Enabled:               true,
-			ServerContextTakeover: true,
-			ClientContextTakeover: true,
-			ServerMaxWindowBits:   10,
-			ClientMaxWindowBits:   10,
-		}})
-		go server.Run(addr)
-
-		time.Sleep(100 * time.Millisecond)
-		_, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
 			Addr: "ws://localhost" + addr,
 			PermessageDeflate: PermessageDeflate{
 				Enabled:               true,
@@ -143,6 +123,10 @@ func TestPermessageNegotiation(t *testing.T) {
 				ClientContextTakeover: false,
 			},
 		})
-		assert.Error(t, err)
+		assert.Equal(t, client.cpsWindow.size, 0)
+		assert.Equal(t, client.dpsWindow.size, 0)
+		assert.Equal(t, client.pd.ServerContextTakeover, false)
+		assert.Equal(t, client.pd.ClientContextTakeover, false)
+		assert.NoError(t, err)
 	})
 }

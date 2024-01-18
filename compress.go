@@ -151,10 +151,10 @@ func (c *PermessageDeflate) genRequestHeader() string {
 		options = append(options, internal.ClientNoContextTakeover)
 	}
 	if c.ServerMaxWindowBits != 15 {
-		options = append(options, "server_max_window_bits="+strconv.Itoa(c.ServerMaxWindowBits))
+		options = append(options, internal.ServerMaxWindowBits+internal.EQ+strconv.Itoa(c.ServerMaxWindowBits))
 	}
 	if c.ClientMaxWindowBits != 15 {
-		options = append(options, "client_max_window_bits="+strconv.Itoa(c.ClientMaxWindowBits))
+		options = append(options, internal.ClientMaxWindowBits+internal.EQ+strconv.Itoa(c.ClientMaxWindowBits))
 	} else if c.ClientContextTakeover {
 		options = append(options, internal.ClientMaxWindowBits)
 	}
@@ -171,10 +171,10 @@ func (c *PermessageDeflate) genResponseHeader() string {
 		options = append(options, internal.ClientNoContextTakeover)
 	}
 	if c.ServerMaxWindowBits != 15 {
-		options = append(options, "server_max_window_bits="+strconv.Itoa(c.ServerMaxWindowBits))
+		options = append(options, internal.ServerMaxWindowBits+internal.EQ+strconv.Itoa(c.ServerMaxWindowBits))
 	}
 	if c.ClientMaxWindowBits != 15 {
-		options = append(options, "client_max_window_bits="+strconv.Itoa(c.ClientMaxWindowBits))
+		options = append(options, internal.ClientMaxWindowBits+internal.EQ+strconv.Itoa(c.ClientMaxWindowBits))
 	}
 	return strings.Join(options, "; ")
 }

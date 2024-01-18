@@ -15,16 +15,13 @@ import (
 )
 
 type Conn struct {
-	mu          sync.Mutex
-	ss          SessionStorage // 会话
-	err         atomic.Value   // 错误
-	isServer    bool           // 是否为服务器
-	subprotocol string         // 子协议
-	conn        net.Conn       // 底层连接
-	config      *Config        // 配置
-	//pd                PermessageDeflate // 压缩配置
-	compressEnabled   bool
-	compressThreshold int
+	mu                sync.Mutex        // 写锁
+	ss                SessionStorage    // 会话
+	err               atomic.Value      // 错误
+	isServer          bool              // 是否为服务器
+	subprotocol       string            // 子协议
+	conn              net.Conn          // 底层连接
+	config            *Config           // 配置
 	br                *bufio.Reader     // 读缓存
 	continuationFrame continuationFrame // 连续帧
 	fh                frameHeader       // 帧头
@@ -35,26 +32,8 @@ type Conn struct {
 	deflater          *deflater         // 压缩编码器
 	dpsWindow         slideWindow       // 解压器滑动窗口
 	cpsWindow         slideWindow       // 压缩器滑动窗口
+	pd                PermessageDeflate // 压缩拓展协商结果
 }
-
-//func (c *Conn) init() *Conn {
-//	c.writeQueue = workerQueue{maxConcurrency: 1}
-//	if c.config.ReadAsyncEnabled {
-//		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
-//	}
-//	if c.pd.Enabled {
-//		if c.pd.ServerContextTakeover {
-//			c.cpsWindow.initialize(c.pd.ServerMaxWindowBits)
-//		}
-//		if c.pd.ClientContextTakeover {
-//			c.dpsWindow.initialize(c.pd.ClientMaxWindowBits)
-//		}
-//		if !c.isServer {
-//			c.cpsWindow, c.dpsWindow = c.dpsWindow, c.cpsWindow
-//		}
-//	}
-//	return c
-//}
 
 // ReadLoop 循环读取消息. 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
 // Read messages in a loop.
@@ -76,6 +55,35 @@ func (c *Conn) ReadLoop() {
 		c.config.readerPool.Put(c.br)
 		c.br = nil
 	}
+}
+
+func (c *Conn) getCpsDict(isBroadcast bool) []byte {
+	if isBroadcast {
+		return nil // 广播模式不使用上下文接管
+	}
+	if c.isServer {
+		if c.pd.ServerContextTakeover {
+			return c.cpsWindow.dict
+		}
+		return nil
+	}
+	if c.pd.ClientContextTakeover {
+		return c.cpsWindow.dict
+	}
+	return nil
+}
+
+func (c *Conn) getDpsDict() []byte {
+	if c.isServer {
+		if c.pd.ClientContextTakeover {
+			return c.dpsWindow.dict
+		}
+		return nil
+	}
+	if c.pd.ServerContextTakeover {
+		return c.dpsWindow.dict
+	}
+	return nil
 }
 
 func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {

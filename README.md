@@ -69,8 +69,8 @@ PASS
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
+  - [IOPS (Echo Server)](#iops-echo-server)
+  - [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -79,11 +79,11 @@ PASS
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-	- [KCP](#kcp)
-	- [Proxy](#proxy)
-	- [Broadcast](#broadcast)
-	- [WriteWithTimeout](#writewithtimeout)
-	- [Pub / Sub](#pub--sub)
+  - [KCP](#kcp)
+  - [Proxy](#proxy)
+  - [Broadcast](#broadcast)
+  - [WriteWithTimeout](#writewithtimeout)
+  - [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
 - [Acknowledgments](#acknowledgments)
@@ -93,9 +93,10 @@ PASS
 - [x] Event API
 - [x] Broadcast
 - [x] Dial via Proxy
+- [x] Context-Takeover 
 - [x] Zero Allocs Read / Write
+- [x] Passed `Autobahn` Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 - [x] Concurrent & Asynchronous Non-Blocking Write
-- [x] Passed WebSocket [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
 
@@ -151,9 +152,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // Parallel message processing
-		CompressEnabled:  true,         // Enable compression
-		Recovery:         gws.Recovery, // Exception recovery
+		ReadAsyncEnabled:  true,                                 // Parallel message processing
+		Recovery:          gws.Recovery,                         // Exception recovery
+		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // Enable compression
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -186,6 +187,7 @@ func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
 	socket.WriteMessage(message.Opcode, message.Bytes())
 }
+
 ```
 
 ### More Examples
@@ -262,6 +264,11 @@ func main() {
 		NewDialer: func() (gws.Dialer, error) {
 			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 		},
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())
@@ -269,6 +276,7 @@ func main() {
 	}
 	socket.ReadLoop()
 }
+
 ```
 
 #### Broadcast

@@ -14,7 +14,7 @@ import (
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
-	var useCompress = c.compressEnabled && opcode.isDataFrame() && len(payload) >= c.compressThreshold
+	var useCompress = c.pd.Enabled && opcode.isDataFrame() && len(payload) >= c.pd.Threshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
 		err := c.deflater.Compress(payload, buf, c.cpsWindow.dict)
