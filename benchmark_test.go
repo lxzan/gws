@@ -186,3 +186,28 @@ func BenchmarkMask(b *testing.B) {
 		internal.MaskXOR(s2, key[:4])
 	}
 }
+
+func BenchmarkConcurrentMap_ReadWrite(b *testing.B) {
+	const count = 1000000
+	var cm = NewConcurrentMap[string, uint8](64)
+	var keys = make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		key := string(internal.AlphabetNumeric.Generate(16))
+		keys = append(keys, key)
+		cm.Store(key, 1)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		var i = 0
+		for pb.Next() {
+			i++
+			var key = keys[i%count]
+			if i&15 == 0 {
+				cm.Store(key, 1)
+			} else {
+				cm.Load(key)
+			}
+		}
+	})
+}

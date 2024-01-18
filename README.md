@@ -48,7 +48,7 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla and nhooyr not using streaming api
+> gorilla and nhooyr not using stream api
 
 #### GoBench
 
@@ -69,8 +69,8 @@ PASS
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-  - [IOPS (Echo Server)](#iops-echo-server)
-  - [GoBench](#gobench)
+	- [IOPS (Echo Server)](#iops-echo-server)
+	- [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -79,10 +79,11 @@ PASS
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-  - [KCP](#kcp)
-  - [Proxy](#proxy)
-  - [Broadcast](#broadcast)
-  - [Pub / Sub](#pub--sub)
+	- [KCP](#kcp)
+	- [Proxy](#proxy)
+	- [Broadcast](#broadcast)
+	- [WriteWithTimeout](#writewithtimeout)
+	- [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
 - [Acknowledgments](#acknowledgments)
@@ -113,7 +114,7 @@ go get -v github.com/lxzan/gws@latest
 ```go
 type Event interface {
     OnOpen(socket *Conn)                        // connection is established
-    OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
+    OnClose(socket *Conn, err error)            // received a close frame or input/output error occurs
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
@@ -121,10 +122,6 @@ type Event interface {
 ```
 
 ### Quick Start
-
-Very, very, very simple example.
-
-The example let you know how to use the `gws` package without any other dependencies.
 
 ```go
 package main
@@ -289,6 +286,27 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
 }
 ```
 
+#### WriteWithTimeout
+
+`SetDeadline` covers most of the scenarios, but if you want to control the timeout for each write, you need to
+encapsulate the `WriteWithTimeout` function, the creation and destruction of the `timer` will incur some overhead.
+
+```go
+func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
+	var sig = atomic.Uint32{}
+	var timer = time.AfterFunc(timeout, func() {
+		if sig.CompareAndSwap(0, 1) {
+			socket.WriteClose(1000, []byte("write timeout"))
+		}
+	})
+	var err = socket.WriteMessage(gws.OpcodeText, p)
+	if sig.CompareAndSwap(0, 1) {
+		timer.Stop()
+	}
+	return err
+}
+```
+
 #### Pub / Sub
 
 Use the event_emitter package to implement the publish-subscribe model. Wrap `gws.Conn` in a structure and implement the GetSubscriberID method to get the subscription ID, which must be unique. The subscription ID is used to identify the subscriber, who can only receive messages on the subject of his subscription.
@@ -341,7 +359,7 @@ docker run -it --rm \
 
 ### Communication
 
-> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+> 微信需要先添加好友再拉群, 请注明来自 GitHub
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>

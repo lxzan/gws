@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/lxzan/gws/internal"
 	"log"
 	"net"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 )
 
