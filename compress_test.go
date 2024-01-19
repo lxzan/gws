@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lxzan/gws/internal"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -128,5 +130,33 @@ func TestPermessageNegotiation(t *testing.T) {
 		assert.Equal(t, client.pd.ServerContextTakeover, false)
 		assert.Equal(t, client.pd.ClientContextTakeover, false)
 		assert.NoError(t, err)
+	})
+
+	t.Run("ok 4", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		serverHandler.onOpen = func(socket *Conn) {
+			socket.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(1024))
+		}
+		var server = NewServer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		client.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(1024))
 	})
 }

@@ -86,7 +86,6 @@ func TestClientHandshake(t *testing.T) {
 		option:          option,
 		conn:            cli,
 		eventHandler:    new(BuiltinEventHandler),
-		resp:            &http.Response{Header: http.Header{}},
 		secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 	}
 
@@ -120,7 +119,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -148,7 +146,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -175,7 +172,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -203,7 +199,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -231,7 +226,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -259,7 +253,6 @@ func TestClientHandshakeFail(t *testing.T) {
 			conn:            cli,
 			secWebsocketKey: "1fTfP/qALD+eAWcU80P0bg==",
 			eventHandler:    new(BuiltinEventHandler),
-			resp:            &http.Response{Header: http.Header{}},
 		}
 
 		go func() {
@@ -388,8 +381,29 @@ func TestNewClientWSS(t *testing.T) {
 
 func TestNewClient_WriteRequest(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		c := connector{option: &ClientOption{Addr: "ws://127.0.0.1/a=%"}}
-		_, err := c.writeRequest()
+		srv, conn := net.Pipe()
+		go func() {
+			for {
+				var p = make([]byte, 1024)
+				srv.Read(p)
+				time.Sleep(time.Second)
+			}
+		}()
+		c := connector{conn: conn, option: &ClientOption{
+			Addr:             "ws://127.0.0.1/a=%",
+			HandshakeTimeout: 100 * time.Millisecond,
+		}}
+		_, _, err := c.request()
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		_, conn := net.Pipe()
+		c := connector{conn: conn, option: &ClientOption{
+			Addr:             "ws://127.0.0.1:8080/",
+			HandshakeTimeout: 100 * time.Millisecond,
+		}}
+		_, _, err := c.request()
 		assert.Error(t, err)
 	})
 

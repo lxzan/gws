@@ -93,9 +93,11 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 		var conn1 = &Conn{
 			isServer: false,
 			conn:     &benchConn{},
-			pd:       PermessageDeflate{Enabled: true},
+			pd:       upgrader.option.PermessageDeflate,
 			config:   config,
+			deflater: new(deflater),
 		}
+		conn1.deflater.initialize(false, conn1.pd)
 		var buf, _ = conn1.genFrame(OpcodeText, githubData, false)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
@@ -104,7 +106,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			conn:     &benchConn{},
 			br:       bufio.NewReader(reader),
 			config:   upgrader.option.getConfig(),
-			pd:       PermessageDeflate{Enabled: true},
+			pd:       upgrader.option.PermessageDeflate,
 			handler:  upgrader.eventHandler,
 			deflater: upgrader.deflaterPool.Select(),
 		}

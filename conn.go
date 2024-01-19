@@ -58,29 +58,24 @@ func (c *Conn) ReadLoop() {
 }
 
 func (c *Conn) getCpsDict(isBroadcast bool) []byte {
+	// 广播模式必须保证每一帧都是相同的内容, 所以不使用上下文接管优化压缩率
 	if isBroadcast {
-		return nil // 广播模式不使用上下文接管
-	}
-	if c.isServer {
-		if c.pd.ServerContextTakeover {
-			return c.cpsWindow.dict
-		}
 		return nil
 	}
-	if c.pd.ClientContextTakeover {
+	if c.isServer && c.pd.ServerContextTakeover {
+		return c.cpsWindow.dict
+	}
+	if !c.isServer && c.pd.ClientContextTakeover {
 		return c.cpsWindow.dict
 	}
 	return nil
 }
 
 func (c *Conn) getDpsDict() []byte {
-	if c.isServer {
-		if c.pd.ClientContextTakeover {
-			return c.dpsWindow.dict
-		}
-		return nil
+	if c.isServer && c.pd.ClientContextTakeover {
+		return c.dpsWindow.dict
 	}
-	if c.pd.ServerContextTakeover {
+	if !c.isServer && c.pd.ServerContextTakeover {
 		return c.dpsWindow.dict
 	}
 	return nil
@@ -102,7 +97,7 @@ func (c *Conn) isClosed() bool { return atomic.LoadUint32(&c.closed) == 1 }
 
 func (c *Conn) close(reason []byte, err error) {
 	c.err.Store(err)
-	_ = c.doWritePayload(OpcodeCloseConnection, reason)
+	_ = c.doWrite(OpcodeCloseConnection, reason)
 	_ = c.conn.Close()
 }
 

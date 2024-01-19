@@ -302,14 +302,9 @@ func (c *Stack[T]) Push(v T) {
 }
 
 // Pop 弹出元素
-func (c *Stack[T]) Pop() (value T) {
+func (c *Stack[T]) Pop() T {
 	n := c.Len()
-	switch n {
-	case 0:
-		return
-	default:
-		value = (*c)[n-1]
-		*c = (*c)[:n-1]
-		return
-	}
+	value := (*c)[n-1]
+	*c = (*c)[:n-1]
+	return value
 }

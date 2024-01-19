@@ -1,6 +1,7 @@
 package gws
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"net"
@@ -176,11 +177,14 @@ func TestNewBroadcaster(t *testing.T) {
 			PermessageDeflate: PermessageDeflate{Enabled: true},
 		})
 
-		app.OnRequest = func(socket *Conn, request *http.Request) {
+		app.OnRequest = func(netConn net.Conn, br *bufio.Reader, r *http.Request) {
+			socket, err := app.GetUpgrader().UpgradeFromConn(netConn, br, r)
+			if err != nil {
+				return
+			}
 			handler.sockets.Store(socket, struct{}{})
 			socket.ReadLoop()
 		}
-
 		go func() {
 			if err := app.Run(addr); err != nil {
 				as.NoError(err)
@@ -228,7 +232,11 @@ func TestNewBroadcaster(t *testing.T) {
 			},
 		})
 
-		app.OnRequest = func(socket *Conn, request *http.Request) {
+		app.OnRequest = func(netConn net.Conn, br *bufio.Reader, r *http.Request) {
+			socket, err := app.GetUpgrader().UpgradeFromConn(netConn, br, r)
+			if err != nil {
+				return
+			}
 			name, _ := socket.Session().Load("name")
 			as.Equal(2, name)
 			handler.sockets.Store(socket, struct{}{})

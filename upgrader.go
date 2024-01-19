@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -80,26 +81,12 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	u := &Upgrader{
 		option:       initServerOption(option),
 		eventHandler: eventHandler,
+		deflaterPool: new(deflaterPool),
 	}
 	if u.option.PermessageDeflate.Enabled {
-		u.deflaterPool = new(deflaterPool).initialize(u.option.PermessageDeflate)
+		u.deflaterPool.initialize(u.option.PermessageDeflate)
 	}
 	return u
-}
-
-// Upgrade http upgrade to websocket protocol
-func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	netConn, br, err := c.hijack(w)
-	if err != nil {
-		return nil, err
-	}
-
-	socket, err := c.doUpgrade(r, netConn, br)
-	if err != nil {
-		_ = netConn.Close()
-		return nil, err
-	}
-	return socket, err
 }
 
 // 为了节省内存, 不复用hijack返回的bufio.ReadWriter
@@ -132,7 +119,43 @@ func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
 	}
 }
 
-func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
+// Upgrade
+// 升级HTTP到WebSocket协议
+// http upgrade to websocket protocol
+func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	netConn, br, err := c.hijack(w)
+	if err != nil {
+		return nil, err
+	}
+	return c.UpgradeFromConn(netConn, br, r)
+}
+
+// UpgradeFromConn 从连接(TCP/KCP/Unix Domain Socket...)升级到WebSocket协议
+// From connection (TCP/KCP/Unix Domain Socket...) Upgrade to WebSocket protocol
+func (c *Upgrader) UpgradeFromConn(conn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
+	socket, err := c.doUpgradeFromConn(conn, br, r)
+	if err != nil {
+		_ = c.writeErr(conn, err)
+		_ = conn.Close()
+	}
+	return socket, err
+}
+
+func (c *Upgrader) writeErr(conn net.Conn, err error) error {
+	var str = err.Error()
+	var buf = binaryPool.Get(256)
+	buf.WriteString("HTTP/1.1 400 Bad Request\r\n")
+	buf.WriteString("Date: " + time.Now().Format(time.RFC1123) + "\r\n")
+	buf.WriteString("Content-Length: " + strconv.Itoa(len(str)) + "\r\n")
+	buf.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	buf.WriteString("\r\n")
+	buf.WriteString(str)
+	_, result := buf.WriteTo(conn)
+	binaryPool.Put(buf)
+	return result
+}
+
+func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
 	var session = c.option.NewSession()
 	if !c.option.Authorize(r, session) {
 		return nil, ErrUnauthorized
@@ -202,12 +225,11 @@ type Server struct {
 	upgrader *Upgrader
 	option   *ServerOption
 
-	// OnError 接收握手过程中产生的错误回调
-	// Receive error callbacks generated during the handshake
+	// OnError
 	OnError func(conn net.Conn, err error)
 
 	// OnRequest
-	OnRequest func(socket *Conn, request *http.Request)
+	OnRequest func(conn net.Conn, br *bufio.Reader, r *http.Request)
 }
 
 // NewServer 创建websocket服务器
@@ -216,9 +238,18 @@ func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.option = c.upgrader.option
 	c.OnError = func(conn net.Conn, err error) { c.option.Logger.Error("gws: " + err.Error()) }
-	c.OnRequest = func(socket *Conn, request *http.Request) { socket.ReadLoop() }
+	c.OnRequest = func(conn net.Conn, br *bufio.Reader, r *http.Request) {
+		socket, err := c.GetUpgrader().UpgradeFromConn(conn, br, r)
+		if err != nil {
+			c.OnError(conn, err)
+		} else {
+			socket.ReadLoop()
+		}
+	}
 	return c
 }
+
+func (c *Server) GetUpgrader() *Upgrader { return c.upgrader }
 
 // Run 运行. 可以被多次调用, 监听不同的地址.
 // It can be called multiple times, listening to different addresses.
@@ -267,20 +298,11 @@ func (c *Server) RunListener(listener net.Listener) error {
 		go func(conn net.Conn) {
 			br := c.option.config.readerPool.Get()
 			br.Reset(conn)
-			r, err := http.ReadRequest(br)
-			if err != nil {
+			if r, err := http.ReadRequest(br); err != nil {
 				c.OnError(conn, err)
-				_ = conn.Close()
-				return
+			} else {
+				c.OnRequest(conn, br, r)
 			}
-
-			socket, err := c.upgrader.doUpgrade(r, conn, br)
-			if err != nil {
-				c.OnError(conn, err)
-				_ = conn.Close()
-				return
-			}
-			c.OnRequest(socket, r)
 		}(netConn)
 	}
 }

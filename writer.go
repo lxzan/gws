@@ -41,53 +41,44 @@ func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-// WriteAsync 异步非阻塞地写入消息
-// Write messages asynchronously and non-blocking
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
-	if callback == nil {
-		callback = callbackFunc
-	}
-	frame, err := c.genFrame(opcode, payload, false)
-	if err != nil {
-		c.emitError(err)
-		callback(err)
-		return
-	}
-	c.writeQueue.Push(func() {
-		var err = c.doWriteFrame(opcode, payload, frame, false)
-		c.emitError(err)
-		callback(err)
-	})
-}
-
 // WriteMessage 写入文本/二进制消息, 文本消息应该使用UTF8编码
 // Write text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
-	err := c.doWritePayload(opcode, payload)
+	err := c.doWrite(opcode, payload)
 	c.emitError(err)
 	return err
 }
 
-// 执行写入逻辑
-func (c *Conn) doWritePayload(opcode Opcode, payload []byte) error {
+// WriteAsync 异步写
+// 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收payload内存
+// Asynchronously and non-blockingly write the message to the task queue, allowing the payload memory to be reclaimed only after a callback is received.
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
+	c.writeQueue.Push(func() {
+		var err = c.doWrite(opcode, payload)
+		c.emitError(err)
+		if callback != nil {
+			callback(err)
+		}
+	})
+}
+
+// 执行写入逻辑, 注意妥善维护压缩字典
+func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if opcode != OpcodeCloseConnection && c.isClosed() {
+		return ErrConnClosed
+	}
+
 	frame, err := c.genFrame(opcode, payload, false)
 	if err != nil {
 		return err
 	}
-	return c.doWriteFrame(opcode, payload, frame, false)
-}
 
-func (c *Conn) doWriteFrame(op Opcode, raw []byte, frame *bytes.Buffer, isBroadcast bool) error {
-	if op != OpcodeCloseConnection && c.isClosed() {
-		return ErrConnClosed
-	}
-	c.mu.Lock()
-	var err = internal.WriteN(c.conn, frame.Bytes())
-	c.cpsWindow.Write(raw)
-	c.mu.Unlock()
-	if !isBroadcast {
-		binaryPool.Put(frame)
-	}
+	err = internal.WriteN(c.conn, frame.Bytes())
+	c.cpsWindow.Write(payload)
+	binaryPool.Put(frame)
 	return err
 }
 
@@ -169,6 +160,17 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
+func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
+	if socket.isClosed() {
+		return ErrConnClosed
+	}
+	socket.mu.Lock()
+	var err = internal.WriteN(socket.conn, frame.Bytes())
+	socket.cpsWindow.Write(c.payload)
+	socket.mu.Unlock()
+	return err
+}
+
 // Broadcast 广播
 // 向客户端发送广播消息
 // Send a broadcast message to a client.
@@ -183,7 +185,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 
 	atomic.AddInt64(&c.state, 1)
 	socket.writeQueue.Push(func() {
-		var err = socket.doWriteFrame(c.opcode, c.payload, msg.frame, true)
+		var err = c.writeFrame(socket, msg.frame)
 		socket.emitError(err)
 		if atomic.AddInt64(&c.state, -1) == 0 {
 			c.doClose()

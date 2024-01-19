@@ -19,6 +19,7 @@ type webSocketMocker struct {
 	onPing    func(socket *Conn, payload []byte)
 	onPong    func(socket *Conn, payload []byte)
 	onClose   func(socket *Conn, err error)
+	onOpen    func(socket *Conn)
 }
 
 func (c *webSocketMocker) reset(socket *Conn, reader *bytes.Buffer, writer *bytes.Buffer) {
@@ -29,6 +30,9 @@ func (c *webSocketMocker) reset(socket *Conn, reader *bytes.Buffer, writer *byte
 }
 
 func (c *webSocketMocker) OnOpen(socket *Conn) {
+	if c.onOpen != nil {
+		c.onOpen(socket)
+	}
 }
 
 func (c *webSocketMocker) OnClose(socket *Conn, err error) {
