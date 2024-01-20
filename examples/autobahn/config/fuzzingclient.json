@@ -1,0 +1,24 @@
+{
+  "outdir": "./reports/servers",
+  "servers": [
+    {
+      "agent": "gws-server/sync/context_take_over",
+      "url": "ws://127.0.0.1:8000/connect"
+    },
+    {
+      "agent": "gws-server/async/context_take_over",
+      "url": "ws://127.0.0.1:8001/connect"
+    },
+    {
+      "agent": "gws-server/sync/no_context_take_over",
+      "url": "ws://127.0.0.1:8002/connect"
+    },
+    {
+      "agent": "gws-server/async/no_context_take_over",
+      "url": "ws://127.0.0.1:8003/connect"
+    }
+  ],
+  "cases": ["*"],
+  "exclude-cases": [""],
+  "exclude-agent-cases": {}
+}

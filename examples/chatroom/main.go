@@ -21,7 +21,11 @@ var html []byte
 func main() {
 	var handler = NewWebSocket()
 	var upgrader = gws.NewUpgrader(handler, &gws.ServerOption{
-		CompressEnabled: true,
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: false,
+			ClientContextTakeover: false,
+		},
 
 		// 在querystring里面传入用户名
 		// 把Sec-WebSocket-Key作为连接的key

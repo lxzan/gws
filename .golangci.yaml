@@ -24,6 +24,9 @@ linters:
     - gocognit
     - ifshort
     - gochecknoinits
+    - goconst
+    - depguard
+    - nestif
   # Enable presets.
   # https://golangci-lint.run/usage/linters
   # Run only fast linters from enabled linters set (first run won't be fast)

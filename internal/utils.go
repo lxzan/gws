@@ -199,6 +199,47 @@ func ToBinaryNumber[T Integer](n T) T {
 	return x
 }
 
+func BinaryPow(n int) int {
+	var ans = 1
+	for i := 0; i < n; i++ {
+		ans <<= 1
+	}
+	return ans
+}
+
 // BufferReset 重置buffer底层切片
 // 修改后面的属性一定要加偏移量!!!
 func BufferReset(b *bytes.Buffer, p []byte) { *(*[]byte)(unsafe.Pointer(b)) = p }
+
+// IsZero 零值判断
+func IsZero[T comparable](v T) bool {
+	var zero T
+	return v == zero
+}
+
+// WithDefault 如果原值为零值, 返回新值, 否则返回原值
+func WithDefault[T comparable](rawValue, newValue T) T {
+	if IsZero(rawValue) {
+		return newValue
+	}
+	return rawValue
+}
+
+func Min[T int | int64](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func IsSameSlice[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}

@@ -2,10 +2,8 @@ package gws
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"net"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,21 +13,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func serveWebSocket(isServer bool, config *Config, session SessionStorage, netConn net.Conn, br *bufio.Reader, handler Event, compressEnabled bool, subprotocol string) *Conn {
-	c := &Conn{
-		isServer:        isServer,
-		ss:              session,
-		config:          config,
-		compressEnabled: compressEnabled,
-		conn:            netConn,
-		closed:          0,
-		br:              br,
-		fh:              frameHeader{},
-		handler:         handler,
-		writeQueue:      workerQueue{maxConcurrency: 1},
-		subprotocol:     subprotocol,
+func serveWebSocket(
+	isServer bool,
+	config *Config,
+	session SessionStorage,
+	netConn net.Conn,
+	br *bufio.Reader,
+	handler Event,
+	compressEnabled bool,
+	subprotocol string,
+	pd PermessageDeflate,
+) *Conn {
+	socket := &Conn{
+		isServer:    isServer,
+		ss:          session,
+		config:      config,
+		conn:        netConn,
+		closed:      0,
+		br:          br,
+		fh:          frameHeader{},
+		handler:     handler,
+		subprotocol: subprotocol,
+		writeQueue:  workerQueue{maxConcurrency: 1},
+		readQueue:   make(channel, 8),
+		pd:          pd,
 	}
-	return c.init()
+	if compressEnabled {
+		if isServer {
+			socket.deflater = new(deflaterPool).initialize(pd).Select()
+			if pd.ServerContextTakeover {
+				socket.cpsWindow.initialize(pd.ServerMaxWindowBits)
+			}
+			if pd.ClientContextTakeover {
+				socket.dpsWindow.initialize(pd.ClientMaxWindowBits)
+			}
+		} else {
+			socket.deflater = new(deflater).initialize(false, pd)
+		}
+	}
+	return socket
 }
 
 func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Event, clientOption *ClientOption) (server, client *Conn) {
@@ -39,11 +61,11 @@ func newPeer(serverHandler Event, serverOption *ServerOption, clientHandler Even
 	s, c := net.Pipe()
 	{
 		br := bufio.NewReaderSize(s, size)
-		server = serveWebSocket(true, serverOption.getConfig(), newSmap(), s, br, serverHandler, serverOption.CompressEnabled, "")
+		server = serveWebSocket(true, serverOption.getConfig(), newSmap(), s, br, serverHandler, serverOption.PermessageDeflate.Enabled, "", serverOption.PermessageDeflate)
 	}
 	{
 		br := bufio.NewReaderSize(c, size)
-		client = serveWebSocket(false, clientOption.getConfig(), newSmap(), c, br, clientHandler, clientOption.CompressEnabled, "")
+		client = serveWebSocket(false, clientOption.getConfig(), newSmap(), c, br, clientHandler, clientOption.PermessageDeflate.Enabled, "", clientOption.PermessageDeflate)
 	}
 	return
 }
@@ -82,7 +104,7 @@ func TestConn_WriteAsync(t *testing.T) {
 			var n = internal.AlphabetNumeric.Intn(125)
 			var message = internal.AlphabetNumeric.Generate(n)
 			listA = append(listA, string(message))
-			server.WriteAsync(OpcodeText, message)
+			server.WriteAsync(OpcodeText, message, nil)
 		}
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
@@ -92,8 +114,12 @@ func TestConn_WriteAsync(t *testing.T) {
 	t.Run("compressed text", func(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
-		var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 1}
-		var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 1}
+		var serverOption = &ServerOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 1},
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 1},
+		}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 		var listA []string
@@ -114,7 +140,7 @@ func TestConn_WriteAsync(t *testing.T) {
 				var n = internal.AlphabetNumeric.Intn(1024)
 				var message = internal.AlphabetNumeric.Generate(n)
 				listA = append(listA, string(message))
-				server.WriteAsync(OpcodeText, message)
+				server.WriteAsync(OpcodeText, message, nil)
 			}
 		}()
 
@@ -139,7 +165,7 @@ func TestConn_WriteAsync(t *testing.T) {
 		go client.ReadLoop()
 		go server.ReadLoop()
 		client.NetConn().Close()
-		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8))
+		server.WriteAsync(OpcodeText, internal.AlphabetNumeric.Generate(8), nil)
 		wg.Wait()
 	})
 
@@ -188,8 +214,14 @@ func TestConn_WriteAsync(t *testing.T) {
 func TestReadAsync(t *testing.T) {
 	var serverHandler = new(webSocketMocker)
 	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
-	var clientOption = &ClientOption{CompressEnabled: true, CompressThreshold: 512, ReadAsyncEnabled: true}
+	var serverOption = &ServerOption{
+		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
+		ReadAsyncEnabled:  true,
+	}
+	var clientOption = &ClientOption{
+		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
+		ReadAsyncEnabled:  true,
+	}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
 	var mu = &sync.Mutex{}
@@ -235,15 +267,14 @@ func TestTaskQueue(t *testing.T) {
 			listA = append(listA, i)
 
 			v := i
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
+			q.Push(func() {
 				defer wg.Done()
 				var latency = time.Duration(internal.AlphabetNumeric.Intn(100)) * time.Microsecond
 				time.Sleep(latency)
 				mu.Lock()
 				listB = append(listB, v)
 				mu.Unlock()
-				return nil
-			}})
+			})
 		}
 		wg.Wait()
 		as.ElementsMatch(listA, listB)
@@ -256,12 +287,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
+			w.Push(func() {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
-				return nil
-			}})
+			})
 		}
 		wg.Wait()
 		as.Equal(sum, int64(500500))
@@ -274,12 +304,11 @@ func TestTaskQueue(t *testing.T) {
 		wg.Add(1000)
 		for i := int64(1); i <= 1000; i++ {
 			var tmp = i
-			w.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
+			w.Push(func() {
 				time.Sleep(time.Millisecond)
 				atomic.AddInt64(&sum, tmp)
 				wg.Done()
-				return nil
-			}})
+			})
 		}
 		wg.Wait()
 		as.Equal(sum, int64(500500))
@@ -294,10 +323,10 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		svrConn, cliConn := net.Pipe() // no reading from another side
 		var sbrw = bufio.NewReader(svrConn)
-		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), newSmap(), svrConn, sbrw, handler, false, "")
+		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), newSmap(), svrConn, sbrw, handler, false, "", PermessageDeflate{})
 		go svrSocket.ReadLoop()
 		var cbrw = bufio.NewReader(cliConn)
-		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), newSmap(), cliConn, cbrw, handler, false, "")
+		var cliSocket = serveWebSocket(false, upgrader.option.getConfig(), newSmap(), cliConn, cbrw, handler, false, "", PermessageDeflate{})
 		if i == 0 { // client 0 1s后再开始读取；1s内不读取消息，则svrSocket 0在发送chan取出一个msg进行writePublic时即开始阻塞
 			time.AfterFunc(time.Second, func() {
 				cliSocket.ReadLoop()
@@ -314,7 +343,7 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	for i := 0; i <= defaultReadAsyncGoLimit+2; i++ {
 		t0 := time.Now()
 		for wsConn := range allConns {
-			wsConn.WriteAsync(OpcodeBinary, []byte{0})
+			wsConn.WriteAsync(OpcodeBinary, []byte{0}, nil)
 		}
 		fmt.Printf("broadcast %d, used: %v\n", i, time.Since(t0).Nanoseconds())
 	}
@@ -353,7 +382,7 @@ func TestRQueue(t *testing.T) {
 		var serial = int64(0)
 		var done = make(chan struct{})
 		for i := 0; i < total; i++ {
-			q.Push(&asyncJob{execute: func(conn *Conn, buffer *bytes.Buffer) error {
+			q.Push(func() {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
 				time.Sleep(10 * time.Millisecond)
@@ -361,35 +390,8 @@ func TestRQueue(t *testing.T) {
 				if atomic.AddInt64(&serial, 1) == total {
 					done <- struct{}{}
 				}
-				return nil
-			}})
+			})
 		}
 		<-done
 	})
-}
-
-func TestHeap_Sort(t *testing.T) {
-	var count = 1000
-	var list0 []int
-	var list1 []int
-	var h heap
-	for i := 0; i < count; i++ {
-		var v = internal.Numeric.Intn(count) + 1
-		list0 = append(list0, v)
-		h.Push(&asyncJob{serial: v})
-	}
-
-	sort.Ints(list0)
-	for h.Len() > 0 {
-		list1 = append(list1, h.Pop().serial)
-	}
-	for i := 0; i < count; i++ {
-		assert.Equal(t, list0[i], list1[i])
-	}
-	assert.Zero(t, h.Len())
-}
-
-func TestHeap_Pop(t *testing.T) {
-	var h = heap{}
-	assert.Nil(t, h.Pop())
 }

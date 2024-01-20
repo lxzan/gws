@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"log"
+	"net"
 	"net/http"
 
 	"github.com/lxzan/gws"
@@ -10,7 +12,12 @@ import (
 func main() {
 	var app = gws.NewServer(new(Handler), nil)
 
-	app.OnRequest = func(socket *gws.Conn, request *http.Request) {
+	app.OnRequest = func(conn net.Conn, br *bufio.Reader, r *http.Request) {
+		socket, err := app.GetUpgrader().UpgradeFromConn(conn, br, r)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
 		var channel = make(chan []byte, 8)
 		var closer = make(chan struct{})
 		socket.Session().Store("channel", channel)

@@ -5,7 +5,14 @@ import (
 	"net"
 )
 
-const PermessageDeflate = "permessage-deflate"
+const (
+	PermessageDeflate       = "permessage-deflate"
+	ServerMaxWindowBits     = "server_max_window_bits"
+	ClientMaxWindowBits     = "client_max_window_bits"
+	ServerNoContextTakeover = "server_no_context_takeover"
+	ClientNoContextTakeover = "client_no_context_takeover"
+	EQ                      = "="
+)
 
 type Pair struct {
 	Key string

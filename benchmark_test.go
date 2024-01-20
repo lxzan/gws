@@ -39,16 +39,17 @@ func BenchmarkConn_WriteMessage(b *testing.B) {
 
 	b.Run("compress enabled", func(b *testing.B) {
 		var upgrader = NewUpgrader(&BuiltinEventHandler{}, &ServerOption{
-			CompressEnabled: true,
-			CompressorNum:   64,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:  true,
+				PoolSize: 64,
+			},
 		})
 		var config = upgrader.option.getConfig()
 		var conn = &Conn{
-			conn:            &benchConn{},
-			compressEnabled: true,
-			config:          config,
-			compressor:      config.compressors.Select(),
-			decompressor:    config.decompressors.Select(),
+			conn:     &benchConn{},
+			pd:       PermessageDeflate{Enabled: true},
+			config:   config,
+			deflater: upgrader.deflaterPool.Select(),
 		}
 		for i := 0; i < b.N; i++ {
 			_ = conn.WriteMessage(OpcodeText, githubData)
@@ -67,7 +68,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			conn:     &benchConn{},
 			config:   upgrader.option.getConfig(),
 		}
-		var buf, _ = conn1.genFrame(OpcodeText, githubData)
+		var buf, _ = conn1.genFrame(OpcodeText, githubData, false)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -85,28 +86,29 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 	})
 
 	b.Run("compress enabled", func(b *testing.B) {
-		var upgrader = NewUpgrader(handler, &ServerOption{CompressEnabled: true})
+		var upgrader = NewUpgrader(handler, &ServerOption{
+			PermessageDeflate: PermessageDeflate{Enabled: true},
+		})
 		var config = upgrader.option.getConfig()
 		var conn1 = &Conn{
-			isServer:        false,
-			conn:            &benchConn{},
-			compressEnabled: true,
-			config:          config,
-			compressor:      config.compressors.Select(),
-			decompressor:    config.decompressors.Select(),
+			isServer: false,
+			conn:     &benchConn{},
+			pd:       upgrader.option.PermessageDeflate,
+			config:   config,
+			deflater: new(deflater),
 		}
-		var buf, _ = conn1.genFrame(OpcodeText, githubData)
+		conn1.deflater.initialize(false, conn1.pd)
+		var buf, _ = conn1.genFrame(OpcodeText, githubData, false)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
-			isServer:        true,
-			conn:            &benchConn{},
-			br:              bufio.NewReader(reader),
-			config:          upgrader.option.getConfig(),
-			compressEnabled: true,
-			handler:         upgrader.eventHandler,
-			compressor:      config.compressors.Select(),
-			decompressor:    config.decompressors.Select(),
+			isServer: true,
+			conn:     &benchConn{},
+			br:       bufio.NewReader(reader),
+			config:   upgrader.option.getConfig(),
+			pd:       upgrader.option.PermessageDeflate,
+			handler:  upgrader.eventHandler,
+			deflater: upgrader.deflaterPool.Select(),
 		}
 		for i := 0; i < b.N; i++ {
 			internal.BufferReset(reader, buf.Bytes())
@@ -185,4 +187,29 @@ func BenchmarkMask(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		internal.MaskXOR(s2, key[:4])
 	}
+}
+
+func BenchmarkConcurrentMap_ReadWrite(b *testing.B) {
+	const count = 1000000
+	var cm = NewConcurrentMap[string, uint8](64)
+	var keys = make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		key := string(internal.AlphabetNumeric.Generate(16))
+		keys = append(keys, key)
+		cm.Store(key, 1)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		var i = 0
+		for pb.Next() {
+			i++
+			var key = keys[i%count]
+			if i&15 == 0 {
+				cm.Store(key, 1)
+			} else {
+				cm.Load(key)
+			}
+		}
+	})
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -14,6 +15,7 @@ import (
 )
 
 type Conn struct {
+	mu                sync.Mutex        // 写锁
 	ss                SessionStorage    // 会话
 	err               atomic.Value      // 错误
 	isServer          bool              // 是否为服务器
@@ -27,21 +29,10 @@ type Conn struct {
 	closed            uint32            // 是否关闭
 	readQueue         channel           // 消息处理队列
 	writeQueue        workerQueue       // 发送队列
-	compressEnabled   bool              // 是否压缩
-	compressor        *compressor       // 压缩器
-	decompressor      *decompressor     // 解压器
-}
-
-func (c *Conn) init() *Conn {
-	c.writeQueue = workerQueue{maxConcurrency: 1}
-	if c.config.ReadAsyncEnabled {
-		c.readQueue = make(channel, c.config.ReadAsyncGoLimit)
-	}
-	if c.compressEnabled {
-		c.compressor = c.config.compressors.Select()
-		c.decompressor = c.config.decompressors.Select()
-	}
-	return c
+	deflater          *deflater         // 压缩编码器
+	dpsWindow         slideWindow       // 解压器滑动窗口
+	cpsWindow         slideWindow       // 压缩器滑动窗口
+	pd                PermessageDeflate // 压缩拓展协商结果
 }
 
 // ReadLoop 循环读取消息. 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
@@ -64,6 +55,30 @@ func (c *Conn) ReadLoop() {
 		c.config.readerPool.Put(c.br)
 		c.br = nil
 	}
+}
+
+func (c *Conn) getCpsDict(isBroadcast bool) []byte {
+	// 广播模式必须保证每一帧都是相同的内容, 所以不使用上下文接管优化压缩率
+	if isBroadcast {
+		return nil
+	}
+	if c.isServer && c.pd.ServerContextTakeover {
+		return c.cpsWindow.dict
+	}
+	if !c.isServer && c.pd.ClientContextTakeover {
+		return c.cpsWindow.dict
+	}
+	return nil
+}
+
+func (c *Conn) getDpsDict() []byte {
+	if c.isServer && c.pd.ClientContextTakeover {
+		return c.dpsWindow.dict
+	}
+	if !c.isServer && c.pd.ServerContextTakeover {
+		return c.dpsWindow.dict
+	}
+	return nil
 }
 
 func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {

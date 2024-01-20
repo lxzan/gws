@@ -11,6 +11,11 @@ import (
 func main() {
 	socket, _, err := gws.NewClient(new(WebSocket), &gws.ClientOption{
 		Addr: "ws://127.0.0.1:3000/connect",
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Printf(err.Error())

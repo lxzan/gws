@@ -48,7 +48,7 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla and nhooyr not using streaming api
+> gorilla and nhooyr not using stream api
 
 #### GoBench
 
@@ -82,6 +82,7 @@ PASS
   - [KCP](#kcp)
   - [Proxy](#proxy)
   - [Broadcast](#broadcast)
+  - [WriteWithTimeout](#writewithtimeout)
   - [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
@@ -92,9 +93,10 @@ PASS
 - [x] Event API
 - [x] Broadcast
 - [x] Dial via Proxy
+- [x] Context-Takeover 
 - [x] Zero Allocs Read / Write
+- [x] Passed `Autobahn` Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 - [x] Concurrent & Asynchronous Non-Blocking Write
-- [x] Passed WebSocket [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/)
 
 ### Attention
 
@@ -113,7 +115,7 @@ go get -v github.com/lxzan/gws@latest
 ```go
 type Event interface {
     OnOpen(socket *Conn)                        // connection is established
-    OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
+    OnClose(socket *Conn, err error)            // received a close frame or input/output error occurs
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
@@ -121,10 +123,6 @@ type Event interface {
 ```
 
 ### Quick Start
-
-Very, very, very simple example.
-
-The example let you know how to use the `gws` package without any other dependencies.
 
 ```go
 package main
@@ -154,9 +152,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // Parallel message processing
-		CompressEnabled:  true,         // Enable compression
-		Recovery:         gws.Recovery, // Exception recovery
+		ReadAsyncEnabled:  true,                                 // Parallel message processing
+		Recovery:          gws.Recovery,                         // Exception recovery
+		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // Enable compression
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -189,6 +187,7 @@ func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
 	socket.WriteMessage(message.Opcode, message.Bytes())
 }
+
 ```
 
 ### More Examples
@@ -265,6 +264,11 @@ func main() {
 		NewDialer: func() (gws.Dialer, error) {
 			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 		},
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())
@@ -272,6 +276,7 @@ func main() {
 	}
 	socket.ReadLoop()
 }
+
 ```
 
 #### Broadcast
@@ -286,6 +291,27 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     for _, item := range conns {
         _ = b.Broadcast(item)
     }
+}
+```
+
+#### WriteWithTimeout
+
+`SetDeadline` covers most of the scenarios, but if you want to control the timeout for each write, you need to
+encapsulate the `WriteWithTimeout` function, the creation and destruction of the `timer` will incur some overhead.
+
+```go
+func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
+	var sig = atomic.Uint32{}
+	var timer = time.AfterFunc(timeout, func() {
+		if sig.CompareAndSwap(0, 1) {
+			socket.WriteClose(1000, []byte("write timeout"))
+		}
+	})
+	var err = socket.WriteMessage(gws.OpcodeText, p)
+	if sig.CompareAndSwap(0, 1) {
+		timer.Stop()
+	}
+	return err
 }
 ```
 
@@ -341,7 +367,7 @@ docker run -it --rm \
 
 ### Communication
 
-> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+> 微信需要先添加好友再拉群, 请注明来自 GitHub
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>

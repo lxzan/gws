@@ -73,7 +73,7 @@ func (c *Conn) readMessage() error {
 	//      the negotiated extensions defines the meaning of such a nonzero
 	//      value, the receiving endpoint MUST _Fail the WebSocket
 	//      Connection_.
-	if !c.compressEnabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
+	if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
 		return internal.CloseProtocolError
 	}
 
@@ -84,7 +84,7 @@ func (c *Conn) readMessage() error {
 
 	// read control frame
 	var opcode = c.fh.GetOpcode()
-	var compressed = c.compressEnabled && c.fh.GetRSV1()
+	var compressed = c.pd.Enabled && c.fh.GetRSV1()
 	if !opcode.isDataFrame() {
 		return c.readControl()
 	}
@@ -146,10 +146,11 @@ func (c *Conn) dispatch(msg *Message) error {
 
 func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
-		msg.Data, err = c.decompressor.Decompress(msg.Data)
+		msg.Data, err = c.deflater.Decompress(msg.Data, c.getDpsDict())
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
+		c.dpsWindow.Write(msg.Bytes())
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)

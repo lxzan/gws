@@ -1,64 +1,162 @@
 package gws
 
 import (
-	"bytes"
-	"compress/flate"
 	"testing"
+	"time"
 
 	"github.com/lxzan/gws/internal"
+
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFlate(t *testing.T) {
-	var as = assert.New(t)
+func TestSlideWindow(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var sw = new(slideWindow).initialize(3)
+		sw.Write([]byte("abc"))
+		assert.Equal(t, string(sw.dict), "abc")
 
-	t.Run("ok", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
-			var cps = newCompressor(flate.BestSpeed)
-			var dps = newDecompressor()
-			var n = internal.AlphabetNumeric.Intn(1024)
-			var rawText = internal.AlphabetNumeric.Generate(n)
-			var compressedBuf = bytes.NewBufferString("")
-			if err := cps.Compress(rawText, compressedBuf); err != nil {
-				as.NoError(err)
-				return
-			}
+		sw.Write([]byte("def"))
+		assert.Equal(t, string(sw.dict), "abcdef")
 
-			var buf = bytes.NewBufferString("")
-			buf.Write(compressedBuf.Bytes())
-			plainText, err := dps.Decompress(buf)
-			if err != nil {
-				as.NoError(err)
-				return
-			}
-			as.Equal(string(rawText), plainText.String())
-		}
+		sw.Write([]byte("ghi"))
+		assert.Equal(t, string(sw.dict), "bcdefghi")
 	})
 
-	t.Run("deflate error", func(t *testing.T) {
-		var cps = newCompressor(flate.BestSpeed)
-		var dps = newDecompressor()
-		var n = internal.AlphabetNumeric.Intn(1024)
-		var rawText = internal.AlphabetNumeric.Generate(n)
-		var compressedBuf = bytes.NewBufferString("")
-		if err := cps.Compress(rawText, compressedBuf); err != nil {
-			as.NoError(err)
-			return
-		}
+	t.Run("", func(t *testing.T) {
+		var sw = new(slideWindow).initialize(3)
+		sw.Write([]byte("abc"))
+		assert.Equal(t, string(sw.dict), "abc")
 
-		var buf = bytes.NewBufferString("")
-		buf.Write(compressedBuf.Bytes())
-		buf.WriteString("1234")
-		_, err := dps.Decompress(buf)
-		as.Error(err)
+		sw.Write([]byte("defgh123456789"))
+		assert.Equal(t, string(sw.dict), "23456789")
 	})
 }
 
-func TestDecompressor_Init(t *testing.T) {
-	var d = &decompressor{
-		b:  bytes.NewBuffer(internal.AlphabetNumeric.Generate(512 * 1024)),
-		fr: flate.NewReader(nil),
-	}
-	d.reset(nil)
-	assert.Equal(t, d.b.Cap(), 0)
+func TestNegotiation(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var pd = permessageNegotiation("permessage-deflate; client_no_context_takeover; client_max_window_bits=9")
+		assert.Equal(t, pd.ClientMaxWindowBits, 9)
+		assert.Equal(t, pd.ServerMaxWindowBits, 15)
+		assert.True(t, pd.ServerContextTakeover)
+		assert.False(t, pd.ClientContextTakeover)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var pd = permessageNegotiation("permessage-deflate; client_max_window_bits=9; server_max_window_bits=10")
+		assert.Equal(t, pd.ClientMaxWindowBits, 9)
+		assert.Equal(t, pd.ServerMaxWindowBits, 10)
+		assert.True(t, pd.ServerContextTakeover)
+		assert.True(t, pd.ClientContextTakeover)
+	})
+}
+
+func TestPermessageNegotiation(t *testing.T) {
+	t.Run("ok 1", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, client.cpsWindow.size, 1024)
+		assert.Equal(t, client.dpsWindow.size, 1024)
+		assert.Equal(t, client.pd.ServerContextTakeover, true)
+		assert.Equal(t, client.pd.ClientContextTakeover, true)
+	})
+
+	t.Run("ok 2", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: false,
+			ClientContextTakeover: false,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, client.cpsWindow.size, 0)
+		assert.Equal(t, client.dpsWindow.size, 0)
+		assert.Equal(t, client.pd.ServerContextTakeover, false)
+		assert.Equal(t, client.pd.ClientContextTakeover, false)
+	})
+
+	t.Run("ok 3", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var server = NewServer(new(BuiltinEventHandler), &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: false,
+				ClientContextTakeover: false,
+			},
+		})
+		assert.Equal(t, client.cpsWindow.size, 0)
+		assert.Equal(t, client.dpsWindow.size, 0)
+		assert.Equal(t, client.pd.ServerContextTakeover, false)
+		assert.Equal(t, client.pd.ClientContextTakeover, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok 4", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		serverHandler.onOpen = func(socket *Conn) {
+			socket.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(1024))
+		}
+		var server = NewServer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		client.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(1024))
+	})
 }

@@ -40,7 +40,7 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla 和 nhooyr 未使用流式 API
+> Gorilla 和 Nhooyr 未使用 Stream API
 
 #### GoBench
 
@@ -74,6 +74,7 @@ PASS
   - [KCP](#kcp)
   - [代理](#代理)
   - [广播](#广播)
+  - [写入超时](#写入超时)
   - [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
@@ -84,9 +85,10 @@ PASS
 - [x] 事件驱动式 API
 - [x] 广播
 - [x] 代理拨号
+- [x] 上下文接管 
 - [x] 读写过程零动态内存分配
 - [x] 支持并发和异步非阻塞写入
-- [x] 通过 [Autobahn-Testsuite](https://lxzan.github.io/gws/reports/servers/) 所有测试用例
+- [x] 通过所有 `Autobahn` 测试用例 [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 
 ### 注意
 
@@ -105,7 +107,7 @@ go get -v github.com/lxzan/gws@latest
 ```go
 type Event interface {
     OnOpen(socket *Conn)                        // connection is established
-    OnClose(socket *Conn, err error)            // received a close frame or I/O error occurs
+    OnClose(socket *Conn, err error)            // received a close frame or input/output error occurs
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
@@ -113,10 +115,6 @@ type Event interface {
 ```
 
 ### 快速上手
-
-非常、非常、非常简单的例子。
-
-这个例子让你知道如何在没有任何其他依赖的情况下使用 `gws` 软件包。
 
 ```go
 package main
@@ -134,9 +132,10 @@ func main() {
 package main
 
 import (
-	"github.com/lxzan/gws"
 	"net/http"
 	"time"
+
+	"github.com/lxzan/gws"
 )
 
 const (
@@ -146,9 +145,9 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled: true,         // 开启并行消息处理
-		CompressEnabled:  true,         // 开启压缩
-		Recovery:         gws.Recovery, // 开启异常恢复
+		ReadAsyncEnabled:  true,                                 // 开启并行消息处理
+		Recovery:          gws.Recovery,                         // 开启异常恢复
+		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // 开启压缩
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)
@@ -257,6 +256,11 @@ func main() {
 		NewDialer: func() (gws.Dialer, error) {
 			return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 		},
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	if err != nil {
 		log.Println(err.Error())
@@ -264,6 +268,7 @@ func main() {
 	}
 	socket.ReadLoop()
 }
+
 ```
 
 #### 广播
@@ -278,6 +283,27 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     for _, item := range conns {
         _ = b.Broadcast(item)
     }
+}
+```
+
+#### 写入超时
+
+`SetDeadline` 可以覆盖大部分使用场景, 想要精细地控制每一次写入的超时时间, 则需要自行封装下 `WriteWithTimeout`
+函数, `timer` 的创建和销毁会有一定额外开销.
+
+```go
+func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
+	var sig = atomic.Uint32{}
+	var timer = time.AfterFunc(timeout, func() {
+		if sig.CompareAndSwap(0, 1) {
+			socket.WriteClose(1000, []byte("write timeout"))
+		}
+	})
+	var err = socket.WriteMessage(gws.OpcodeText, p)
+	if sig.CompareAndSwap(0, 1) {
+		timer.Stop()
+	}
+	return err
 }
 ```
 
@@ -333,7 +359,7 @@ docker run -it --rm \
 
 ### 交流
 
-> 微信需要先添加好友, 然后拉人入群, 请注明来意.
+> 微信需要先添加好友再拉群, 请注明来自 GitHub
 
 <div>
 <img src="assets/wechat.png" alt="WeChat" width="300" height="300" style="display: inline-block;"/>

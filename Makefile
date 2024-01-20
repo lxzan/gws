@@ -1,5 +1,5 @@
 test:
-	go test -count 1 -timeout 30s -run ^Test ./...
+	go test ./...
 
 bench:
 	go test -benchmem -run=^$$ -bench . github.com/lxzan/gws

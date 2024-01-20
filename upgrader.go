@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,29 +73,20 @@ func (c *responseWriter) Write(conn net.Conn, timeout time.Duration) error {
 
 type Upgrader struct {
 	option       *ServerOption
+	deflaterPool *deflaterPool
 	eventHandler Event
 }
 
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
-	return &Upgrader{
+	u := &Upgrader{
 		option:       initServerOption(option),
 		eventHandler: eventHandler,
+		deflaterPool: new(deflaterPool),
 	}
-}
-
-// Upgrade http upgrade to websocket protocol
-func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	netConn, br, err := c.hijack(w)
-	if err != nil {
-		return nil, err
+	if u.option.PermessageDeflate.Enabled {
+		u.deflaterPool.initialize(u.option.PermessageDeflate)
 	}
-
-	socket, err := c.doUpgrade(r, netConn, br)
-	if err != nil {
-		_ = netConn.Close()
-		return nil, err
-	}
-	return socket, err
+	return u
 }
 
 // 为了节省内存, 不复用hijack返回的bufio.ReadWriter
@@ -112,13 +104,63 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	return netConn, br, nil
 }
 
-func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader) (*Conn, error) {
+func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
+	clientPD := permessageNegotiation(extensions)
+	serverPD := c.option.PermessageDeflate
+	return PermessageDeflate{
+		Enabled:               serverPD.Enabled && strings.Contains(extensions, internal.PermessageDeflate),
+		Threshold:             serverPD.Threshold,
+		Level:                 serverPD.Level,
+		PoolSize:              serverPD.PoolSize,
+		ServerContextTakeover: clientPD.ServerContextTakeover && serverPD.ServerContextTakeover,
+		ClientContextTakeover: clientPD.ClientContextTakeover && serverPD.ClientContextTakeover,
+		ServerMaxWindowBits:   serverPD.ServerMaxWindowBits,
+		ClientMaxWindowBits:   serverPD.ClientMaxWindowBits,
+	}
+}
+
+// Upgrade
+// 升级HTTP到WebSocket协议
+// http upgrade to websocket protocol
+func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
+	netConn, br, err := c.hijack(w)
+	if err != nil {
+		return nil, err
+	}
+	return c.UpgradeFromConn(netConn, br, r)
+}
+
+// UpgradeFromConn 从连接(TCP/KCP/Unix Domain Socket...)升级到WebSocket协议
+// From connection (TCP/KCP/Unix Domain Socket...) Upgrade to WebSocket protocol
+func (c *Upgrader) UpgradeFromConn(conn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
+	socket, err := c.doUpgradeFromConn(conn, br, r)
+	if err != nil {
+		_ = c.writeErr(conn, err)
+		_ = conn.Close()
+	}
+	return socket, err
+}
+
+func (c *Upgrader) writeErr(conn net.Conn, err error) error {
+	var str = err.Error()
+	var buf = binaryPool.Get(256)
+	buf.WriteString("HTTP/1.1 400 Bad Request\r\n")
+	buf.WriteString("Date: " + time.Now().Format(time.RFC1123) + "\r\n")
+	buf.WriteString("Content-Length: " + strconv.Itoa(len(str)) + "\r\n")
+	buf.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	buf.WriteString("\r\n")
+	buf.WriteString(str)
+	_, result := buf.WriteTo(conn)
+	binaryPool.Put(buf)
+	return result
+}
+
+func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
 	var session = c.option.NewSession()
 	if !c.option.Authorize(r, session) {
 		return nil, ErrUnauthorized
 	}
 
-	var compressEnabled = false
 	if r.Method != http.MethodGet {
 		return nil, ErrHandshake
 	}
@@ -134,10 +176,13 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 
 	var rw = new(responseWriter).Init()
 	defer rw.Close()
-	if val := r.Header.Get(internal.SecWebSocketExtensions.Key); strings.Contains(val, internal.PermessageDeflate) && c.option.CompressEnabled {
-		rw.WithHeader(internal.SecWebSocketExtensions.Key, internal.SecWebSocketExtensions.Val)
-		compressEnabled = true
+
+	var extensions = r.Header.Get(internal.SecWebSocketExtensions.Key)
+	var pd = c.getPermessageDeflate(extensions)
+	if pd.Enabled {
+		rw.WithHeader(internal.SecWebSocketExtensions.Key, pd.genResponseHeader())
 	}
+
 	var websocketKey = r.Header.Get(internal.SecWebSocketKey.Key)
 	if websocketKey == "" {
 		return nil, ErrHandshake
@@ -153,7 +198,7 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		ss:                session,
 		isServer:          true,
 		subprotocol:       rw.subprotocol,
-		compressEnabled:   compressEnabled,
+		pd:                pd,
 		conn:              netConn,
 		config:            c.option.getConfig(),
 		br:                br,
@@ -161,20 +206,30 @@ func (c *Upgrader) doUpgrade(r *http.Request, netConn net.Conn, br *bufio.Reader
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
+		writeQueue:        workerQueue{maxConcurrency: 1},
+		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
 	}
-	return socket.init(), nil
+	if pd.Enabled {
+		socket.deflater = c.deflaterPool.Select()
+		if c.option.PermessageDeflate.ServerContextTakeover {
+			socket.cpsWindow.initialize(c.option.PermessageDeflate.ServerMaxWindowBits)
+		}
+		if c.option.PermessageDeflate.ClientContextTakeover {
+			socket.dpsWindow.initialize(c.option.PermessageDeflate.ClientMaxWindowBits)
+		}
+	}
+	return socket, nil
 }
 
 type Server struct {
 	upgrader *Upgrader
 	option   *ServerOption
 
-	// OnError 接收握手过程中产生的错误回调
-	// Receive error callbacks generated during the handshake
+	// OnError
 	OnError func(conn net.Conn, err error)
 
 	// OnRequest
-	OnRequest func(socket *Conn, request *http.Request)
+	OnRequest func(conn net.Conn, br *bufio.Reader, r *http.Request)
 }
 
 // NewServer 创建websocket服务器
@@ -183,9 +238,18 @@ func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.option = c.upgrader.option
 	c.OnError = func(conn net.Conn, err error) { c.option.Logger.Error("gws: " + err.Error()) }
-	c.OnRequest = func(socket *Conn, request *http.Request) { socket.ReadLoop() }
+	c.OnRequest = func(conn net.Conn, br *bufio.Reader, r *http.Request) {
+		socket, err := c.GetUpgrader().UpgradeFromConn(conn, br, r)
+		if err != nil {
+			c.OnError(conn, err)
+		} else {
+			socket.ReadLoop()
+		}
+	}
 	return c
 }
+
+func (c *Server) GetUpgrader() *Upgrader { return c.upgrader }
 
 // Run 运行. 可以被多次调用, 监听不同的地址.
 // It can be called multiple times, listening to different addresses.
@@ -234,20 +298,11 @@ func (c *Server) RunListener(listener net.Listener) error {
 		go func(conn net.Conn) {
 			br := c.option.config.readerPool.Get()
 			br.Reset(conn)
-			r, err := http.ReadRequest(br)
-			if err != nil {
+			if r, err := http.ReadRequest(br); err != nil {
 				c.OnError(conn, err)
-				_ = conn.Close()
-				return
+			} else {
+				c.OnRequest(conn, br, r)
 			}
-
-			socket, err := c.upgrader.doUpgrade(r, conn, br)
-			if err != nil {
-				c.OnError(conn, err)
-				_ = conn.Close()
-				return
-			}
-			c.OnRequest(socket, r)
 		}(netConn)
 	}
 }
