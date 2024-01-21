@@ -152,7 +152,7 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled:  true,                                 // Parallel message processing
+		ParallelEnabled:  true,                                 // Parallel message processing
 		Recovery:          gws.Recovery,                         // Exception recovery
 		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // Enable compression
 	})

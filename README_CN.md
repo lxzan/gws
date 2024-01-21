@@ -145,7 +145,7 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled:  true,                                 // 开启并行消息处理
+		ParallelEnabled:  true,                                 // 开启并行消息处理
 		Recovery:          gws.Recovery,                         // 开启异常恢复
 		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // 开启压缩
 	})
