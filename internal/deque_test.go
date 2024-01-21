@@ -2,10 +2,11 @@ package internal
 
 import (
 	"container/list"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type Ordered interface {
@@ -462,4 +463,12 @@ func TestDeque_Clone(t *testing.T) {
 	var addr2 = (uintptr)(unsafe.Pointer(&h2.elements[0]))
 	assert.NotEqual(t, addr, addr1)
 	assert.Equal(t, addr, addr2)
+}
+
+func TestDeque_PushFront(t *testing.T) {
+	var q Deque[int]
+	q.PushFront(1)
+	q.PushFront(3)
+	q.PushFront(5)
+	assert.Equal(t, q.PopFront(), 5)
 }

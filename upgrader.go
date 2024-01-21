@@ -99,7 +99,7 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	if err != nil {
 		return nil, nil, err
 	}
-	br := c.option.config.readerPool.Get()
+	br := c.option.config.brPool.Get()
 	br.Reset(netConn)
 	return netConn, br, nil
 }
@@ -194,28 +194,29 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 		return nil, err
 	}
 
+	config := c.option.getConfig()
 	socket := &Conn{
 		ss:                session,
 		isServer:          true,
 		subprotocol:       rw.subprotocol,
 		pd:                pd,
 		conn:              netConn,
-		config:            c.option.getConfig(),
+		config:            config,
 		br:                br,
 		continuationFrame: continuationFrame{},
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
 		writeQueue:        workerQueue{maxConcurrency: 1},
-		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
+		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
 	if pd.Enabled {
 		socket.deflater = c.deflaterPool.Select()
 		if c.option.PermessageDeflate.ServerContextTakeover {
-			socket.cpsWindow.initialize(c.option.PermessageDeflate.ServerMaxWindowBits)
+			socket.cpsWindow.initialize(config.cswPool, c.option.PermessageDeflate.ServerMaxWindowBits)
 		}
 		if c.option.PermessageDeflate.ClientContextTakeover {
-			socket.dpsWindow.initialize(c.option.PermessageDeflate.ClientMaxWindowBits)
+			socket.dpsWindow.initialize(config.dswPool, c.option.PermessageDeflate.ClientMaxWindowBits)
 		}
 	}
 	return socket, nil
@@ -296,7 +297,7 @@ func (c *Server) RunListener(listener net.Listener) error {
 		}
 
 		go func(conn net.Conn) {
-			br := c.option.config.readerPool.Get()
+			br := c.option.config.brPool.Get()
 			br.Reset(conn)
 			if r, err := http.ReadRequest(br); err != nil {
 				c.OnError(conn, err)

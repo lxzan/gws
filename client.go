@@ -172,15 +172,15 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		closed:            0,
 		deflater:          new(deflater),
 		writeQueue:        workerQueue{maxConcurrency: 1},
-		readQueue:         make(channel, c.option.ReadAsyncGoLimit),
+		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
 	if pd.Enabled {
 		socket.deflater.initialize(false, pd)
 		if pd.ServerContextTakeover {
-			socket.dpsWindow.initialize(pd.ServerMaxWindowBits)
+			socket.dpsWindow.initialize(nil, pd.ServerMaxWindowBits)
 		}
 		if pd.ClientContextTakeover {
-			socket.cpsWindow.initialize(pd.ClientMaxWindowBits)
+			socket.cpsWindow.initialize(nil, pd.ClientMaxWindowBits)
 		}
 	}
 	return socket, resp, c.conn.SetDeadline(time.Time{})

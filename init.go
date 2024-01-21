@@ -6,5 +6,4 @@ var (
 	framePadding  = frameHeader{}            // 帧头填充物
 	binaryPool    = internal.NewBufferPool() // 缓冲池
 	defaultLogger = new(stdLogger)           // 默认日志工具
-	callbackFunc  = func(err error) {}       // 回调函数
 )

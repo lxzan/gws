@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -249,6 +250,11 @@ func TestMin(t *testing.T) {
 	assert.Equal(t, Min(4, 3), 3)
 }
 
+func TestMax(t *testing.T) {
+	assert.Equal(t, Max(1, 2), 2)
+	assert.Equal(t, Max(4, 3), 4)
+}
+
 func TestIsSameSlice(t *testing.T) {
 	assert.True(t, IsSameSlice(
 		[]int{1, 2, 3},
@@ -264,4 +270,13 @@ func TestIsSameSlice(t *testing.T) {
 		[]int{1, 2, 3},
 		[]int{1, 2, 4},
 	))
+}
+
+func TestCheckErrors(t *testing.T) {
+	var err0 error
+	var err1 error
+	var err2 = errors.New("1")
+	assert.NoError(t, CheckErrors(err0, err1))
+	assert.Error(t, CheckErrors(err0, err1, err2))
+	assert.True(t, errors.Is(CheckErrors(err0, err1, err2), err2))
 }

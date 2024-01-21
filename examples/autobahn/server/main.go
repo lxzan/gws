@@ -18,7 +18,7 @@ func main() {
 	})
 
 	s2 := gws.NewServer(&Handler{Sync: false}, &gws.ServerOption{
-		ReadAsyncEnabled: true,
+		ParallelEnabled: true,
 		PermessageDeflate: gws.PermessageDeflate{
 			Enabled:               true,
 			ServerContextTakeover: true,
@@ -39,7 +39,7 @@ func main() {
 	})
 
 	s4 := gws.NewServer(&Handler{Sync: false}, &gws.ServerOption{
-		ReadAsyncEnabled: true,
+		ParallelEnabled: true,
 		PermessageDeflate: gws.PermessageDeflate{
 			Enabled:               true,
 			ServerContextTakeover: false,

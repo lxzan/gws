@@ -155,7 +155,7 @@ func (c *Conn) emitMessage(msg *Message) (err error) {
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
-	if c.config.ReadAsyncEnabled {
+	if c.config.ParallelEnabled {
 		return c.readQueue.Go(msg, c.dispatch)
 	}
 	return c.dispatch(msg)

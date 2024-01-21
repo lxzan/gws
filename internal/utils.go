@@ -232,6 +232,13 @@ func Min[T int | int64](a, b T) T {
 	return b
 }
 
+func Max[T int | int64](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func IsSameSlice[T comparable](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
@@ -242,4 +249,13 @@ func IsSameSlice[T comparable](a, b []T) bool {
 		}
 	}
 	return true
+}
+
+func CheckErrors(errs ...error) error {
+	for _, item := range errs {
+		if item != nil {
+			return item
+		}
+	}
+	return nil
 }

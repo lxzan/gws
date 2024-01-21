@@ -106,14 +106,14 @@ func TestRead(t *testing.T) {
 		var serverHandler = new(webSocketMocker)
 		var clientHandler = new(webSocketMocker)
 		var serverOption = &ServerOption{
-			ReadAsyncEnabled:    true,
+			ParallelEnabled:     true,
 			CheckUtf8Enabled:    false,
 			ReadMaxPayloadSize:  1024 * 1024,
 			WriteMaxPayloadSize: 16 * 1024 * 1024,
 			PermessageDeflate:   PermessageDeflate{Enabled: true},
 		}
 		var clientOption = &ClientOption{
-			ReadAsyncEnabled:    true,
+			ParallelEnabled:     true,
 			PermessageDeflate:   PermessageDeflate{Enabled: true, ServerContextTakeover: true, ClientContextTakeover: true},
 			CheckUtf8Enabled:    true,
 			ReadMaxPayloadSize:  1024 * 1024,
@@ -357,5 +357,55 @@ func TestFrameHeader_Parse(t *testing.T) {
 		var fh = frameHeader{}
 		var _, err = fh.Parse(s)
 		assert.Error(t, err)
+	})
+}
+
+func TestConn_ReadMessage(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		serverHandler.onOpen = func(socket *Conn) {
+			frame, _ := socket.genFrame(OpcodePing, []byte("123"), false)
+			socket.conn.Write(frame.Bytes()[:2])
+			socket.conn.Close()
+		}
+		var server = NewServer(serverHandler, nil)
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		client.ReadLoop()
+	})
+
+	t.Run("", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		serverHandler.onOpen = func(socket *Conn) {
+			frame, _ := socket.genFrame(OpcodeText, []byte("123"), false)
+			socket.conn.Write(frame.Bytes()[:2])
+			socket.conn.Close()
+		}
+		var server = NewServer(serverHandler, nil)
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		})
+		assert.NoError(t, err)
+		client.ReadLoop()
 	})
 }
