@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultReadAsyncGoLimit    = 8
+	defaultParallelGolimit     = 8
 	defaultCompressLevel       = flate.BestSpeed
 	defaultReadMaxPayloadSize  = 16 * 1024 * 1024
 	defaultWriteMaxPayloadSize = 16 * 1024 * 1024
@@ -71,15 +71,22 @@ type (
 	}
 
 	Config struct {
-		readerPool *internal.Pool[*bufio.Reader]
+		// bufio.Reader内存池
+		brPool *internal.Pool[*bufio.Reader]
 
-		// 是否开启异步读, 开启的话会并行调用OnMessage
-		// Whether to enable asynchronous reading, if enabled OnMessage will be called in parallel
-		ReadAsyncEnabled bool
+		// 压缩器滑动窗口内存池
+		cswPool *internal.Pool[[]byte]
 
-		// 异步读的最大并行协程数量
-		// Maximum number of parallel concurrent processes for asynchronous reads
-		ReadAsyncGoLimit int
+		// 解压器滑动窗口内存池
+		dswPool *internal.Pool[[]byte]
+
+		// 是否开启并行消息处理
+		// Whether to enable parallel message processing
+		ParallelEnabled bool
+
+		// (单个连接)用于并行消息处理的协程数量限制
+		// Limit on the number of concurrent goroutine used for parallel message processing (single connection)
+		ParallelGolimit int
 
 		// 最大读取的消息内容长度
 		// Maximum read message content length
@@ -118,8 +125,8 @@ type (
 		WriteBufferSize int
 
 		PermessageDeflate   PermessageDeflate
-		ReadAsyncEnabled    bool
-		ReadAsyncGoLimit    int
+		ParallelEnabled     bool
+		ParallelGolimit     int
 		ReadMaxPayloadSize  int
 		ReadBufferSize      int
 		WriteMaxPayloadSize int
@@ -168,8 +175,8 @@ func initServerOption(c *ServerOption) *ServerOption {
 	if c.ReadMaxPayloadSize <= 0 {
 		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
 	}
-	if c.ReadAsyncGoLimit <= 0 {
-		c.ReadAsyncGoLimit = defaultReadAsyncGoLimit
+	if c.ParallelGolimit <= 0 {
+		c.ParallelGolimit = defaultParallelGolimit
 	}
 	if c.ReadBufferSize <= 0 {
 		c.ReadBufferSize = defaultReadBufferSize
@@ -221,9 +228,8 @@ func initServerOption(c *ServerOption) *ServerOption {
 	c.deleteProtectedHeaders()
 
 	c.config = &Config{
-		readerPool:          internal.NewPool(func() *bufio.Reader { return bufio.NewReaderSize(nil, c.ReadBufferSize) }),
-		ReadAsyncEnabled:    c.ReadAsyncEnabled,
-		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+		ParallelEnabled:     c.ParallelEnabled,
+		ParallelGolimit:     c.ParallelGolimit,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
 		ReadBufferSize:      c.ReadBufferSize,
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,
@@ -231,6 +237,24 @@ func initServerOption(c *ServerOption) *ServerOption {
 		CheckUtf8Enabled:    c.CheckUtf8Enabled,
 		Recovery:            c.Recovery,
 		Logger:              c.Logger,
+		brPool: internal.NewPool(func() *bufio.Reader {
+			return bufio.NewReaderSize(nil, c.ReadBufferSize)
+		}),
+	}
+
+	if c.PermessageDeflate.Enabled {
+		if c.PermessageDeflate.ServerContextTakeover {
+			windowSize := internal.BinaryPow(c.PermessageDeflate.ServerMaxWindowBits)
+			c.config.cswPool = internal.NewPool[[]byte](func() []byte {
+				return make([]byte, 0, windowSize)
+			})
+		}
+		if c.PermessageDeflate.ClientContextTakeover {
+			windowSize := internal.BinaryPow(c.PermessageDeflate.ClientMaxWindowBits)
+			c.config.dswPool = internal.NewPool[[]byte](func() []byte {
+				return make([]byte, 0, windowSize)
+			})
+		}
 	}
 
 	return c
@@ -245,8 +269,8 @@ type ClientOption struct {
 	WriteBufferSize int
 
 	PermessageDeflate   PermessageDeflate
-	ReadAsyncEnabled    bool
-	ReadAsyncGoLimit    int
+	ParallelEnabled     bool
+	ParallelGolimit     int
 	ReadMaxPayloadSize  int
 	ReadBufferSize      int
 	WriteMaxPayloadSize int
@@ -290,8 +314,8 @@ func initClientOption(c *ClientOption) *ClientOption {
 	if c.ReadMaxPayloadSize <= 0 {
 		c.ReadMaxPayloadSize = defaultReadMaxPayloadSize
 	}
-	if c.ReadAsyncGoLimit <= 0 {
-		c.ReadAsyncGoLimit = defaultReadAsyncGoLimit
+	if c.ParallelGolimit <= 0 {
+		c.ParallelGolimit = defaultParallelGolimit
 	}
 	if c.ReadBufferSize <= 0 {
 		c.ReadBufferSize = defaultReadBufferSize
@@ -340,8 +364,8 @@ func initClientOption(c *ClientOption) *ClientOption {
 
 func (c *ClientOption) getConfig() *Config {
 	config := &Config{
-		ReadAsyncEnabled:    c.ReadAsyncEnabled,
-		ReadAsyncGoLimit:    c.ReadAsyncGoLimit,
+		ParallelEnabled:     c.ParallelEnabled,
+		ParallelGolimit:     c.ParallelGolimit,
 		ReadMaxPayloadSize:  c.ReadMaxPayloadSize,
 		ReadBufferSize:      c.ReadBufferSize,
 		WriteMaxPayloadSize: c.WriteMaxPayloadSize,

@@ -294,7 +294,7 @@ func TestNewBroadcaster(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		_ = server.conn.Close()
+		server.WriteClose(0, nil)
 		var broadcaster = NewBroadcaster(OpcodeText, internal.AlphabetNumeric.Generate(16))
 		_ = broadcaster.Broadcast(server)
 		wg.Wait()

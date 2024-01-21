@@ -38,7 +38,7 @@ to be processed in a non-blocking way.
 
 - <font size=3>Reliability and Stability</font>
   - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-  - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 6455`. 99% unit test coverage, covering almost all conditional branches.
+  - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 7692`. 99% unit test coverage, covering almost all conditional branches.
 
 ### Benchmark
 
@@ -95,7 +95,7 @@ PASS
 - [x] Dial via Proxy
 - [x] Context-Takeover 
 - [x] Zero Allocs Read / Write
-- [x] Passed `Autobahn` Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
+- [x] Passed Autobahn Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 - [x] Concurrent & Asynchronous Non-Blocking Write
 
 ### Attention
@@ -152,7 +152,7 @@ const (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		ReadAsyncEnabled:  true,                                 // Parallel message processing
+		ParallelEnabled:  true,                                 // Parallel message processing
 		Recovery:          gws.Recovery,                         // Exception recovery
 		PermessageDeflate: gws.PermessageDeflate{Enabled: true}, // Enable compression
 	})

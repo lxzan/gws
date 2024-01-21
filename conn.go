@@ -52,8 +52,17 @@ func (c *Conn) ReadLoop() {
 	// 回收资源
 	if c.isServer {
 		c.br.Reset(nil)
-		c.config.readerPool.Put(c.br)
+		c.config.brPool.Put(c.br)
 		c.br = nil
+
+		if c.cpsWindow.enabled {
+			c.config.cswPool.Put(c.cpsWindow.dict)
+			c.cpsWindow.dict = nil
+		}
+		if c.dpsWindow.enabled {
+			c.config.dswPool.Put(c.dpsWindow.dict)
+			c.dpsWindow.dict = nil
+		}
 	}
 }
 

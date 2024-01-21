@@ -87,10 +87,7 @@ func (c *deflater) Compress(src []byte, dst *bytes.Buffer, dict []byte) error {
 	defer c.cpsLocker.Unlock()
 
 	c.cpsWriter.ResetDict(dst, dict)
-	if err := internal.WriteN(c.cpsWriter, src); err != nil {
-		return err
-	}
-	if err := c.cpsWriter.Flush(); err != nil {
+	if err := internal.CheckErrors(internal.WriteN(c.cpsWriter, src), c.cpsWriter.Flush()); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
@@ -108,10 +105,14 @@ type slideWindow struct {
 	size    int
 }
 
-func (c *slideWindow) initialize(windowBits int) *slideWindow {
+func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *slideWindow {
 	c.enabled = true
 	c.size = internal.BinaryPow(windowBits)
-	c.dict = make([]byte, 0, c.size)
+	if pool != nil {
+		c.dict = pool.Get()[:0]
+	} else {
+		c.dict = make([]byte, 0, c.size)
+	}
 	return c
 }
 
@@ -127,10 +128,11 @@ func (c *slideWindow) Write(p []byte) {
 		return
 	}
 
-	var m = c.size - length
-	c.dict = append(c.dict, p[:m]...)
-	p = p[m:]
-	n = len(p)
+	if m := c.size - length; m > 0 {
+		c.dict = append(c.dict, p[:m]...)
+		p = p[m:]
+		n = len(p)
+	}
 
 	if n >= c.size {
 		copy(c.dict, p[n-c.size:])

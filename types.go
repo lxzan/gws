@@ -93,8 +93,8 @@ type Event interface {
 	OnPong(socket *Conn, payload []byte)
 
 	// OnMessage 消息事件
-	// 如果开启了ReadAsyncEnabled, 会并行地调用OnMessage; 没有做recover处理.
-	// If ReadAsyncEnabled is enabled, OnMessage is called in parallel. No recover is done.
+	// 如果开启了ParallelEnabled, 会并行地调用OnMessage; 没有做recover处理.
+	// If ParallelEnabled is enabled, OnMessage is called in parallel. No recover is done.
 	OnMessage(socket *Conn, message *Message)
 }
 

@@ -42,10 +42,10 @@ func serveWebSocket(
 		if isServer {
 			socket.deflater = new(deflaterPool).initialize(pd).Select()
 			if pd.ServerContextTakeover {
-				socket.cpsWindow.initialize(pd.ServerMaxWindowBits)
+				socket.cpsWindow.initialize(config.cswPool, pd.ServerMaxWindowBits)
 			}
 			if pd.ClientContextTakeover {
-				socket.dpsWindow.initialize(pd.ClientMaxWindowBits)
+				socket.dpsWindow.initialize(config.dswPool, pd.ClientMaxWindowBits)
 			}
 		} else {
 			socket.deflater = new(deflater).initialize(false, pd)
@@ -216,11 +216,11 @@ func TestReadAsync(t *testing.T) {
 	var clientHandler = new(webSocketMocker)
 	var serverOption = &ServerOption{
 		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
-		ReadAsyncEnabled:  true,
+		ParallelEnabled:   true,
 	}
 	var clientOption = &ClientOption{
 		PermessageDeflate: PermessageDeflate{Enabled: true, Threshold: 512},
-		ReadAsyncEnabled:  true,
+		ParallelEnabled:   true,
 	}
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
@@ -340,7 +340,7 @@ func TestWriteAsyncBlocking(t *testing.T) {
 	// 第一个msg被异步协程从chan取出了，取出后阻塞在writePublic、没有后续的取出，再入defaultAsyncIOGoLimit个msg到chan里，
 	// 则defaultAsyncIOGoLimit+2个消息会导致入chan阻塞。
 	// 1s后client 0开始读取，广播才会继续，这一轮对应的时间约为1s
-	for i := 0; i <= defaultReadAsyncGoLimit+2; i++ {
+	for i := 0; i <= defaultParallelGolimit+2; i++ {
 		t0 := time.Now()
 		for wsConn := range allConns {
 			wsConn.WriteAsync(OpcodeBinary, []byte{0}, nil)

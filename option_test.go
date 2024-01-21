@@ -12,14 +12,14 @@ import (
 func validateServerOption(as *assert.Assertions, u *Upgrader) {
 	var option = u.option
 	var config = u.option.getConfig()
-	as.Equal(config.ReadAsyncEnabled, option.ReadAsyncEnabled)
-	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
+	as.Equal(config.ParallelEnabled, option.ParallelEnabled)
+	as.Equal(config.ParallelGolimit, option.ParallelGolimit)
 	as.Equal(config.ReadMaxPayloadSize, option.ReadMaxPayloadSize)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
-	as.NotNil(config.readerPool)
+	as.NotNil(config.brPool)
 	as.NotNil(config.Recovery)
 	as.Equal(config.Logger, defaultLogger)
 
@@ -29,14 +29,14 @@ func validateServerOption(as *assert.Assertions, u *Upgrader) {
 
 func validateClientOption(as *assert.Assertions, option *ClientOption) {
 	var config = option.getConfig()
-	as.Equal(config.ReadAsyncEnabled, option.ReadAsyncEnabled)
-	as.Equal(config.ReadAsyncGoLimit, option.ReadAsyncGoLimit)
+	as.Equal(config.ParallelEnabled, option.ParallelEnabled)
+	as.Equal(config.ParallelGolimit, option.ParallelGolimit)
 	as.Equal(config.ReadMaxPayloadSize, option.ReadMaxPayloadSize)
 	as.Equal(config.WriteMaxPayloadSize, option.WriteMaxPayloadSize)
 	as.Equal(config.CheckUtf8Enabled, option.CheckUtf8Enabled)
 	as.Equal(config.ReadBufferSize, option.ReadBufferSize)
 	as.Equal(config.WriteBufferSize, option.WriteBufferSize)
-	as.Nil(config.readerPool)
+	as.Nil(config.brPool)
 	as.NotNil(config.Recovery)
 	as.Equal(config.Logger, defaultLogger)
 
@@ -52,16 +52,13 @@ func TestDefaultUpgrader(t *testing.T) {
 			"Sec-Websocket-Extensions": []string{"chat"},
 			"X-Server":                 []string{"gws"},
 		},
-		PermessageDeflate: PermessageDeflate{
-			Enabled:               true,
-			ServerContextTakeover: true,
-			ClientContextTakeover: true,
-		},
 	})
 	var config = updrader.option.getConfig()
-	as.Equal(false, config.ReadAsyncEnabled)
+	as.Nil(config.cswPool)
+	as.Nil(config.dswPool)
+	as.Equal(false, config.ParallelEnabled)
 	as.Equal(false, config.CheckUtf8Enabled)
-	as.Equal(defaultReadAsyncGoLimit, config.ReadAsyncGoLimit)
+	as.Equal(defaultParallelGolimit, config.ParallelGolimit)
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
 	as.Equal(defaultHandshakeTimeout, updrader.option.HandshakeTimeout)
@@ -74,8 +71,8 @@ func TestDefaultUpgrader(t *testing.T) {
 	as.Nil(updrader.option.SubProtocols)
 	as.Equal("", updrader.option.ResponseHeader.Get("Sec-Websocket-Extensions"))
 	as.Equal("gws", updrader.option.ResponseHeader.Get("X-Server"))
-	as.Equal(updrader.option.PermessageDeflate.ServerMaxWindowBits, 12)
-	as.Equal(updrader.option.PermessageDeflate.ClientMaxWindowBits, 12)
+	as.Equal(updrader.option.PermessageDeflate.ServerMaxWindowBits, 0)
+	as.Equal(updrader.option.PermessageDeflate.ClientMaxWindowBits, 0)
 	validateServerOption(as, updrader)
 }
 
@@ -103,30 +100,41 @@ func TestCompressServerOption(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
 			PermessageDeflate: PermessageDeflate{
-				Enabled:   true,
-				Level:     flate.BestCompression,
-				Threshold: 1024,
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				ServerMaxWindowBits:   10,
+				ClientMaxWindowBits:   12,
+				Level:                 flate.BestCompression,
+				Threshold:             1024,
 			},
 		})
+		as.Equal(updrader.option.PermessageDeflate.ServerMaxWindowBits, 10)
+		as.Equal(updrader.option.PermessageDeflate.ClientMaxWindowBits, 12)
 		as.Equal(true, updrader.option.PermessageDeflate.Enabled)
 		as.Equal(flate.BestCompression, updrader.option.PermessageDeflate.Level)
 		as.Equal(1024, updrader.option.PermessageDeflate.Threshold)
 		as.Equal(defaultCompressorPoolSize, updrader.option.PermessageDeflate.PoolSize)
 		validateServerOption(as, updrader)
+
+		as.Equal(cap(updrader.option.config.cswPool.Get()), 1024)
+		as.Equal(cap(updrader.option.config.dswPool.Get()), 4*1024)
+		as.Equal(len(updrader.option.config.cswPool.Get()), 0)
+		as.Equal(len(updrader.option.config.dswPool.Get()), 0)
 	})
 }
 
 func TestReadServerOption(t *testing.T) {
 	var as = assert.New(t)
 	var updrader = NewUpgrader(new(BuiltinEventHandler), &ServerOption{
-		ReadAsyncEnabled:   true,
-		ReadAsyncGoLimit:   4,
+		ParallelEnabled:    true,
+		ParallelGolimit:    4,
 		ReadMaxPayloadSize: 1024,
 		HandshakeTimeout:   10 * time.Second,
 	})
 	var config = updrader.option.getConfig()
-	as.Equal(true, config.ReadAsyncEnabled)
-	as.Equal(4, config.ReadAsyncGoLimit)
+	as.Equal(true, config.ParallelEnabled)
+	as.Equal(4, config.ParallelGolimit)
 	as.Equal(1024, config.ReadMaxPayloadSize)
 	as.Equal(10*time.Second, updrader.option.HandshakeTimeout)
 	validateServerOption(as, updrader)
@@ -138,9 +146,12 @@ func TestDefaultClientOption(t *testing.T) {
 	NewClient(new(BuiltinEventHandler), option)
 
 	var config = option.getConfig()
-	as.Equal(false, config.ReadAsyncEnabled)
+	as.Nil(config.brPool)
+	as.Nil(config.cswPool)
+	as.Nil(config.dswPool)
+	as.Equal(false, config.ParallelEnabled)
 	as.Equal(false, config.CheckUtf8Enabled)
-	as.Equal(defaultReadAsyncGoLimit, config.ReadAsyncGoLimit)
+	as.Equal(defaultParallelGolimit, config.ParallelGolimit)
 	as.Equal(defaultReadMaxPayloadSize, config.ReadMaxPayloadSize)
 	as.Equal(defaultWriteMaxPayloadSize, config.WriteMaxPayloadSize)
 	as.NotNil(config)

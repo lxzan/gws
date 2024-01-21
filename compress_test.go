@@ -11,7 +11,7 @@ import (
 
 func TestSlideWindow(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		var sw = new(slideWindow).initialize(3)
+		var sw = new(slideWindow).initialize(nil, 3)
 		sw.Write([]byte("abc"))
 		assert.Equal(t, string(sw.dict), "abc")
 
@@ -23,12 +23,34 @@ func TestSlideWindow(t *testing.T) {
 	})
 
 	t.Run("", func(t *testing.T) {
-		var sw = new(slideWindow).initialize(3)
+		var sw = new(slideWindow).initialize(nil, 3)
 		sw.Write([]byte("abc"))
 		assert.Equal(t, string(sw.dict), "abc")
 
 		sw.Write([]byte("defgh123456789"))
 		assert.Equal(t, string(sw.dict), "23456789")
+	})
+
+	t.Run("", func(t *testing.T) {
+		const size = 4 * 1024
+		var sw = slideWindow{enabled: true, size: size}
+		for i := 0; i < 1000; i++ {
+			var n = internal.AlphabetNumeric.Intn(100)
+			sw.Write(internal.AlphabetNumeric.Generate(n))
+		}
+		assert.Equal(t, len(sw.dict), size)
+	})
+
+	t.Run("", func(t *testing.T) {
+		const size = 4 * 1024
+		for i := 0; i < 10; i++ {
+			var sw = slideWindow{enabled: true, size: size, dict: make([]byte, internal.AlphabetNumeric.Intn(size))}
+			for j := 0; j < 1000; j++ {
+				var n = internal.AlphabetNumeric.Intn(100)
+				sw.Write(internal.AlphabetNumeric.Generate(n))
+			}
+			assert.Equal(t, len(sw.dict), size)
+		}
 	})
 }
 
