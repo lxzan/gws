@@ -49,14 +49,25 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	return err
 }
 
+// WriteV 批量写入文本/二进制消息, 文本消息应该使用UTF8编码
+// writes batch text/binary messages, text messages should be encoded in UTF8.
+func (c *Conn) WriteV(opcode Opcode, payloads ...[]byte) error {
+	var n = internal.Reduce(payloads, 0, func(s int, i int, v []byte) int { return s + len(v) })
+	var buf = binaryPool.Get(n)
+	for _, item := range payloads {
+		buf.Write(item)
+	}
+	var err = c.WriteMessage(opcode, buf.Bytes())
+	binaryPool.Put(buf)
+	return err
+}
+
 // WriteAsync 异步写
 // 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收payload内存
 // Asynchronously and non-blockingly write the message to the task queue, allowing the payload memory to be reclaimed only after a callback is received.
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 	c.writeQueue.Push(func() {
-		var err = c.doWrite(opcode, payload)
-		c.emitError(err)
-		if callback != nil {
+		if err := c.WriteMessage(opcode, payload); callback != nil {
 			callback(err)
 		}
 	})

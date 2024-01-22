@@ -280,3 +280,33 @@ func TestCheckErrors(t *testing.T) {
 	assert.Error(t, CheckErrors(err0, err1, err2))
 	assert.True(t, errors.Is(CheckErrors(err0, err1, err2), err2))
 }
+
+func TestReduce(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var arr = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+		var sum = Reduce(arr, 0, func(summarize int, i int, item int) int {
+			return summarize + item
+		})
+		assert.Equal(t, sum, 55)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var arr []int
+		var sum = Reduce(arr, 0, func(summarize int, i int, item int) int {
+			return summarize + item
+		})
+		assert.Equal(t, sum, 0)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var payloads = [][]byte{
+			AlphabetNumeric.Generate(10),
+			AlphabetNumeric.Generate(20),
+			AlphabetNumeric.Generate(30),
+		}
+		var n = Reduce(payloads, 0, func(s int, i int, v []byte) int {
+			return s + len(v)
+		})
+		assert.Equal(t, n, 60)
+	})
+}

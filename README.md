@@ -27,18 +27,20 @@ to be processed in a non-blocking way.
 
 - <font size=3>Simplicity and Ease of Use</font>
 
-  - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
-  - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
+    - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
+    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
 
 - <font size=3>High-Performance</font>
 
-  - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
-    applications.
-  - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of ownership.
+    - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
+      applications.
+    - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of
+      ownership.
 
 - <font size=3>Reliability and Stability</font>
-  - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-  - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 7692`. 99% unit test coverage, covering almost all conditional branches.
+    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
+    - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 7692`. Unit test
+      coverage is almost 100%, covering all conditional branches.
 
 ### Benchmark
 
@@ -317,9 +319,12 @@ func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
 
 #### Pub / Sub
 
-Use the event_emitter package to implement the publish-subscribe model. Wrap `gws.Conn` in a structure and implement the GetSubscriberID method to get the subscription ID, which must be unique. The subscription ID is used to identify the subscriber, who can only receive messages on the subject of his subscription.
+Use the event_emitter package to implement the publish-subscribe model. Wrap `gws.Conn` in a structure and implement the
+GetSubscriberID method to get the subscription ID, which must be unique. The subscription ID is used to identify the
+subscriber, who can only receive messages on the subject of his subscription.
 
-This example is useful for building chat rooms or push messages using gws. This means that a user can subscribe to one or more topics via websocket, and when a message is posted to that topic, all subscribers will receive the message.
+This example is useful for building chat rooms or push messages using gws. This means that a user can subscribe to one
+or more topics via websocket, and when a message is posted to that topic, all subscribers will receive the message.
 
 ```go
 package main

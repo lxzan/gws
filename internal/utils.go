@@ -259,3 +259,10 @@ func CheckErrors(errs ...error) error {
 	}
 	return nil
 }
+
+func Reduce[T any, S any](arr []T, initialValue S, reducer func(s S, i int, v T) S) S {
+	for index, value := range arr {
+		initialValue = reducer(initialValue, index, value)
+	}
+	return initialValue
+}

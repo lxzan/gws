@@ -328,3 +328,73 @@ func TestRecovery(t *testing.T) {
 	as.NoError(client.WriteString("hi"))
 	time.Sleep(100 * time.Millisecond)
 }
+
+func TestConn_WriteV(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), []byte("hello, world!")) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteV(OpcodeText, [][]byte{
+			[]byte("he"),
+			[]byte("llo"),
+			[]byte(", world!"),
+		}...)
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), []byte("hello, world!")) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteV(OpcodeText, [][]byte{
+			[]byte("he"),
+			[]byte("llo"),
+			[]byte(", world!"),
+		}...)
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+}
