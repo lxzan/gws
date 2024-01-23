@@ -81,30 +81,6 @@ func TestFNV64(t *testing.T) {
 	_ = FnvNumber(1234)
 }
 
-func TestIOUtil(t *testing.T) {
-	var as = assert.New(t)
-
-	t.Run("", func(t *testing.T) {
-		var reader = strings.NewReader("hello")
-		var p = make([]byte, 5)
-		var err = ReadN(reader, p)
-		as.Nil(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var writer = bytes.NewBufferString("")
-		var err = WriteN(writer, nil)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var writer = bytes.NewBufferString("")
-		var p = []byte("hello")
-		var err = WriteN(writer, p)
-		as.NoError(err)
-	})
-}
-
 func TestNewMaskKey(t *testing.T) {
 	var key = NewMaskKey()
 	assert.Equal(t, 4, len(key))
@@ -279,34 +255,4 @@ func TestCheckErrors(t *testing.T) {
 	assert.NoError(t, CheckErrors(err0, err1))
 	assert.Error(t, CheckErrors(err0, err1, err2))
 	assert.True(t, errors.Is(CheckErrors(err0, err1, err2), err2))
-}
-
-func TestReduce(t *testing.T) {
-	t.Run("", func(t *testing.T) {
-		var arr = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-		var sum = Reduce(arr, 0, func(summarize int, i int, item int) int {
-			return summarize + item
-		})
-		assert.Equal(t, sum, 55)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var arr []int
-		var sum = Reduce(arr, 0, func(summarize int, i int, item int) int {
-			return summarize + item
-		})
-		assert.Equal(t, sum, 0)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var payloads = [][]byte{
-			AlphabetNumeric.Generate(10),
-			AlphabetNumeric.Generate(20),
-			AlphabetNumeric.Generate(30),
-		}
-		var n = Reduce(payloads, 0, func(s int, i int, v []byte) int {
-			return s + len(v)
-		})
-		assert.Equal(t, n, 60)
-	})
 }

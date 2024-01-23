@@ -96,7 +96,6 @@ PASS
 - [x] Broadcast
 - [x] Dial via Proxy
 - [x] Context-Takeover 
-- [x] Zero Allocs Read / Write
 - [x] Passed Autobahn Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 - [x] Concurrent & Asynchronous Non-Blocking Write
 

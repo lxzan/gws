@@ -1,6 +1,8 @@
 package gws
 
 import (
+	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -181,4 +183,79 @@ func TestPermessageNegotiation(t *testing.T) {
 		assert.NoError(t, err)
 		client.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(1024))
 	})
+
+	t.Run("ok 5", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			println(message.Data.String())
+		}
+		var server = NewServer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		})
+		assert.NoError(t, err)
+		_ = client.WriteString("he")
+		assert.Equal(t, string(client.cpsWindow.dict), "he")
+		_ = client.WriteString("llo")
+		assert.Equal(t, string(client.cpsWindow.dict), "hello")
+		_ = client.WriteV(OpcodeText, []byte(", "), []byte("world!"))
+		assert.Equal(t, string(client.cpsWindow.dict), "hello, world!")
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		var addr = ":" + nextPort()
+		var serverHandler = &webSocketMocker{}
+		var server = NewServer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   10,
+			ClientMaxWindowBits:   10,
+		}})
+		go server.Run(addr)
+
+		time.Sleep(100 * time.Millisecond)
+		client, _, err := NewClient(new(BuiltinEventHandler), &ClientOption{
+			Addr: "ws://localhost" + addr,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		})
+		assert.NoError(t, err)
+		err = client.doWrite(OpcodeText, new(writerTo))
+		assert.Equal(t, err.Error(), "1")
+	})
+}
+
+type writerTo struct{}
+
+func (c *writerTo) CheckEncoding(enabled bool, opcode uint8) bool {
+	return true
+}
+
+func (c *writerTo) Len() int {
+	return 10
+}
+
+func (c *writerTo) WriteTo(w io.Writer) (n int64, err error) {
+	return 0, errors.New("1")
 }

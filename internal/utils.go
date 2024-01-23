@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
-	"io"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -86,18 +85,6 @@ func FnvNumber[T Integer](x T) uint64 {
 	h *= prime64
 	h ^= uint64(x)
 	return h
-}
-
-// ReadN 精准地读取len(data)个字节, 否则返回错误
-func ReadN(reader io.Reader, data []byte) error {
-	_, err := io.ReadFull(reader, data)
-	return err
-}
-
-// WriteN 精准地写入len(data)个字节, 否则返回错误
-func WriteN(writer io.Writer, content []byte) error {
-	_, err := writer.Write(content)
-	return err
 }
 
 func MaskXOR(b []byte, key []byte) {
@@ -258,11 +245,4 @@ func CheckErrors(errs ...error) error {
 		}
 	}
 	return nil
-}
-
-func Reduce[T any, S any](arr []T, initialValue S, reducer func(s S, i int, v T) S) S {
-	for index, value := range arr {
-		initialValue = reducer(initialValue, index, value)
-	}
-	return initialValue
 }

@@ -44,7 +44,7 @@ func (c *Conn) WriteString(s string) error {
 // WriteMessage 写入文本/二进制消息, 文本消息应该使用UTF8编码
 // Write text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
-	err := c.doWrite(opcode, payload)
+	err := c.doWrite(opcode, internal.Bytes(payload))
 	c.emitError(err)
 	return err
 }
@@ -52,13 +52,8 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // WriteV 批量写入文本/二进制消息, 文本消息应该使用UTF8编码
 // writes batch text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteV(opcode Opcode, payloads ...[]byte) error {
-	var n = internal.Reduce(payloads, 0, func(s int, i int, v []byte) int { return s + len(v) })
-	var buf = binaryPool.Get(n)
-	for _, item := range payloads {
-		buf.Write(item)
-	}
-	var err = c.WriteMessage(opcode, buf.Bytes())
-	binaryPool.Put(buf)
+	var err = c.doWrite(opcode, internal.Buffers(payloads))
+	c.emitError(err)
 	return err
 }
 
@@ -74,7 +69,7 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 }
 
 // 执行写入逻辑, 注意妥善维护压缩字典
-func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
+func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -88,58 +83,58 @@ func (c *Conn) doWrite(opcode Opcode, payload []byte) error {
 	}
 
 	err = internal.WriteN(c.conn, frame.Bytes())
-	c.cpsWindow.Write(payload)
+	_, _ = payload.WriteTo(&c.cpsWindow)
 	binaryPool.Put(frame)
 	return err
 }
 
 // 帧生成
-func (c *Conn) genFrame(opcode Opcode, payload []byte, isBroadcast bool) (*bytes.Buffer, error) {
-	// 不要删除 opcode == OpcodeText
-	if opcode == OpcodeText && !c.isTextValid(opcode, payload) {
+func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
+	if opcode == OpcodeText && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
-	if c.pd.Enabled && opcode.isDataFrame() && len(payload) >= c.pd.Threshold {
-		return c.compressData(opcode, payload, isBroadcast)
-	}
+	var n = payload.Len()
 
-	var n = len(payload)
 	if n > c.config.WriteMaxPayloadSize {
 		return nil, internal.CloseMessageTooLarge
 	}
 
+	var buf = binaryPool.Get(n + frameHeaderSize)
+	buf.Write(framePadding[0:])
+
+	if c.pd.Enabled && opcode.isDataFrame() && n >= c.pd.Threshold {
+		return c.compressData(buf, opcode, payload, isBroadcast)
+	}
+
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
-	var buf = binaryPool.Get(n + headerLength)
-	buf.Write(header[:headerLength])
-	buf.Write(payload)
+	_, _ = payload.WriteTo(buf)
 	var contents = buf.Bytes()
 	if !c.isServer {
-		internal.MaskXOR(contents[headerLength:], maskBytes)
+		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
+	var m = frameHeaderSize - headerLength
+	copy(contents[m:], header[:headerLength])
+	buf.Next(m)
 	return buf, nil
 }
 
-func (c *Conn) compressData(opcode Opcode, payload []byte, isBroadcast bool) (*bytes.Buffer, error) {
-	var buf = binaryPool.Get(len(payload) + frameHeaderSize)
-	buf.Write(framePadding[0:])
+func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
 	if err != nil {
 		return nil, err
 	}
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
-	if payloadSize > c.config.WriteMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
-	}
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
-	copy(contents[frameHeaderSize-headerLength:], header[:headerLength])
-	buf.Next(frameHeaderSize - headerLength)
+	var m = frameHeaderSize - headerLength
+	copy(contents[m:], header[:headerLength])
+	buf.Next(m)
 	return buf, nil
 }
 
@@ -189,7 +184,9 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.pd.Enabled, 1, 0)
 	var msg = c.msgs[idx]
 
-	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, c.payload, true) })
+	msg.once.Do(func() {
+		msg.frame, msg.err = socket.genFrame(c.opcode, internal.Bytes(c.payload), true)
+	})
 	if msg.err != nil {
 		return msg.err
 	}

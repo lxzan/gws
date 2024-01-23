@@ -18,7 +18,7 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 	var useCompress = c.pd.Enabled && opcode.isDataFrame() && len(payload) >= c.pd.Threshold
 	if useCompress {
 		var buf = bytes.NewBufferString("")
-		err := c.deflater.Compress(payload, buf, c.cpsWindow.dict)
+		err := c.deflater.Compress(internal.Bytes(payload), buf, c.cpsWindow.dict)
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
@@ -396,5 +396,37 @@ func TestConn_WriteV(t *testing.T) {
 		}...)
 		assert.NoError(t, err)
 		wg.Wait()
+	})
+
+	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		}
+		var clientOption = &ClientOption{
+			CheckUtf8Enabled: true,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Threshold:             1,
+			},
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteV(OpcodeText, [][]byte{
+			[]byte("山高月小"),
+			[]byte("水落石出")[2:],
+		}...)
+		assert.Error(t, err)
 	})
 }
