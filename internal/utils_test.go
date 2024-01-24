@@ -81,30 +81,6 @@ func TestFNV64(t *testing.T) {
 	_ = FnvNumber(1234)
 }
 
-func TestIOUtil(t *testing.T) {
-	var as = assert.New(t)
-
-	t.Run("", func(t *testing.T) {
-		var reader = strings.NewReader("hello")
-		var p = make([]byte, 5)
-		var err = ReadN(reader, p)
-		as.Nil(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var writer = bytes.NewBufferString("")
-		var err = WriteN(writer, nil)
-		as.NoError(err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		var writer = bytes.NewBufferString("")
-		var p = []byte("hello")
-		var err = WriteN(writer, p)
-		as.NoError(err)
-	})
-}
-
 func TestNewMaskKey(t *testing.T) {
 	var key = NewMaskKey()
 	assert.Equal(t, 4, len(key))

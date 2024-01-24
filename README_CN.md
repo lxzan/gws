@@ -30,7 +30,7 @@ GWS（Go WebSocket）是一个用 Go 编写的非常简单、快速、可靠且�
 
 - <font size=3>稳定可靠</font>
   - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行.
-  - **完善的测试用例**: 通过了所有 `Autobahn` 测试用例, 符合 `RFC 7692` 标准. 单元测试覆盖率达到 99%, 几乎覆盖所有条件分支.
+  - **完善的测试用例**: 通过了所有 `Autobahn` 测试用例, 符合 `RFC 7692` 标准. 单元测试覆盖率几乎达到 100%, 覆盖所有条件分支.
 
 ### 基准测试
 
@@ -86,7 +86,6 @@ PASS
 - [x] 广播
 - [x] 代理拨号
 - [x] 上下文接管 
-- [x] 读写过程零动态内存分配
 - [x] 支持并发和异步非阻塞写入
 - [x] 通过所有 Autobahn 测试用例 [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 

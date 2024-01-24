@@ -287,7 +287,7 @@ func TestSegments(t *testing.T) {
 		go client.ReadLoop()
 
 		go func() {
-			frame, _ := client.genFrame(OpcodeText, testdata, false)
+			frame, _ := client.genFrame(OpcodeText, internal.Bytes(testdata), false)
 			data := frame.Bytes()
 			data[20] = 'x'
 			client.conn.Write(data)
@@ -365,7 +365,8 @@ func TestConn_ReadMessage(t *testing.T) {
 		var addr = ":" + nextPort()
 		var serverHandler = &webSocketMocker{}
 		serverHandler.onOpen = func(socket *Conn) {
-			frame, _ := socket.genFrame(OpcodePing, []byte("123"), false)
+			var p = []byte("123")
+			frame, _ := socket.genFrame(OpcodePing, internal.Bytes(p), false)
 			socket.conn.Write(frame.Bytes()[:2])
 			socket.conn.Close()
 		}
@@ -389,7 +390,8 @@ func TestConn_ReadMessage(t *testing.T) {
 		var addr = ":" + nextPort()
 		var serverHandler = &webSocketMocker{}
 		serverHandler.onOpen = func(socket *Conn) {
-			frame, _ := socket.genFrame(OpcodeText, []byte("123"), false)
+			var p = []byte("123")
+			frame, _ := socket.genFrame(OpcodeText, internal.Bytes(p), false)
 			socket.conn.Write(frame.Bytes()[:2])
 			socket.conn.Close()
 		}

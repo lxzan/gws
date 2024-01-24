@@ -5,13 +5,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
+	"github.com/lxzan/gws/internal"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unicode/utf8"
-
-	"github.com/lxzan/gws/internal"
 )
 
 type Conn struct {
@@ -91,22 +89,17 @@ func (c *Conn) getDpsDict() []byte {
 }
 
 func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {
-	if !c.config.CheckUtf8Enabled {
-		return true
+	if c.config.CheckUtf8Enabled {
+		return internal.CheckEncoding(uint8(opcode), payload)
 	}
-	switch opcode {
-	case OpcodeText, OpcodeCloseConnection:
-		return utf8.Valid(payload)
-	default:
-		return true
-	}
+	return true
 }
 
 func (c *Conn) isClosed() bool { return atomic.LoadUint32(&c.closed) == 1 }
 
 func (c *Conn) close(reason []byte, err error) {
 	c.err.Store(err)
-	_ = c.doWrite(OpcodeCloseConnection, reason)
+	_ = c.doWrite(OpcodeCloseConnection, internal.Bytes(reason))
 	_ = c.conn.Close()
 }
 

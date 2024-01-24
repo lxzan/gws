@@ -82,12 +82,15 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 }
 
 // Compress 压缩
-func (c *deflater) Compress(src []byte, dst *bytes.Buffer, dict []byte) error {
+func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
 
 	c.cpsWriter.ResetDict(dst, dict)
-	if err := internal.CheckErrors(internal.WriteN(c.cpsWriter, src), c.cpsWriter.Flush()); err != nil {
+	if _, err := src.WriteTo(c.cpsWriter); err != nil {
+		return err
+	}
+	if err := c.cpsWriter.Flush(); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
@@ -116,16 +119,17 @@ func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *s
 	return c
 }
 
-func (c *slideWindow) Write(p []byte) {
+func (c *slideWindow) Write(p []byte) (int, error) {
 	if !c.enabled {
-		return
+		return 0, nil
 	}
 
-	var n = len(p)
+	var total = len(p)
+	var n = total
 	var length = len(c.dict)
 	if n+length <= c.size {
 		c.dict = append(c.dict, p...)
-		return
+		return total, nil
 	}
 
 	if m := c.size - length; m > 0 {
@@ -136,11 +140,12 @@ func (c *slideWindow) Write(p []byte) {
 
 	if n >= c.size {
 		copy(c.dict, p[n-c.size:])
-		return
+		return total, nil
 	}
 
 	copy(c.dict, c.dict[n:])
 	copy(c.dict[c.size-n:], p)
+	return total, nil
 }
 
 func (c *PermessageDeflate) genRequestHeader() string {
