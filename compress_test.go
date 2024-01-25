@@ -214,7 +214,7 @@ func TestPermessageNegotiation(t *testing.T) {
 		assert.Equal(t, string(client.cpsWindow.dict), "he")
 		_ = client.WriteString("llo")
 		assert.Equal(t, string(client.cpsWindow.dict), "hello")
-		_ = client.WriteV(OpcodeText, []byte(", "), []byte("world!"))
+		_ = client.Writev(OpcodeText, []byte(", "), []byte("world!"))
 		assert.Equal(t, string(client.cpsWindow.dict), "hello, world!")
 	})
 
