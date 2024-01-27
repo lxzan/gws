@@ -49,20 +49,30 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	return err
 }
 
-// WriteV 批量写入文本/二进制消息, 文本消息应该使用UTF8编码
-// writes batch text/binary messages, text messages should be encoded in UTF8.
-func (c *Conn) WriteV(opcode Opcode, payloads ...[]byte) error {
-	var err = c.doWrite(opcode, internal.Buffers(payloads))
-	c.emitError(err)
-	return err
-}
-
 // WriteAsync 异步写
 // 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收payload内存
 // Asynchronously and non-blockingly write the message to the task queue, allowing the payload memory to be reclaimed only after a callback is received.
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 	c.writeQueue.Push(func() {
 		if err := c.WriteMessage(opcode, payload); callback != nil {
+			callback(err)
+		}
+	})
+}
+
+// Writev 类似WriteMessage, 区别是可以一次写入多个切片
+// Similar to WriteMessage, except that you can write multiple slices at once.
+func (c *Conn) Writev(opcode Opcode, payloads ...[]byte) error {
+	var err = c.doWrite(opcode, internal.Buffers(payloads))
+	c.emitError(err)
+	return err
+}
+
+// WritevAsync 类似WriteAsync, 区别是可以一次写入多个切片
+// Similar to WriteAsync, except that you can write multiple slices at once.
+func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error)) {
+	c.writeQueue.Push(func() {
+		if err := c.Writev(opcode, payloads...); callback != nil {
 			callback(err)
 		}
 	})

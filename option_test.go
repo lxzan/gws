@@ -177,16 +177,23 @@ func TestCompressClientOption(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var option = &ClientOption{
 			PermessageDeflate: PermessageDeflate{
-				Enabled:   true,
-				Level:     flate.BestCompression,
-				Threshold: 1024,
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+				Level:                 flate.BestCompression,
+				Threshold:             1024,
 			},
 		}
 		initClientOption(option)
+
 		as.Equal(true, option.PermessageDeflate.Enabled)
 		as.Equal(flate.BestCompression, option.PermessageDeflate.Level)
 		as.Equal(1024, option.PermessageDeflate.Threshold)
 		validateClientOption(as, option)
+
+		var cfg = option.getConfig()
+		as.Nil(cfg.cswPool)
+		as.Nil(cfg.dswPool)
 	})
 }
 
