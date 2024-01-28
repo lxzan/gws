@@ -25,7 +25,8 @@ func init() {
 func main() {
 	srv := gws.NewServer(new(Websocket), nil)
 
-	if err := srv.RunTLS(":3000", dir+"/server.crt", dir+"/server.pem"); err != nil {
+	// wss://www.gws.com:8443/
+	if err := srv.RunTLS(":8443", dir+"/server.crt", dir+"/server.pem"); err != nil {
 		log.Panicln(err.Error())
 	}
 }

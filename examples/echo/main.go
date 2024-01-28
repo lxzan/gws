@@ -9,9 +9,13 @@ import (
 
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
-		CheckUtf8Enabled:  true,
-		Recovery:          gws.Recovery,
-		PermessageDeflate: gws.PermessageDeflate{Enabled: true},
+		CheckUtf8Enabled: true,
+		Recovery:         gws.Recovery,
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
 	})
 	http.HandleFunc("/connect", func(writer http.ResponseWriter, request *http.Request) {
 		socket, err := upgrader.Upgrade(writer, request)

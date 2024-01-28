@@ -343,9 +343,9 @@ func TestNewClientWSS(t *testing.T) {
 			Addr:      "wss://" + addr,
 			TlsConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		_, _, err = NewClient(&BuiltinEventHandler{}, opts)
+		_, resp, err := NewClient(&BuiltinEventHandler{}, opts)
 		as.NoError(err)
-		as.Equal(addr, opts.TlsConfig.ServerName)
+		as.Equal(opts.TlsConfig.ServerName, resp.Request.URL.Hostname())
 	})
 
 	t.Run("", func(t *testing.T) {

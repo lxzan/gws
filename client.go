@@ -56,7 +56,7 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 			option.TlsConfig = &tls.Config{}
 		}
 		if option.TlsConfig.ServerName == "" {
-			option.TlsConfig.ServerName = URL.Host
+			option.TlsConfig.ServerName = URL.Hostname()
 		}
 		c.conn = tls.Client(c.conn, option.TlsConfig)
 	}
