@@ -8,6 +8,7 @@ import (
 )
 
 type SessionStorage interface {
+	Len() int
 	Load(key string) (value any, exist bool)
 	Delete(key string)
 	Store(key string, value any)
@@ -17,19 +18,19 @@ type SessionStorage interface {
 func newSmap() *smap { return &smap{data: make(map[string]any)} }
 
 type smap struct {
-	sync.RWMutex
+	sync.Mutex
 	data map[string]any
 }
 
 func (c *smap) Len() int {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	return len(c.data)
 }
 
 func (c *smap) Load(key string) (value any, exist bool) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 	value, exist = c.data[key]
 	return
 }
@@ -47,8 +48,8 @@ func (c *smap) Store(key string, value any) {
 }
 
 func (c *smap) Range(f func(key string, value any) bool) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	for k, v := range c.data {
 		if !f(k, v) {
