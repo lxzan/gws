@@ -24,10 +24,10 @@ type deflaterPool struct {
 	pool   []*deflater
 }
 
-func (c *deflaterPool) initialize(options PermessageDeflate) *deflaterPool {
+func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflaterPool {
 	c.num = uint64(options.PoolSize)
 	for i := uint64(0); i < c.num; i++ {
-		c.pool = append(c.pool, new(deflater).initialize(true, options))
+		c.pool = append(c.pool, new(deflater).initialize(true, options, limit))
 	}
 	return c
 }
@@ -39,15 +39,19 @@ func (c *deflaterPool) Select() *deflater {
 
 type deflater struct {
 	dpsLocker sync.Mutex
+	buf       []byte
+	limit     int
 	dpsBuffer *bytes.Buffer
 	dpsReader io.ReadCloser
 	cpsLocker sync.Mutex
 	cpsWriter *flate.Writer
 }
 
-func (c *deflater) initialize(isServer bool, options PermessageDeflate) *deflater {
+func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
 	c.dpsReader = flate.NewReader(nil)
 	c.dpsBuffer = bytes.NewBuffer(nil)
+	c.buf = make([]byte, 32*1024)
+	c.limit = limit
 	windowBits := internal.SelectValue(isServer, options.ServerMaxWindowBits, options.ClientMaxWindowBits)
 	if windowBits == 15 {
 		c.cpsWriter, _ = flate.NewWriter(nil, options.Level)
@@ -73,7 +77,8 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 
 	_, _ = src.Write(flateTail)
 	c.resetFR(src, dict)
-	if _, err := c.dpsReader.(io.WriterTo).WriteTo(c.dpsBuffer); err != nil {
+	reader := limitReader(c.dpsReader, c.limit)
+	if _, err := io.CopyBuffer(c.dpsBuffer, reader, c.buf); err != nil {
 		return nil, err
 	}
 	var dst = binaryPool.Get(c.dpsBuffer.Len())
@@ -222,4 +227,21 @@ func permessageNegotiation(str string) PermessageDeflate {
 	options.ClientMaxWindowBits = internal.SelectValue(options.ClientMaxWindowBits < 8, 8, options.ClientMaxWindowBits)
 	options.ServerMaxWindowBits = internal.SelectValue(options.ServerMaxWindowBits < 8, 8, options.ServerMaxWindowBits)
 	return options
+}
+
+func limitReader(r io.Reader, limit int) io.Reader { return &limitedReader{R: r, M: limit} }
+
+type limitedReader struct {
+	R io.Reader
+	N int
+	M int
+}
+
+func (c *limitedReader) Read(p []byte) (n int, err error) {
+	n, err = c.R.Read(p)
+	c.N += n
+	if c.N > c.M {
+		return n, internal.CloseMessageTooLarge
+	}
+	return
 }

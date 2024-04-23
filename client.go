@@ -175,7 +175,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
 	if pd.Enabled {
-		socket.deflater.initialize(false, pd)
+		socket.deflater.initialize(false, pd, c.option.ReadMaxPayloadSize)
 		if pd.ServerContextTakeover {
 			socket.dpsWindow.initialize(nil, pd.ServerMaxWindowBits)
 		}

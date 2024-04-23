@@ -3,6 +3,7 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -78,6 +79,36 @@ func TestWriteBigMessage(t *testing.T) {
 		go client.ReadLoop()
 		var err = server.WriteMessage(OpcodeText, internal.AlphabetNumeric.Generate(128))
 		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		serverHandler.onClose = func(socket *Conn, err error) {
+			assert.True(t, errors.Is(err, internal.CloseMessageTooLarge))
+			wg.Done()
+		}
+		var serverOption = &ServerOption{
+			ReadMaxPayloadSize: 128,
+			PermessageDeflate:  PermessageDeflate{Enabled: true, Threshold: 1},
+		}
+		var clientOption = &ClientOption{
+			ReadMaxPayloadSize: 128 * 1024,
+			PermessageDeflate:  PermessageDeflate{Enabled: true, Threshold: 1},
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var buf = bytes.NewBufferString("")
+		for i := 0; i < 64*1024; i++ {
+			buf.WriteString("a")
+		}
+		var err = client.WriteMessage(OpcodeText, buf.Bytes())
+		assert.NoError(t, err)
+		wg.Wait()
 	})
 }
 
