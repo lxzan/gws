@@ -40,7 +40,7 @@ func serveWebSocket(
 	}
 	if compressEnabled {
 		if isServer {
-			socket.deflater = new(deflaterPool).initialize(pd).Select()
+			socket.deflater = new(deflaterPool).initialize(pd, config.ReadMaxPayloadSize).Select()
 			if pd.ServerContextTakeover {
 				socket.cpsWindow.initialize(config.cswPool, pd.ServerMaxWindowBits)
 			}
@@ -48,7 +48,7 @@ func serveWebSocket(
 				socket.dpsWindow.initialize(config.dswPool, pd.ClientMaxWindowBits)
 			}
 		} else {
-			socket.deflater = new(deflater).initialize(false, pd)
+			socket.deflater = new(deflater).initialize(false, pd, config.ReadMaxPayloadSize)
 		}
 	}
 	return socket

@@ -84,7 +84,7 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 		deflaterPool: new(deflaterPool),
 	}
 	if u.option.PermessageDeflate.Enabled {
-		u.deflaterPool.initialize(u.option.PermessageDeflate)
+		u.deflaterPool.initialize(u.option.PermessageDeflate, option.ReadMaxPayloadSize)
 	}
 	return u
 }

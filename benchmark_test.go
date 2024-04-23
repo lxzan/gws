@@ -97,7 +97,7 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			config:   config,
 			deflater: new(deflater),
 		}
-		conn1.deflater.initialize(false, conn1.pd)
+		conn1.deflater.initialize(false, conn1.pd, config.ReadMaxPayloadSize)
 		var buf, _ = conn1.genFrame(OpcodeText, internal.Bytes(githubData), false)
 
 		var reader = bytes.NewBuffer(buf.Bytes())
