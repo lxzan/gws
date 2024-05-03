@@ -9,8 +9,9 @@ import (
 
 func TestBufferPool(t *testing.T) {
 	var as = assert.New(t)
-	var pool = NewBufferPool()
+	var pool = NewBufferPool(128, 128*1024)
 
+	pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(128)))
 	for i := 0; i < 10; i++ {
 		var n = AlphabetNumeric.Intn(126)
 		var buf = pool.Get(n)
@@ -19,17 +20,17 @@ func TestBufferPool(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(500)
-		as.Equal(Lv2, buf.Cap())
+		as.Equal(512, buf.Cap())
 		as.Equal(0, buf.Len())
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(2000)
-		as.Equal(Lv3, buf.Cap())
+		as.Equal(2048, buf.Cap())
 		as.Equal(0, buf.Len())
 	}
 	for i := 0; i < 10; i++ {
 		var buf = pool.Get(5000)
-		as.Equal(Lv5, buf.Cap())
+		as.Equal(8192, buf.Cap())
 		as.Equal(0, buf.Len())
 	}
 
@@ -57,57 +58,9 @@ func TestPool(t *testing.T) {
 	p.Put(1)
 }
 
-func TestBufferPool_GetIndex(t *testing.T) {
-	var p = NewBufferPool()
-	assert.Equal(t, p.getIndex(200*1024), 0)
-
-	assert.Equal(t, p.getIndex(0), 1)
-	assert.Equal(t, p.getIndex(1), 1)
-	assert.Equal(t, p.getIndex(10), 1)
-	assert.Equal(t, p.getIndex(100), 1)
-	assert.Equal(t, p.getIndex(128), 1)
-
-	assert.Equal(t, p.getIndex(200), 2)
-	assert.Equal(t, p.getIndex(1000), 2)
-	assert.Equal(t, p.getIndex(500), 2)
-	assert.Equal(t, p.getIndex(1024), 2)
-
-	assert.Equal(t, p.getIndex(2*1024), 3)
-	assert.Equal(t, p.getIndex(2000), 3)
-	assert.Equal(t, p.getIndex(1025), 3)
-
-	assert.Equal(t, p.getIndex(4*1024), 4)
-	assert.Equal(t, p.getIndex(3000), 4)
-	assert.Equal(t, p.getIndex(2*1024+1), 4)
-
-	assert.Equal(t, p.getIndex(8*1024), 5)
-	assert.Equal(t, p.getIndex(5000), 5)
-	assert.Equal(t, p.getIndex(4*1024+1), 5)
-
-	assert.Equal(t, p.getIndex(16*1024), 6)
-	assert.Equal(t, p.getIndex(10000), 6)
-	assert.Equal(t, p.getIndex(8*1024+1), 6)
-
-	assert.Equal(t, p.getIndex(32*1024), 7)
-	assert.Equal(t, p.getIndex(20000), 7)
-	assert.Equal(t, p.getIndex(16*1024+1), 7)
-
-	assert.Equal(t, p.getIndex(64*1024), 8)
-	assert.Equal(t, p.getIndex(40000), 8)
-	assert.Equal(t, p.getIndex(32*1024+1), 8)
-
-	assert.Equal(t, p.getIndex(128*1024), 9)
-	assert.Equal(t, p.getIndex(100000), 9)
-	assert.Equal(t, p.getIndex(64*1024+1), 9)
-}
-
-func BenchmarkPool_GetIndex(b *testing.B) {
-	var p = NewBufferPool()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 1000000; j++ {
-			p.getIndex(uint32(j))
-		}
-	}
+func TestPool_Get(t *testing.T) {
+	var p = NewBufferPool(128, 1024*128)
+	p.shards[128].Put(bytes.NewBuffer(AlphabetNumeric.Generate(120)))
+	var buf = p.Get(128)
+	assert.GreaterOrEqual(t, buf.Cap(), 128)
 }

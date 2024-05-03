@@ -5,70 +5,54 @@ import (
 	"sync"
 )
 
-const (
-	poolSize = 10
-
-	Lv1 = 128
-	Lv2 = 1024
-	Lv3 = 2 * 1024
-	Lv4 = 4 * 1024
-	Lv5 = 8 * 1024
-	Lv6 = 16 * 1024
-	Lv7 = 32 * 1024
-	Lv8 = 64 * 1024
-	Lv9 = 128 * 1024
-)
-
 type BufferPool struct {
-	pools  []*sync.Pool
-	limits []int
+	begin, end int
+	shards     map[int]*sync.Pool
 }
 
-func NewBufferPool() *BufferPool {
+// NewBufferPool Creating a memory pool
+// Left, right indicate the interval range of the memory pool, they will be transformed into pow(2,n)。
+// Below left, Get method will return at least left bytes; above right, Put method will not reclaim the buffer.
+func NewBufferPool(left, right uint32) *BufferPool {
+	var begin, end = int(binaryCeil(left)), int(binaryCeil(right))
 	var p = &BufferPool{
-		pools:  make([]*sync.Pool, poolSize),
-		limits: []int{0, Lv1, Lv2, Lv3, Lv4, Lv5, Lv6, Lv7, Lv8, Lv9},
+		begin:  begin,
+		end:    end,
+		shards: map[int]*sync.Pool{},
 	}
-	for i := 1; i < poolSize; i++ {
-		var capacity = p.limits[i]
-		p.pools[i] = &sync.Pool{New: func() any {
-			return bytes.NewBuffer(make([]byte, 0, capacity))
-		}}
+	for i := begin; i <= end; i *= 2 {
+		capacity := i
+		p.shards[i] = &sync.Pool{
+			New: func() any { return bytes.NewBuffer(make([]byte, 0, capacity)) },
+		}
 	}
 	return p
 }
 
+// Put Return buffer to memory pool
 func (p *BufferPool) Put(b *bytes.Buffer) {
-	if b == nil || b.Cap() == 0 {
-		return
-	}
-	if index := p.getIndex(uint32(b.Cap())); index > 0 {
-		p.pools[index].Put(b)
+	if b != nil {
+		if pool, ok := p.shards[b.Cap()]; ok {
+			pool.Put(b)
+		}
 	}
 }
 
+// Get Fetch a buffer from the memory pool, of at least n bytes
 func (p *BufferPool) Get(n int) *bytes.Buffer {
-	var index = p.getIndex(uint32(n))
-	if index == 0 {
-		return bytes.NewBuffer(make([]byte, 0, n))
+	var size = Max(int(binaryCeil(uint32(n))), p.begin)
+	if pool, ok := p.shards[size]; ok {
+		b := pool.Get().(*bytes.Buffer)
+		if b.Cap() < size {
+			b.Grow(size)
+		}
+		b.Reset()
+		return b
 	}
-
-	b := p.pools[index].Get().(*bytes.Buffer)
-	if b.Cap() < n {
-		b.Grow(p.limits[index])
-	}
-	b.Reset()
-	return b
+	return bytes.NewBuffer(make([]byte, 0, n))
 }
 
-func (p *BufferPool) getIndex(v uint32) int {
-	if v > Lv9 {
-		return 0
-	}
-	if v <= 128 {
-		return 1
-	}
-
+func binaryCeil(v uint32) uint32 {
 	v--
 	v |= v >> 1
 	v |= v >> 2
@@ -76,25 +60,7 @@ func (p *BufferPool) getIndex(v uint32) int {
 	v |= v >> 8
 	v |= v >> 16
 	v++
-
-	switch v {
-	case Lv3:
-		return 3
-	case Lv4:
-		return 4
-	case Lv5:
-		return 5
-	case Lv6:
-		return 6
-	case Lv7:
-		return 7
-	case Lv8:
-		return 8
-	case Lv9:
-		return 9
-	default:
-		return 2
-	}
+	return v
 }
 
 func NewPool[T any](f func() T) *Pool[T] {

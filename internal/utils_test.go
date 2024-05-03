@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"hash/fnv"
 	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -147,18 +145,6 @@ func TestSelectInt(t *testing.T) {
 	assert.Equal(t, 2, SelectValue(false, 1, 2))
 }
 
-func TestIsNil(t *testing.T) {
-	{
-		var v io.Reader
-		assert.True(t, IsNil(v))
-	}
-	{
-		var v *http.Request
-		var v1 any = v
-		assert.True(t, IsNil(v1))
-	}
-}
-
 func TestToBinaryNumber(t *testing.T) {
 	assert.Equal(t, 8, ToBinaryNumber(7))
 	assert.Equal(t, 1, ToBinaryNumber(0))
@@ -246,13 +232,4 @@ func TestIsSameSlice(t *testing.T) {
 		[]int{1, 2, 3},
 		[]int{1, 2, 4},
 	))
-}
-
-func TestCheckErrors(t *testing.T) {
-	var err0 error
-	var err1 error
-	var err2 = errors.New("1")
-	assert.NoError(t, CheckErrors(err0, err1))
-	assert.Error(t, CheckErrors(err0, err1, err2))
-	assert.True(t, errors.Is(CheckErrors(err0, err1, err2), err2))
 }

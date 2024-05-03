@@ -171,13 +171,6 @@ func SelectValue[T any](ok bool, a, b T) T {
 	return b
 }
 
-func IsNil(v any) bool {
-	if v == nil {
-		return true
-	}
-	return reflect.ValueOf(v).IsNil()
-}
-
 func ToBinaryNumber[T Integer](n T) T {
 	var x T = 1
 	for x < n {
@@ -212,14 +205,14 @@ func WithDefault[T comparable](rawValue, newValue T) T {
 	return rawValue
 }
 
-func Min[T int | int64](a, b T) T {
+func Min(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func Max[T int | int64](a, b T) T {
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
@@ -236,13 +229,4 @@ func IsSameSlice[T comparable](a, b []T) bool {
 		}
 	}
 	return true
-}
-
-func CheckErrors(errs ...error) error {
-	for _, item := range errs {
-		if item != nil {
-			return item
-		}
-	}
-	return nil
 }
