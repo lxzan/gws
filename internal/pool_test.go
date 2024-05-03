@@ -11,6 +11,7 @@ func TestBufferPool(t *testing.T) {
 	var as = assert.New(t)
 	var pool = NewBufferPool(128, 128*1024)
 
+	pool.Put(bytes.NewBuffer(AlphabetNumeric.Generate(128)))
 	for i := 0; i < 10; i++ {
 		var n = AlphabetNumeric.Intn(126)
 		var buf = pool.Get(n)
@@ -55,4 +56,11 @@ func TestPool(t *testing.T) {
 	})
 	assert.Equal(t, 0, p.Get())
 	p.Put(1)
+}
+
+func TestPool_Get(t *testing.T) {
+	var p = NewBufferPool(128, 1024*128)
+	p.shards[128].Put(bytes.NewBuffer(AlphabetNumeric.Generate(120)))
+	var buf = p.Get(128)
+	assert.GreaterOrEqual(t, buf.Cap(), 128)
 }

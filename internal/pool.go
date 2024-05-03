@@ -6,9 +6,8 @@ import (
 )
 
 type BufferPool struct {
-	begin      uint32
-	shards     []*sync.Pool
-	size2index map[int]int
+	begin, end int
+	shards     map[int]*sync.Pool
 }
 
 // NewBufferPool Creating a memory pool
@@ -16,13 +15,16 @@ type BufferPool struct {
 // Below left, Get method will return at least left bytes; above right, Put method will not reclaim the buffer.
 func NewBufferPool(left, right uint32) *BufferPool {
 	var begin, end = int(binaryCeil(left)), int(binaryCeil(right))
-	var p = &BufferPool{begin: uint32(begin), size2index: map[int]int{}}
-	for i, j := begin, 0; i <= end; i *= 2 {
+	var p = &BufferPool{
+		begin:  begin,
+		end:    end,
+		shards: map[int]*sync.Pool{},
+	}
+	for i := begin; i <= end; i *= 2 {
 		capacity := i
-		pool := &sync.Pool{New: func() any { return bytes.NewBuffer(make([]byte, 0, capacity)) }}
-		p.shards = append(p.shards, pool)
-		p.size2index[i] = j
-		j++
+		p.shards[i] = &sync.Pool{
+			New: func() any { return bytes.NewBuffer(make([]byte, 0, capacity)) },
+		}
 	}
 	return p
 }
@@ -30,17 +32,17 @@ func NewBufferPool(left, right uint32) *BufferPool {
 // Put Return buffer to memory pool
 func (p *BufferPool) Put(b *bytes.Buffer) {
 	if b != nil {
-		if index, ok := p.size2index[b.Cap()]; ok {
-			p.shards[index].Put(b)
+		if pool, ok := p.shards[b.Cap()]; ok {
+			pool.Put(b)
 		}
 	}
 }
 
 // Get Fetch a buffer from the memory pool, of at least n bytes
 func (p *BufferPool) Get(n int) *bytes.Buffer {
-	var size = int(Max(binaryCeil(uint32(n)), p.begin))
-	if index, ok := p.size2index[size]; ok {
-		b := p.shards[index].Get().(*bytes.Buffer)
+	var size = Max(int(binaryCeil(uint32(n))), p.begin)
+	if pool, ok := p.shards[size]; ok {
+		b := pool.Get().(*bytes.Buffer)
 		if b.Cap() < size {
 			b.Grow(size)
 		}

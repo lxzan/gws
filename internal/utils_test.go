@@ -213,8 +213,8 @@ func TestMin(t *testing.T) {
 }
 
 func TestMax(t *testing.T) {
-	assert.Equal(t, Max(1, 2), uint32(2))
-	assert.Equal(t, Max(4, 3), uint32(4))
+	assert.Equal(t, Max(1, 2), 2)
+	assert.Equal(t, Max(4, 3), 4)
 }
 
 func TestIsSameSlice(t *testing.T) {

@@ -212,7 +212,7 @@ func Min(a, b int) int {
 	return b
 }
 
-func Max(a, b uint32) uint32 {
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
