@@ -50,20 +50,20 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ![performance](assets/performance-compress-disabled.png)
 
-> gorilla and nhooyr not using stream api
-
 #### GoBench
 
 ```go
+go test -benchmem -run=^$ -bench . github.com/lxzan/gws
 goos: linux
 goarch: amd64
 pkg: github.com/lxzan/gws
 cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-8         	 7252513	     165.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-8          	   97394	     10391 ns/op	     349 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-8          	 7812108	     152.3 ns/op	      16 B/op	       0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-8           	  368712	      3248 ns/op	     108 B/op	       0 allocs/op
+BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op 
 PASS
+ok      github.com/lxzan/gws    17.231s
 ```
 
 ### Index
