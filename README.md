@@ -9,7 +9,7 @@
 
 <div align="center">
 
-[![awesome](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#networking) [![codecov](https://codecov.io/gh/lxzan/gws/graph/badge.svg?token=DJU7YXWN05)](https://codecov.io/gh/lxzan/gws) [![go-test](https://github.com/lxzan/gws/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/gws/actions?query=branch%3Amaster) [![go-reportcard](https://goreportcard.com/badge/github.com/lxzan/gws)](https://goreportcard.com/report/github.com/lxzan/gws) [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE) [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
+[![awesome](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#networking) [![codecov](https://codecov.io/gh/lxzan/gws/graph/badge.svg?token=DJU7YXWN05)](https://codecov.io/gh/lxzan/gws) [![Go Test](https://github.com/lxzan/gws/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/lxzan/gws/actions/workflows/go.yml) [![go-reportcard](https://goreportcard.com/badge/github.com/lxzan/gws)](https://goreportcard.com/report/github.com/lxzan/gws) [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE) [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
 
 </div>
 
@@ -333,27 +333,27 @@ import (
     "github.com/lxzan/gws"
 )
 
-type Socket gws.Conn
+type Subscriber gws.Conn
 
-func NewSocket(conn *gws.Conn) *Socket { return (*Socket)(conn) }
+func NewSubscriber(conn *gws.Conn) *Subscriber { return (*Subscriber)(conn) }
 
-func (c *Socket) GetSubscriberID() int64 {
+func (c *Subscriber) GetSubscriberID() int64 {
     userId, _ := c.GetMetadata().Load("userId")
     return userId.(int64)
 }
 
-func (c *Socket) GetMetadata() event_emitter.Metadata { return c.Conn().Session() }
+func (c *Subscriber) GetMetadata() event_emitter.Metadata { return c.Conn().Session() }
 
-func (c *Socket) Conn() *gws.Conn { return (*gws.Conn)(c) }
+func (c *Subscriber) Conn() *gws.Conn { return (*gws.Conn)(c) }
 
-func Sub(em *event_emitter.EventEmitter[int64, *Socket], socket *Socket, topic string) {
-    em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
-        _ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn())
+func Subscribe(em *event_emitter.EventEmitter[int64, *Subscriber], s *Subscriber, topic string) {
+    em.Subscribe(s, topic, func(msg any) {
+        _ = msg.(*gws.Broadcaster).Broadcast(s.Conn())
     })
 }
 
-func Pub(em *event_emitter.EventEmitter[int64, *Socket], topic string, op gws.Opcode, msg []byte) {
-    var broadcaster = gws.NewBroadcaster(op, msg)
+func Publish(em *event_emitter.EventEmitter[int64, *Subscriber], topic string, msg []byte) {
+    var broadcaster = gws.NewBroadcaster(gws.OpcodeText, msg)
     defer broadcaster.Close()
     em.Publish(topic, broadcaster)
 }
