@@ -489,3 +489,23 @@ func TestConn_Writev(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestConn_Async(t *testing.T) {
+	var conn = &Conn{writeQueue: workerQueue{maxConcurrency: 1}}
+	var wg = sync.WaitGroup{}
+	wg.Add(100)
+	var arr1, arr2 []int64
+	var mu = &sync.Mutex{}
+	for i := 1; i <= 100; i++ {
+		var x = int64(i)
+		arr1 = append(arr1, x)
+		conn.Async(func() {
+			mu.Lock()
+			arr2 = append(arr2, x)
+			mu.Unlock()
+			wg.Done()
+		})
+	}
+	wg.Wait()
+	assert.True(t, internal.IsSameSlice(arr1, arr2))
+}

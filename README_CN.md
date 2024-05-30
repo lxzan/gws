@@ -316,31 +316,33 @@ func WriteWithTimeout(socket *gws.Conn, p []byte, timeout time.Duration) error {
 package main
 
 import (
-	"github.com/lxzan/event_emitter"
-	"github.com/lxzan/gws"
+    "github.com/lxzan/event_emitter"
+    "github.com/lxzan/gws"
 )
 
-type Socket struct{ *gws.Conn }
+type Socket gws.Conn
+
+func NewSocket(conn *gws.Conn) *Socket { return (*Socket)(conn) }
 
 func (c *Socket) GetSubscriberID() int64 {
-	userId, _ := c.Session().Load("userId")
-	return userId.(int64)
+    userId, _ := c.GetMetadata().Load("userId")
+    return userId.(int64)
 }
 
-func (c *Socket) GetMetadata() event_emitter.Metadata {
-	return c.Conn.Session()
+func (c *Socket) GetMetadata() event_emitter.Metadata { return c.Conn().Session() }
+
+func (c *Socket) Conn() *gws.Conn { return (*gws.Conn)(c) }
+
+func Sub(em *event_emitter.EventEmitter[int64, *Socket], socket *Socket, topic string) {
+    em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
+        _ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn())
+    })
 }
 
-func Sub(em *event_emitter.EventEmitter[*Socket], topic string, socket *Socket) {
-	em.Subscribe(socket, topic, func(subscriber *Socket, msg any) {
-		_ = msg.(*gws.Broadcaster).Broadcast(subscriber.Conn)
-	})
-}
-
-func Pub(em *event_emitter.EventEmitter[*Socket], topic string, op gws.Opcode, msg []byte) {
-	var broadcaster = gws.NewBroadcaster(op, msg)
-	defer broadcaster.Close()
-	em.Publish(topic, broadcaster)
+func Pub(em *event_emitter.EventEmitter[int64, *Socket], topic string, op gws.Opcode, msg []byte) {
+    var broadcaster = gws.NewBroadcaster(op, msg)
+    defer broadcaster.Close()
+    em.Publish(topic, broadcaster)
 }
 ```
 

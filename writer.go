@@ -78,6 +78,15 @@ func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error
 	})
 }
 
+// Async 异步
+// 将任务加入发送队列(并发度为1), 执行异步操作
+// 注意: 不要加入长时间阻塞的任务
+// Add the task to the send queue (concurrency 1), perform asynchronous operation.
+// Note: Don't add tasks that are blocking for a long time.
+func (c *Conn) Async(f func()) {
+	c.writeQueue.Push(f)
+}
+
 // 执行写入逻辑, 注意妥善维护压缩字典
 func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	c.mu.Lock()
