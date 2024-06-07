@@ -69,7 +69,7 @@ type (
 // NewConcurrentMap create a new concurrency-safe map
 // arg0 represents the number of shardings; arg1 represents the initialized capacity of a sharding.
 func NewConcurrentMap[K comparable, V any](size ...uint64) *ConcurrentMap[K, V] {
-	sharding, capacity := uint64(16), uint64(0)
+	sharding, capacity := uint64(0), uint64(0)
 	if len(size) >= 1 {
 		sharding = size[0]
 	}
