@@ -123,6 +123,15 @@ func TestConcurrentMap(t *testing.T) {
 		as.Equal(v, v1)
 	}
 	as.Equal(len(m1), m2.Len())
+
+	t.Run("", func(t *testing.T) {
+		var sum = 0
+		var cm = NewConcurrentMap[string, int](8, 8)
+		for _, item := range cm.buckets {
+			sum += len(item.m)
+		}
+		assert.Equal(t, sum, 0)
+	})
 }
 
 func TestConcurrentMap_Range(t *testing.T) {
