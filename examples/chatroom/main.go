@@ -23,8 +23,8 @@ func main() {
 	var upgrader = gws.NewUpgrader(handler, &gws.ServerOption{
 		PermessageDeflate: gws.PermessageDeflate{
 			Enabled:               true,
-			ServerContextTakeover: false,
-			ClientContextTakeover: false,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
 		},
 
 		// 在querystring里面传入用户名
@@ -36,7 +36,7 @@ func main() {
 				return false
 			}
 			session.Store("name", name)
-			session.Store("key", r.Header.Get("Sec-WebSocket-Key"))
+			session.Store("websocketKey", r.Header.Get("Sec-WebSocket-Key"))
 			return true
 		},
 	})
@@ -59,42 +59,46 @@ func main() {
 	}
 }
 
+func MustLoad[T any](session gws.SessionStorage, key string) (v T) {
+	if value, exist := session.Load(key); exist {
+		v = value.(T)
+	}
+	return
+}
+
 func NewWebSocket() *WebSocket {
-	return &WebSocket{sessions: gws.NewConcurrentMap[string, *gws.Conn](16)}
+	return &WebSocket{
+		sessions: gws.NewConcurrentMap[string, *gws.Conn](16, 128),
+	}
 }
 
 type WebSocket struct {
 	sessions *gws.ConcurrentMap[string, *gws.Conn] // 使用内置的ConcurrentMap存储连接, 可以减少锁冲突
 }
 
-func (c *WebSocket) getName(socket *gws.Conn) string {
-	name, _ := socket.Session().Load("name")
-	return name.(string)
-}
-
-func (c *WebSocket) getKey(socket *gws.Conn) string {
-	name, _ := socket.Session().Load("key")
-	return name.(string)
-}
-
 func (c *WebSocket) OnOpen(socket *gws.Conn) {
-	name := c.getName(socket)
+	name := MustLoad[string](socket.Session(), "name")
 	if conn, ok := c.sessions.Load(name); ok {
-		conn.WriteClose(1000, []byte("connection replaced"))
+		conn.WriteClose(1000, []byte("connection is replaced"))
 	}
-	socket.SetDeadline(time.Now().Add(PingInterval + HeartbeatWaitTimeout))
+	_ = socket.SetDeadline(time.Now().Add(PingInterval + HeartbeatWaitTimeout))
 	c.sessions.Store(name, socket)
 	log.Printf("%s connected\n", name)
 }
 
 func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
-	name := c.getName(socket)
-	key := c.getKey(socket)
-	if mSocket, ok := c.sessions.Load(name); ok {
-		if mKey := c.getKey(mSocket); mKey == key {
-			c.sessions.Delete(name)
+	name := MustLoad[string](socket.Session(), "name")
+	sharding := c.sessions.GetSharding(name)
+	sharding.Lock()
+	defer sharding.Unlock()
+
+	if conn, ok := sharding.Load(name); ok {
+		key0 := MustLoad[string](socket.Session(), "websocketKey")
+		if key1 := MustLoad[string](conn.Session(), "websocketKey"); key1 == key0 {
+			sharding.Delete(name)
 		}
 	}
+
 	log.Printf("onerror, name=%s, msg=%s\n", name, err.Error())
 }
 
@@ -114,14 +118,14 @@ func (c *WebSocket) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
 
 	// chrome websocket不支持ping方法, 所以在text frame里面模拟ping
-	if b := message.Data.Bytes(); len(b) == 4 && string(b) == "ping" {
+	if b := message.Bytes(); len(b) == 4 && string(b) == "ping" {
 		c.OnPing(socket, nil)
 		return
 	}
 
 	var input = &Input{}
-	_ = json.Unmarshal(message.Data.Bytes(), input)
+	_ = json.Unmarshal(message.Bytes(), input)
 	if conn, ok := c.sessions.Load(input.To); ok {
-		conn.WriteMessage(gws.OpcodeText, message.Data.Bytes())
+		_ = conn.WriteMessage(gws.OpcodeText, message.Bytes())
 	}
 }
