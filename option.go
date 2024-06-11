@@ -39,8 +39,8 @@ type (
 		// Compress level
 		Level int
 
-		// 压缩阈值, 长度小于阈值的消息不会被压缩
-		// Compression threshold, messages below the threshold will not be compressed
+		// 压缩阈值, 长度小于阈值的消息不会被压缩, 仅适用于无上下文接管模式.
+		// Compression threshold, messages below the threshold will not be compressed, only for context-free takeover mode.
 		Threshold int
 
 		// 压缩器内存池大小
