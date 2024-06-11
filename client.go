@@ -131,7 +131,7 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 func (c *connector) getPermessageDeflate(extensions string) PermessageDeflate {
 	serverPD := permessageNegotiation(extensions)
 	clientPD := c.option.PermessageDeflate
-	return PermessageDeflate{
+	pd := PermessageDeflate{
 		Enabled:               clientPD.Enabled && strings.Contains(extensions, internal.PermessageDeflate),
 		Threshold:             clientPD.Threshold,
 		Level:                 clientPD.Level,
@@ -141,6 +141,8 @@ func (c *connector) getPermessageDeflate(extensions string) PermessageDeflate {
 		ServerMaxWindowBits:   serverPD.ServerMaxWindowBits,
 		ClientMaxWindowBits:   serverPD.ClientMaxWindowBits,
 	}
+	pd.setThreshold(false)
+	return pd
 }
 
 func (c *connector) handshake() (*Conn, *http.Response, error) {

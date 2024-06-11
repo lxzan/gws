@@ -107,7 +107,7 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
 	clientPD := permessageNegotiation(extensions)
 	serverPD := c.option.PermessageDeflate
-	return PermessageDeflate{
+	pd := PermessageDeflate{
 		Enabled:               serverPD.Enabled && strings.Contains(extensions, internal.PermessageDeflate),
 		Threshold:             serverPD.Threshold,
 		Level:                 serverPD.Level,
@@ -117,6 +117,8 @@ func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
 		ServerMaxWindowBits:   serverPD.ServerMaxWindowBits,
 		ClientMaxWindowBits:   serverPD.ClientMaxWindowBits,
 	}
+	pd.setThreshold(true)
+	return pd
 }
 
 // Upgrade
