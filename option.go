@@ -160,6 +160,16 @@ type (
 	}
 )
 
+// 设置压缩阈值
+// 开启上下文接管时, 必须不论长短压缩全部消息, 否则浏览器会报错
+// when context takeover is enabled, all messages must be compressed regardless of length,
+// otherwise the browser will report an error.
+func (c *PermessageDeflate) setThreshold(isServer bool) {
+	if (isServer && c.ServerContextTakeover) || (!isServer && c.ClientContextTakeover) {
+		c.Threshold = 0
+	}
+}
+
 func (c *ServerOption) deleteProtectedHeaders() {
 	c.ResponseHeader.Del(internal.Upgrade.Key)
 	c.ResponseHeader.Del(internal.Connection.Key)
