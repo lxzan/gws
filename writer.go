@@ -119,7 +119,7 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 		return nil, internal.CloseMessageTooLarge
 	}
 
-	var buf = binaryPool.Get(n + frameHeaderSize)
+	var buf = binaryPool.Get(n*11/10 + frameHeaderSize)
 	buf.Write(framePadding[0:])
 
 	if c.pd.Enabled && opcode.isDataFrame() && n >= c.pd.Threshold {
@@ -203,9 +203,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var idx = internal.SelectValue(socket.pd.Enabled, 1, 0)
 	var msg = c.msgs[idx]
 
-	msg.once.Do(func() {
-		msg.frame, msg.err = socket.genFrame(c.opcode, internal.Bytes(c.payload), true)
-	})
+	msg.once.Do(func() { msg.frame, msg.err = socket.genFrame(c.opcode, internal.Bytes(c.payload), true) })
 	if msg.err != nil {
 		return msg.err
 	}
@@ -225,6 +223,7 @@ func (c *Broadcaster) doClose() {
 	for _, item := range c.msgs {
 		if item != nil {
 			binaryPool.Put(item.frame)
+			item.frame = nil
 		}
 	}
 }
