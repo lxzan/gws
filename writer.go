@@ -119,7 +119,7 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 		return nil, internal.CloseMessageTooLarge
 	}
 
-	var buf = binaryPool.Get(n*11/10 + frameHeaderSize)
+	var buf = binaryPool.Get(n*105/100 + frameHeaderSize)
 	buf.Write(framePadding[0:])
 
 	if c.pd.Enabled && opcode.isDataFrame() && n >= c.pd.Threshold {
