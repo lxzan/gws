@@ -60,6 +60,7 @@ func (c *webSocketMocker) OnMessage(socket *Conn, message *Message) {
 }
 
 func TestOthers(t *testing.T) {
+	SetBufferPool(NewBufferPool(128, 256*1024))
 	conn, _ := net.Pipe()
 	upgrader := NewUpgrader(new(BuiltinEventHandler), nil)
 	socket := &Conn{
