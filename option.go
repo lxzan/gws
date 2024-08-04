@@ -101,12 +101,15 @@ type (
 
 	Config struct {
 		// bufio.Reader内存池
+		// Memory pool for bufio.Reader
 		brPool *internal.Pool[*bufio.Reader]
 
 		// 压缩器滑动窗口内存池
+		// Memory pool for compressor sliding window
 		cswPool *internal.Pool[[]byte]
 
 		// 解压器滑动窗口内存池
+		// Memory pool for decompressor sliding window
 		dswPool *internal.Pool[[]byte]
 
 		// 是否开启并行消息处理
@@ -114,7 +117,7 @@ type (
 		ParallelEnabled bool
 
 		// (单个连接)用于并行消息处理的协程数量限制
-		// Limit on the number of concurrent goroutine used for parallel message processing (single connection)
+		// Limit on the number of concurrent goroutines used for parallel message processing (single connection)
 		ParallelGolimit int
 
 		// 最大读取的消息内容长度
