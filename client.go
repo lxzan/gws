@@ -157,6 +157,7 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 	// 设置连接的超时时间
 	// Set the connection timeout
 	_ = c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout))
+	
 	// 创建一个带有超时的上下文
 	// Create a context with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), c.option.HandshakeTimeout)

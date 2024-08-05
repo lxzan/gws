@@ -513,12 +513,12 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 		// Closed status
 		closed: 0,
 
-		// 写队列
-		// Write queue
+		// 写队列，最大并发数为 1
+		// Write queue，maximum concurrency is 1
 		writeQueue: workerQueue{maxConcurrency: 1},
 
-		// 读队列
-		// Read queue
+		// 读队列，channel 缓冲区大小为 option 的 ParallelGolimit
+		// Read queue，channel buffer size is option's ParallelGolimit
 		readQueue: make(channel, c.option.ParallelGolimit),
 	}
 

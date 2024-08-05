@@ -104,6 +104,7 @@ func (c *Deque[T]) Get(addr Pointer) *Element[T] {
 	if addr > 0 {
 		return &(c.elements[addr])
 	}
+
 	// 否则返回 nil
 	// Otherwise, return nil
 	return nil
@@ -555,6 +556,7 @@ func (c *Deque[T]) doRemove(ele *Element[T]) {
 	// 初始化前后元素指针为 nil
 	// Initialize previous and next element pointers to nil
 	var prev, next *Element[T] = nil, nil
+
 	// 初始化状态为 0
 	// Initialize state to 0
 	var state = 0
@@ -562,14 +564,24 @@ func (c *Deque[T]) doRemove(ele *Element[T]) {
 	// 如果前一个元素不为空，获取前一个元素并更新状态
 	// If the previous element is not nil, get the previous element and update the state
 	if !ele.prev.IsNil() {
+		// 使用 c.Get 方法获取 ele 的前一个元素，并将其赋值给 prev
+		// Use the c.Get method to get the previous element of ele and assign it to prev
 		prev = c.Get(ele.prev)
+
+		// 将状态值 state 增加 1, 用于标记前一个元素存在
+		// Increase the state value by 1, used to mark that the previous element exists
 		state += 1
 	}
 
 	// 如果下一个元素不为空，获取下一个元素并更新状态
 	// If the next element is not nil, get the next element and update the state
 	if !ele.next.IsNil() {
+		// 使用 c.Get 方法获取 ele 的下一个元素，并将其赋值给 next
+		// Use the c.Get method to get the next element of ele and assign it to next
 		next = c.Get(ele.next)
+
+		// 将状态值 state 增加 2, 用于标记前后元素都存在
+		// Increase the state value by 2, used to mark that both previous and next elements exist
 		state += 2
 	}
 

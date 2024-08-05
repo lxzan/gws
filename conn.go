@@ -283,6 +283,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 	// 默认响应代码为正常关闭
 	// Default response code is normal closure
 	var responseCode = internal.CloseNormalClosure
+
 	// 默认实际代码为正常关闭的 Uint16 值
 	// Default real code is the Uint16 value of normal closure
 	var realCode = internal.CloseNormalClosure.Uint16()
@@ -292,22 +293,31 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 	switch buf.Len() {
 	case 0:
 		// 如果缓冲区长度为 0，设置响应代码和实际代码为 0
-		// If buffer length is 0, set response code and real code to 0
+		// If the buffer length is 0, set the response code and the actual code to 0
 		responseCode = 0
 		realCode = 0
 
 	case 1:
-		// 如果缓冲区长度为 1，设置响应代码为协议错误，并将缓冲区第一个字节作为实际代码
-		// If buffer length is 1, set response code to protocol error and use the first byte of the buffer as the real code
+		// 如果缓冲区长度为 1，设置响应代码为协议错误，并将缓冲区的第一个字节作为实际代码
+		// If the buffer length is 1, set the response code to protocol error and use the first byte of the buffer as the actual code
 		responseCode = internal.CloseProtocolError
 		realCode = uint16(buf.Bytes()[0])
+
+		// 重置缓冲区
+		// Reset the buffer
 		buf.Reset()
 
 	default:
 		// 如果缓冲区长度大于 1，读取前两个字节作为实际代码
-		// If buffer length is greater than 1, read the first two bytes as the real code
+		// If the buffer length is greater than 1, read the first two bytes as the actual code
 		var b [2]byte
+
+		// 从缓冲区读取两个字节到 b
+		// Read two bytes from the buffer into b
 		_, _ = buf.Read(b[0:])
+
+		// 将 b 的两个字节解释为大端序的 uint16，并赋值给 realCode
+		// Interpret the two bytes of b as a big-endian uint16 and assign it to realCode
 		realCode = binary.BigEndian.Uint16(b[0:])
 
 		// 根据实际代码设置响应代码

@@ -71,29 +71,30 @@ func (c *Conn) readControl() error {
 	// Get the opcode
 	var opcode = c.fh.GetOpcode()
 
-	// 根据操作码处理不同的控制帧
-	// Handle different control frames based on the opcode
+	// 根据操作码调用相应的方法
+	// Call the corresponding method based on the opcode
 	switch opcode {
-	// 处理 Ping 帧
-	// Handle Ping frame
+
 	case OpcodePing:
+		// 如果操作码为 Ping，调用 OnPing 方法
+		// If the opcode is Ping, call the OnPing method
 		c.handler.OnPing(c, payload)
 		return nil
 
-	// 处理 Pong 帧
-	// Handle Pong frame
 	case OpcodePong:
+		// 如果操作码为 Pong，调用 OnPong 方法
+		// If the opcode is Pong, call the OnPong method
 		c.handler.OnPong(c, payload)
 		return nil
 
-	// 处理关闭连接帧
-	// Handle Close Connection frame
 	case OpcodeCloseConnection:
+		// 如果操作码为 CloseConnection，调用 emitClose 方法
+		// If the opcode is CloseConnection, call the emitClose method
 		return c.emitClose(bytes.NewBuffer(payload))
 
-	// 处理未知操作码
-	// Handle unknown opcode
 	default:
+		// 如果操作码为其他值，返回一个错误
+		// If the opcode is other values, return an error
 		var err = fmt.Errorf("gws: unexpected opcode %d", opcode)
 		return internal.NewError(internal.CloseProtocolError, err)
 	}

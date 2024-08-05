@@ -35,14 +35,18 @@ func CheckEncoding(opcode uint8, payload []byte) bool {
 	// 根据 opcode 的值进行不同的处理
 	// Handle different cases based on the value of opcode
 	switch opcode {
-	// 如果 opcode 是 1 或 8, 检查 payload 是否是有效的 UTF-8 编码
-	// If opcode is 1 or 8, check if the payload is valid UTF-8
+	// 如果 opcode 的值为 1 或 8
+	// If the value of opcode is 1 or 8
 	case 1, 8:
+		// 调用 utf8.Valid 函数检查 payload 是否为有效的 UTF-8 编码，如果是则返回 true，否则返回 false
+		// Call the utf8.Valid function to check if payload is a valid UTF-8 encoding, return true if it is, otherwise return false
 		return utf8.Valid(payload)
 
-	// 对于其他 opcode, 始终返回 true
-	// For other opcodes, always return true
+	// 如果 opcode 的值为其他值
+	// If the value of opcode is other values
 	default:
+		// 直接返回 true
+		// Return true directly
 		return true
 	}
 }
