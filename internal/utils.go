@@ -184,6 +184,7 @@ func ToBinaryNumber[T Integer](n T) T {
 	return x
 }
 
+// BinaryPow 返回2的n次方
 func BinaryPow(n int) int {
 	var ans = 1
 	for i := 0; i < n; i++ {

@@ -28,8 +28,8 @@ const (
 	OpcodePong            Opcode = 0xA //	心跳回应
 )
 
-// isDataFrame 判断操作码是否为数据帧
-// checks if the opcode is a data frame
+// 判断操作码是否为数据帧
+// Checks if the opcode is a data frame
 func (c Opcode) isDataFrame() bool {
 	return c <= OpcodeBinary
 }
@@ -45,7 +45,7 @@ type CloseError struct {
 }
 
 // Error 关闭错误的描述
-// returns a description of the close error
+// Returns a description of the close error
 func (c *CloseError) Error() string {
 	return fmt.Sprintf("gws: connection closed, code=%d, reason=%s", c.Code, string(c.Reason))
 }
@@ -123,55 +123,55 @@ func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
 type frameHeader [frameHeaderSize]byte
 
 // GetFIN 返回 FIN 位的值
-// returns the value of the FIN bit
+// Returns the value of the FIN bit
 func (c *frameHeader) GetFIN() bool {
 	return ((*c)[0] >> 7) == 1
 }
 
 // GetRSV1 返回 RSV1 位的值
-// returns the value of the RSV1 bit
+// Returns the value of the RSV1 bit
 func (c *frameHeader) GetRSV1() bool {
 	return ((*c)[0] << 1 >> 7) == 1
 }
 
 // GetRSV2 返回 RSV2 位的值
-// returns the value of the RSV2 bit
+// Returns the value of the RSV2 bit
 func (c *frameHeader) GetRSV2() bool {
 	return ((*c)[0] << 2 >> 7) == 1
 }
 
 // GetRSV3 返回 RSV3 位的值
-// returns the value of the RSV3 bit
+// Returns the value of the RSV3 bit
 func (c *frameHeader) GetRSV3() bool {
 	return ((*c)[0] << 3 >> 7) == 1
 }
 
 // GetOpcode 返回操作码
-// returns the opcode
+// Returns the opcode
 func (c *frameHeader) GetOpcode() Opcode {
 	return Opcode((*c)[0] << 4 >> 4)
 }
 
 // GetMask 返回掩码
-// returns the value of the mask bytes
+// Returns the value of the mask bytes
 func (c *frameHeader) GetMask() bool {
 	return ((*c)[1] >> 7) == 1
 }
 
 // GetLengthCode 返回长度代码
-// returns the length code
+// Returns the length code
 func (c *frameHeader) GetLengthCode() uint8 {
 	return (*c)[1] << 1 >> 1
 }
 
 // SetMask 设置 Mask 位为 1
-// sets the Mask bit to 1
+// Sets the Mask bit to 1
 func (c *frameHeader) SetMask() {
 	(*c)[1] |= uint8(128)
 }
 
 // SetLength 设置帧的长度，并返回偏移量
-// sets the frame length and returns the offset
+// Sets the frame length and returns the offset
 func (c *frameHeader) SetLength(n uint64) (offset int) {
 	if n <= internal.ThresholdV1 {
 		(*c)[1] += uint8(n)
@@ -188,13 +188,13 @@ func (c *frameHeader) SetLength(n uint64) (offset int) {
 }
 
 // SetMaskKey 设置掩码
-// sets the mask
+// Sets the mask
 func (c *frameHeader) SetMaskKey(offset int, key [4]byte) {
 	copy((*c)[offset:offset+4], key[0:])
 }
 
 // GenerateHeader 生成帧头
-// generates a frame header
+// Generates a frame header
 // 可以考虑每个客户端连接带一个随机数发生器
 // Consider having a random number generator for each client connection
 func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opcode Opcode, length int) (headerLength int, maskBytes []byte) {
@@ -220,7 +220,7 @@ func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opc
 }
 
 // Parse 解析完整协议头, 最多14字节, 返回payload长度
-// parses the complete protocol header, up to 14 bytes, and returns the payload length
+// Parses the complete protocol header, up to 14 bytes, and returns the payload length
 func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 	if err := internal.ReadN(reader, (*c)[0:2]); err != nil {
 		return 0, err
@@ -255,7 +255,7 @@ func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 }
 
 // GetMaskKey 返回掩码
-// returns the mask
+// Returns the mask
 func (c *frameHeader) GetMaskKey() []byte {
 	return (*c)[10:14]
 }
@@ -275,19 +275,19 @@ type Message struct {
 }
 
 // Read 从消息中读取数据到给定的字节切片 p 中
-// reads data from the message into the given byte slice p
+// Reads data from the message into the given byte slice p
 func (c *Message) Read(p []byte) (n int, err error) {
 	return c.Data.Read(p)
 }
 
 // Bytes 返回消息的数据缓冲区的字节切片
-// returns the byte slice of the message's data buffer
+// Returns the byte slice of the message's data buffer
 func (c *Message) Bytes() []byte {
 	return c.Data.Bytes()
 }
 
 // Close 关闭消息, 回收资源
-// close message, recycling resources
+// Close message, recycling resources
 func (c *Message) Close() error {
 	binaryPool.Put(c.Data)
 	c.Data = nil
@@ -312,8 +312,8 @@ type continuationFrame struct {
 	buffer *bytes.Buffer
 }
 
-// reset 重置延续帧的状态
-// resets the state of the continuation frame
+// 重置延续帧的状态
+// Resets the state of the continuation frame
 func (c *continuationFrame) reset() {
 	c.initialized = false
 	c.compressed = false
@@ -322,15 +322,15 @@ func (c *continuationFrame) reset() {
 }
 
 // Logger 日志接口
-// logger interface
+// Logger interface
 type Logger interface {
 	// Error 打印错误日志
 	// Printing the error log
 	Error(v ...any)
 }
 
-// stdLogger 标准日志库
-// standard Log Library
+// 标准日志库
+// Standard Log Library
 type stdLogger struct{}
 
 // Error 打印错误日志

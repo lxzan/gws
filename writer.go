@@ -95,7 +95,7 @@ func (c *Conn) Async(f func()) {
 }
 
 // 执行写入逻辑, 注意妥善维护压缩字典
-// doWrite executes the write logic, ensuring proper maintenance of the compression dictionary
+// Executes the write logic, ensuring proper maintenance of the compression dictionary
 func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -115,8 +115,8 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	return err
 }
 
-// genFrame 生成帧数据
-// generates the frame data
+// 生成帧数据
+// Generates the frame data
 func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	if opcode == OpcodeText && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
@@ -148,8 +148,8 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 	return buf, nil
 }
 
-// compressData 压缩数据并生成帧
-// compresses the data and generates the frame
+// 压缩数据并生成帧
+// Compresses the data and generates the frame
 func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
 	if err != nil {
@@ -184,7 +184,7 @@ type (
 )
 
 // NewBroadcaster 创建广播器
-// creates a broadcaster
+// Creates a broadcaster
 // 相比循环调用 WriteAsync, Broadcaster 只会压缩一次消息, 可以节省大量 CPU 开销.
 // Instead of calling WriteAsync in a loop, Broadcaster compresses the message only once, saving a lot of CPU overhead.
 func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
@@ -197,8 +197,8 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
-// writeFrame 将帧数据写入连接
-// writes the frame data to the connection
+// 将帧数据写入连接
+// Writes the frame data to the connection
 func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
 	if socket.isClosed() {
 		return ErrConnClosed
@@ -235,8 +235,8 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	return nil
 }
 
-// doClose 关闭广播器并释放资源
-// closes the broadcaster and releases resources
+// 释放资源
+// releases resources
 func (c *Broadcaster) doClose() {
 	for _, item := range c.msgs {
 		if item != nil {
@@ -246,7 +246,7 @@ func (c *Broadcaster) doClose() {
 }
 
 // Close 释放资源
-// releases resources
+// Releases resources
 // 在完成所有 Broadcast 调用之后执行 Close 方法释放资源。
 // Call the Close method after all the Broadcasts have been completed to release the resources.
 func (c *Broadcaster) Close() error {

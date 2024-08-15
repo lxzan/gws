@@ -150,7 +150,7 @@ type (
 	}
 
 	// ServerOption 服务端配置
-	// server configurations
+	// Server configurations
 	ServerOption struct {
 		// 配置
 		// Configuration
@@ -225,7 +225,7 @@ type (
 
 // 设置压缩阈值
 // 开启上下文接管时, 必须不论长短压缩全部消息, 否则浏览器会报错
-// when context takeover is enabled, all messages must be compressed regardless of length,
+// When context takeover is enabled, all messages must be compressed regardless of length,
 // otherwise the browser will report an error.
 func (c *PermessageDeflate) setThreshold(isServer bool) {
 	if (isServer && c.ServerContextTakeover) || (!isServer && c.ClientContextTakeover) {
@@ -233,8 +233,8 @@ func (c *PermessageDeflate) setThreshold(isServer bool) {
 	}
 }
 
-// deleteProtectedHeaders 删除受保护的 WebSocket 头部字段
-// removes protected WebSocket header fields
+// 删除受保护的 WebSocket 头部字段
+// Removes protected WebSocket header fields
 func (c *ServerOption) deleteProtectedHeaders() {
 	c.ResponseHeader.Del(internal.Upgrade.Key)
 	c.ResponseHeader.Del(internal.Connection.Key)
@@ -342,7 +342,7 @@ func initServerOption(c *ServerOption) *ServerOption {
 func (c *ServerOption) getConfig() *Config { return c.config }
 
 // ClientOption 客户端配置
-// client configurations
+// Client configurations
 type ClientOption struct {
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
 	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
@@ -473,7 +473,7 @@ func initClientOption(c *ClientOption) *ClientOption {
 }
 
 // 将 ClientOption 的配置转换为 Config 并返回
-// converts the ClientOption configuration to Config and returns it
+// Converts the ClientOption configuration to Config and returns it
 func (c *ClientOption) getConfig() *Config {
 	config := &Config{
 		ParallelEnabled:     c.ParallelEnabled,

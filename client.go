@@ -16,10 +16,10 @@ import (
 )
 
 // Dialer 拨号器接口
-// dialer interface
+// Dialer interface
 type Dialer interface {
 	// Dial 连接到指定网络上的地址
-	// connects to the address on the named network
+	// Connects to the address on the named network
 	Dial(network, addr string) (c net.Conn, err error)
 }
 
@@ -31,7 +31,7 @@ type connector struct {
 }
 
 // NewClient 创建一个新的 WebSocket 客户端连接
-// creates a new WebSocket client connection
+// Creates a new WebSocket client connection
 func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, error) {
 	option = initClientOption(option)
 	c := &connector{option: option, eventHandler: handler}
@@ -84,7 +84,7 @@ func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Con
 	return client, resp, err
 }
 
-// request 发送HTTP请求, 即WebSocket握手
+// 发送HTTP请求, 即WebSocket握手
 // Sends an http request, i.e., websocket handshake
 func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 	_ = c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout))
@@ -138,7 +138,7 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 	return resp, br, err
 }
 
-// getPermessageDeflate 获取压缩拓展结果
+// 获取压缩拓展结果
 // Get compression expansion results
 func (c *connector) getPermessageDeflate(extensions string) PermessageDeflate {
 	serverPD := permessageNegotiation(extensions)
@@ -157,8 +157,8 @@ func (c *connector) getPermessageDeflate(extensions string) PermessageDeflate {
 	return pd
 }
 
-// handshake 执行 WebSocket 握手操作
-// performs the WebSocket handshake operation
+// 执行 WebSocket 握手操作
+// Performs the WebSocket handshake operation
 func (c *connector) handshake() (*Conn, *http.Response, error) {
 	resp, br, err := c.request()
 	if err != nil {
@@ -202,8 +202,8 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	return socket, resp, c.conn.SetDeadline(time.Time{})
 }
 
-// getSubProtocol 从响应中获取子协议
-// retrieves the subprotocol from the response
+// 从响应中获取子协议
+// Retrieves the subprotocol from the response
 func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
 	a := internal.Split(c.option.RequestHeader.Get(internal.SecWebSocketProtocol.Key), ",")
 	b := internal.Split(resp.Header.Get(internal.SecWebSocketProtocol.Key), ",")
@@ -214,8 +214,8 @@ func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
 	return subprotocol, nil
 }
 
-// checkHeaders 检查响应头以验证握手是否成功
-// checks the response headers to verify if the handshake was successful
+// 检查响应头以验证握手是否成功
+// Checks the response headers to verify if the handshake was successful
 func (c *connector) checkHeaders(resp *http.Response) error {
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		return ErrHandshake

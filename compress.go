@@ -14,8 +14,8 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// flateTail deflate压缩算法的尾部标记
-// the tail marker of the deflate compression algorithm
+// deflate压缩算法的尾部标记
+// The tail marker of the deflate compression algorithm
 var flateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 
 type deflaterPool struct {
@@ -24,8 +24,8 @@ type deflaterPool struct {
 	pool   []*deflater
 }
 
-// initialize 初始化deflaterPool
-// initialize the deflaterPool
+// 初始化deflaterPool
+// Initialize the deflaterPool
 func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflaterPool {
 	c.num = uint64(options.PoolSize)
 	for i := uint64(0); i < c.num; i++ {
@@ -35,7 +35,7 @@ func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflate
 }
 
 // Select 从deflaterPool中选择一个deflater对象
-// select a deflater object from the deflaterPool
+// Select a deflater object from the deflaterPool
 func (c *deflaterPool) Select() *deflater {
 	var j = atomic.AddUint64(&c.serial, 1) & (c.num - 1)
 	return c.pool[j]
@@ -51,8 +51,8 @@ type deflater struct {
 	cpsWriter *flate.Writer
 }
 
-// initialize 初始化deflater
-// initialize the deflater
+// 初始化deflater
+// Initialize the deflater
 func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
 	c.dpsReader = flate.NewReader(nil)
 	c.dpsBuffer = bytes.NewBuffer(nil)
@@ -67,19 +67,19 @@ func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit in
 	return c
 }
 
-// resetFR 重置deflate reader
-// reset the deflate reader
+// 重置deflate reader
+// Reset the deflate reader
 func (c *deflater) resetFR(r io.Reader, dict []byte) {
 	resetter := c.dpsReader.(flate.Resetter)
 	_ = resetter.Reset(r, dict) // must return a null pointer
-	if c.dpsBuffer.Cap() > 256*1024 {
+	if c.dpsBuffer.Cap() > int(bufferThreshold) {
 		c.dpsBuffer = bytes.NewBuffer(nil)
 	}
 	c.dpsBuffer.Reset()
 }
 
 // Decompress 解压
-// decompress data
+// Decompress data
 func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, error) {
 	c.dpsLocker.Lock()
 	defer c.dpsLocker.Unlock()
@@ -96,7 +96,7 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 }
 
 // Compress 压缩
-// compress data
+// Compress data
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
@@ -117,16 +117,16 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 	return nil
 }
 
-// slideWindow 滑动窗口
-// sliding window
+// 滑动窗口
+// Sliding window
 type slideWindow struct {
 	enabled bool
 	dict    []byte
 	size    int
 }
 
-// initialize 初始化滑动窗口
-// initialize the sliding window
+// 初始化滑动窗口
+// Initialize the sliding window
 func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *slideWindow {
 	c.enabled = true
 	c.size = internal.BinaryPow(windowBits)
@@ -139,7 +139,7 @@ func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *s
 }
 
 // Write 将数据写入滑动窗口
-// write data to the sliding window
+// Write data to the sliding window
 func (c *slideWindow) Write(p []byte) (int, error) {
 	if !c.enabled {
 		return 0, nil
@@ -169,8 +169,8 @@ func (c *slideWindow) Write(p []byte) (int, error) {
 	return total, nil
 }
 
-// genRequestHeader 生成请求头
-// generate request headers
+// 生成请求头
+// Generate request headers
 func (c *PermessageDeflate) genRequestHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -191,8 +191,8 @@ func (c *PermessageDeflate) genRequestHeader() string {
 	return strings.Join(options, "; ")
 }
 
-// genResponseHeader 生成响应头
-// generate response headers
+// 生成响应头
+// Generate response headers
 func (c *PermessageDeflate) genResponseHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -211,7 +211,7 @@ func (c *PermessageDeflate) genResponseHeader() string {
 	return strings.Join(options, "; ")
 }
 
-// permessageNegotiation 压缩拓展协商
+// 压缩拓展协商
 // Negotiation of compression parameters
 func permessageNegotiation(str string) PermessageDeflate {
 	var options = PermessageDeflate{
@@ -250,7 +250,7 @@ func permessageNegotiation(str string) PermessageDeflate {
 	return options
 }
 
-// limitReader 限制从io.Reader中最多读取m个字节
+// 限制从io.Reader中最多读取m个字节
 // Limit reading up to m bytes from io.Reader
 func limitReader(r io.Reader, m int) io.Reader { return &limitedReader{R: r, M: m} }
 

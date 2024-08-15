@@ -13,8 +13,8 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// Conn 结构体表示一个 WebSocket 连接
-// Conn struct represents a WebSocket connection
+// Conn WebSocket连接
+// WebSocket connection
 type Conn struct {
 	// 互斥锁，用于保护共享资源
 	// Mutex to protect shared resources
@@ -26,7 +26,7 @@ type Conn struct {
 
 	// 用于存储错误的原子值
 	// Atomic value for storing errors
-	err atomic.Value
+	ev atomic.Value
 
 	// 标识是否为服务器端
 	// Indicates if this is a server-side connection
@@ -76,16 +76,16 @@ type Conn struct {
 	// Deflater
 	deflater *deflater
 
-	// 数据包发送窗口
-	// Data packet send window
+	// 解压字典滑动窗口
+	// Decompressing dictionary sliding window
 	dpsWindow slideWindow
 
-	// 数据包接收窗口
-	// Data packet receive window
+	// 压缩字典滑动窗口
+	// Compressed dictionary sliding window
 	cpsWindow slideWindow
 
-	// 每消息压缩
-	// Per-message deflate
+	// 压缩拓展配置
+	// Compression extension configuration
 	pd PermessageDeflate
 }
 
@@ -105,7 +105,7 @@ func (c *Conn) ReadLoop() {
 		}
 	}
 
-	err, ok := c.err.Load().(error)
+	err, ok := c.ev.Load().(error)
 	c.handler.OnClose(c, internal.SelectValue(ok, err, errEmpty))
 
 	// 回收资源
@@ -185,7 +185,7 @@ func (c *Conn) isClosed() bool {
 // 关闭连接并存储错误信息
 // Closes the connection and stores the error information
 func (c *Conn) close(reason []byte, err error) {
-	c.err.Store(err)
+	c.ev.Store(err)
 	_ = c.doWrite(OpcodeCloseConnection, internal.Bytes(reason))
 	_ = c.conn.Close()
 }
@@ -310,9 +310,9 @@ func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
 
-// SetNoDelay
-// 控制操作系统是否应该延迟数据包传输以期望发送更少的数据包（Nagle 算法）。
-// 默认值是 true（无延迟），这意味着数据在 Write 之后尽快发送。
+// SetNoDelay 设置无延迟
+// 控制操作系统是否应该延迟数据包传输以期望发送更少的数据包(Nagle算法).
+// 默认值是 true（无延迟），这意味着数据在 Write 之后尽快发送.
 // Controls whether the operating system should delay packet transmission in hopes of sending fewer packets (Nagle's algorithm).
 // The default is true (no delay), meaning that data is sent as soon as possible after a Write.
 func (c *Conn) SetNoDelay(noDelay bool) error {

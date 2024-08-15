@@ -7,8 +7,8 @@ import (
 )
 
 type (
-	// workerQueue 任务队列
-	// task queue
+	// 任务队列
+	// Task queue
 	workerQueue struct {
 		// mu 互斥锁
 		// mutex
@@ -27,13 +27,13 @@ type (
 		curConcurrency int32
 	}
 
-	// asyncJob 异步任务
-	// asynchronous job
+	// 异步任务
+	// Asynchronous job
 	asyncJob func()
 )
 
-// newWorkerQueue 创建一个任务队列
-// creates a task queue
+// 创建一个任务队列
+// Creates a task queue
 func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	c := &workerQueue{
 		mu:             sync.Mutex{},
@@ -44,7 +44,7 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 }
 
 // 获取一个任务
-// getJob retrieves a job from the worker queue
+// Retrieves a job from the worker queue
 func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -65,7 +65,7 @@ func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 }
 
 // 循环执行任务
-// do continuously executes jobs in the worker queue
+// Do continuously executes jobs in the worker queue
 func (c *workerQueue) do(job asyncJob) {
 	for job != nil {
 		job()
@@ -74,7 +74,7 @@ func (c *workerQueue) do(job asyncJob) {
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
-// adds a job to the queue and executes it immediately if resources are available
+// Adds a job to the queue and executes it immediately if resources are available
 func (c *workerQueue) Push(job asyncJob) {
 	if nextJob := c.getJob(job, 0); nextJob != nil {
 		go c.do(nextJob)

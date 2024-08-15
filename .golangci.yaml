@@ -3,8 +3,8 @@ linters:
   # Disable specific linter
   # https://golangci-lint.run/usage/linters/#disabled-by-default
   disable:
+    - mnd
     - testpackage
-    - nosnakecase
     - nlreturn
     - gomnd
     - forcetypeassert
@@ -14,7 +14,6 @@ linters:
     - ineffassign
     - lll
     - funlen
-    - scopelint
     - dupl
     - gofumpt
     - gofmt
@@ -22,7 +21,6 @@ linters:
     - gci
     - goimports
     - gocognit
-    - ifshort
     - gochecknoinits
     - goconst
     - depguard
