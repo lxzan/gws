@@ -29,6 +29,8 @@ var (
 	SecWebSocketProtocol   = Pair{"Sec-WebSocket-Protocol", ""}
 )
 
+// MagicNumber WebSocket 握手过程中使用的魔术字符串
+// the magic string used during the WebSocket handshake
 const MagicNumber = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 const (

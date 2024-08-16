@@ -1,5 +1,7 @@
 package internal
 
+// closeErrorMap 将状态码映射到错误信息
+// map status codes to error messages
 var closeErrorMap = map[StatusCode]string{
 	0:                      "empty code",
 	CloseNormalClosure:     "close normal",
@@ -18,6 +20,8 @@ var closeErrorMap = map[StatusCode]string{
 	CloseTLSHandshake:      "TLS handshake error",
 }
 
+// StatusCode WebSocket错误码
+// websocket error code
 type StatusCode uint16
 
 const (
@@ -84,14 +88,16 @@ func NewError(code StatusCode, err error) *Error {
 }
 
 type Error struct {
-	Err  error
-	Code StatusCode
+	Err  error      // 错误信息
+	Code StatusCode // 状态码
 }
 
 func (c *Error) Error() string {
 	return c.Err.Error()
 }
 
+// Errors 依次执行传入的函数，返回第一个遇到的错误
+// executes the passed functions in sequence and returns the first encountered error
 func Errors(funcs ...func() error) error {
 	for _, f := range funcs {
 		if err := f(); err != nil {

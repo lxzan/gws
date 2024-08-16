@@ -10,7 +10,7 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// WriteClose 发送关闭帧, 主动断开连接
+// WriteClose 发送关闭帧并断开连接
 // 没有特殊需求的话, 推荐code=1000, reason=nil
 // Send shutdown frame, active disconnection
 // If you don't have any special needs, we recommend code=1000, reason=nil
@@ -23,26 +23,30 @@ func (c *Conn) WriteClose(code uint16, reason []byte) {
 	c.emitError(err)
 }
 
-// WritePing 写入Ping消息, 携带的信息不要超过125字节
+// WritePing
+// 写入Ping消息, 携带的信息不要超过125字节
 // Control frame length cannot exceed 125 bytes
 func (c *Conn) WritePing(payload []byte) error {
 	return c.WriteMessage(OpcodePing, payload)
 }
 
-// WritePong 写入Pong消息, 携带的信息不要超过125字节
+// WritePong
+// 写入Pong消息, 携带的信息不要超过125字节
 // Control frame length cannot exceed 125 bytes
 func (c *Conn) WritePong(payload []byte) error {
 	return c.WriteMessage(OpcodePong, payload)
 }
 
-// WriteString 写入文本消息, 使用UTF8编码.
+// WriteString
+// 写入文本消息, 使用UTF8编码.
 // Write text messages, should be encoded in UTF8.
 func (c *Conn) WriteString(s string) error {
 	return c.WriteMessage(OpcodeText, internal.StringToBytes(s))
 }
 
-// WriteMessage 写入文本/二进制消息, 文本消息应该使用UTF8编码
-// Write text/binary messages, text messages should be encoded in UTF8.
+// WriteMessage
+// 写入文本/二进制消息, 文本消息应该使用UTF8编码
+// Writes text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	err := c.doWrite(opcode, internal.Bytes(payload))
 	c.emitError(err)
@@ -50,8 +54,10 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 }
 
 // WriteAsync 异步写
+// Writes messages asynchronously
 // 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收payload内存
-// Asynchronously and non-blockingly write the message to the task queue, allowing the payload memory to be reclaimed only after a callback is received.
+// Write messages to the task queue asynchronously and non-blockingly,
+// allowing payload memory to be recycled only after receiving the callback
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 	c.writeQueue.Push(func() {
 		if err := c.WriteMessage(opcode, payload); callback != nil {
@@ -60,16 +66,17 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 	})
 }
 
-// Writev 类似WriteMessage, 区别是可以一次写入多个切片
-// Similar to WriteMessage, except that you can write multiple slices at once.
+// Writev
+// 类似 WriteMessage, 区别是可以一次写入多个切片
+// Writev is similar to WriteMessage, except that you can write multiple slices at once.
 func (c *Conn) Writev(opcode Opcode, payloads ...[]byte) error {
 	var err = c.doWrite(opcode, internal.Buffers(payloads))
 	c.emitError(err)
 	return err
 }
 
-// WritevAsync 类似WriteAsync, 区别是可以一次写入多个切片
-// Similar to WriteAsync, except that you can write multiple slices at once.
+// WritevAsync 类似 WriteAsync, 区别是可以一次写入多个切片
+// It's similar to WriteAsync, except that you can write multiple slices at once.
 func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error)) {
 	c.writeQueue.Push(func() {
 		if err := c.Writev(opcode, payloads...); callback != nil {
@@ -88,6 +95,7 @@ func (c *Conn) Async(f func()) {
 }
 
 // 执行写入逻辑, 注意妥善维护压缩字典
+// Executes the write logic, ensuring proper maintenance of the compression dictionary
 func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -107,7 +115,8 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	return err
 }
 
-// 帧生成
+// 生成帧数据
+// Generates the frame data
 func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	if opcode == OpcodeText && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
@@ -139,6 +148,8 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 	return buf, nil
 }
 
+// 压缩数据并生成帧
+// Compresses the data and generates the frame
 func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
 	if err != nil {
@@ -173,7 +184,8 @@ type (
 )
 
 // NewBroadcaster 创建广播器
-// 相比循环调用WriteAsync, Broadcaster只会压缩一次消息, 可以节省大量CPU开销.
+// Creates a broadcaster
+// 相比循环调用 WriteAsync, Broadcaster 只会压缩一次消息, 可以节省大量 CPU 开销.
 // Instead of calling WriteAsync in a loop, Broadcaster compresses the message only once, saving a lot of CPU overhead.
 func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	c := &Broadcaster{
@@ -185,6 +197,8 @@ func NewBroadcaster(opcode Opcode, payload []byte) *Broadcaster {
 	return c
 }
 
+// 将帧数据写入连接
+// Writes the frame data to the connection
 func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
 	if socket.isClosed() {
 		return ErrConnClosed
@@ -221,6 +235,8 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	return nil
 }
 
+// 释放资源
+// releases resources
 func (c *Broadcaster) doClose() {
 	for _, item := range c.msgs {
 		if item != nil {
@@ -230,7 +246,8 @@ func (c *Broadcaster) doClose() {
 }
 
 // Close 释放资源
-// 在完成所有Broadcast调用之后执行Close方法释放资源.
+// Releases resources
+// 在完成所有 Broadcast 调用之后执行 Close 方法释放资源。
 // Call the Close method after all the Broadcasts have been completed to release the resources.
 func (c *Broadcaster) Close() error {
 	if atomic.AddInt64(&c.state, -1*math.MaxInt32) == 0 {

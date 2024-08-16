@@ -15,11 +15,21 @@ import (
 )
 
 type responseWriter struct {
-	err         error
-	b           *bytes.Buffer
+	// 错误信息
+	// Error information
+	err error
+
+	// 字节缓冲区
+	// Byte buffer
+	b *bytes.Buffer
+
+	// 子协议
+	// Subprotocol
 	subprotocol string
 }
 
+// Init 初始化
+// Initializes the responseWriter struct
 func (c *responseWriter) Init() *responseWriter {
 	c.b = binaryPool.Get(512)
 	c.b.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
@@ -28,11 +38,15 @@ func (c *responseWriter) Init() *responseWriter {
 	return c
 }
 
+// Close 回收资源
+// Recycling resources
 func (c *responseWriter) Close() {
 	binaryPool.Put(c.b)
 	c.b = nil
 }
 
+// WithHeader 添加 HTTP Header
+// Adds an http header
 func (c *responseWriter) WithHeader(k, v string) {
 	c.b.WriteString(k)
 	c.b.WriteString(": ")
@@ -40,12 +54,16 @@ func (c *responseWriter) WithHeader(k, v string) {
 	c.b.WriteString("\r\n")
 }
 
+// WithExtraHeader 添加额外的 HTTP Header
+// Adds extra http header
 func (c *responseWriter) WithExtraHeader(h http.Header) {
 	for k, _ := range h {
 		c.WithHeader(k, h.Get(k))
 	}
 }
 
+// WithSubProtocol 根据请求头和预期的子协议列表设置子协议
+// Sets the subprotocol based on the request header and the expected subprotocols list
 func (c *responseWriter) WithSubProtocol(requestHeader http.Header, expectedSubProtocols []string) {
 	if len(expectedSubProtocols) > 0 {
 		c.subprotocol = internal.GetIntersectionElem(expectedSubProtocols, internal.Split(requestHeader.Get(internal.SecWebSocketProtocol.Key), ","))
@@ -57,6 +75,8 @@ func (c *responseWriter) WithSubProtocol(requestHeader http.Header, expectedSubP
 	}
 }
 
+// Write 将缓冲区内容写入连接，并设置超时
+// Writes the buffer content to the connection and sets the timeout
 func (c *responseWriter) Write(conn net.Conn, timeout time.Duration) error {
 	if c.err != nil {
 		return c.err
@@ -77,6 +97,8 @@ type Upgrader struct {
 	eventHandler Event
 }
 
+// NewUpgrader 创建一个新的 Upgrader 实例
+// Creates a new instance of Upgrader
 func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	u := &Upgrader{
 		option:       initServerOption(option),
@@ -89,7 +111,8 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 	return u
 }
 
-// 为了节省内存, 不复用hijack返回的bufio.ReadWriter
+// 劫持 HTTP 连接并返回底层的网络连接和缓冲读取器
+// Hijacks the HTTP connection and returns the underlying network connection and buffered reader
 func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error) {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
@@ -104,6 +127,8 @@ func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error
 	return netConn, br, nil
 }
 
+// 根据客户端和服务器的扩展协商结果获取 PermessageDeflate 配置
+// Gets the PermessageDeflate configuration based on the negotiation results between the client and server extensions
 func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
 	clientPD := permessageNegotiation(extensions)
 	serverPD := c.option.PermessageDeflate
@@ -121,9 +146,8 @@ func (c *Upgrader) getPermessageDeflate(extensions string) PermessageDeflate {
 	return pd
 }
 
-// Upgrade
-// 升级HTTP到WebSocket协议
-// http upgrade to websocket protocol
+// Upgrade 升级 HTTP 连接到 WebSocket 连接
+// Upgrades the HTTP connection to a WebSocket connection
 func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
 	netConn, br, err := c.hijack(w)
 	if err != nil {
@@ -132,8 +156,8 @@ func (c *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error
 	return c.UpgradeFromConn(netConn, br, r)
 }
 
-// UpgradeFromConn 从连接(TCP/KCP/Unix Domain Socket...)升级到WebSocket协议
-// From connection (TCP/KCP/Unix Domain Socket...) Upgrade to WebSocket protocol
+// UpgradeFromConn 从现有的网络连接升级到 WebSocket 连接
+// Upgrades from an existing network connection to a WebSocket connection
 func (c *Upgrader) UpgradeFromConn(conn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
 	socket, err := c.doUpgradeFromConn(conn, br, r)
 	if err != nil {
@@ -143,6 +167,8 @@ func (c *Upgrader) UpgradeFromConn(conn net.Conn, br *bufio.Reader, r *http.Requ
 	return socket, err
 }
 
+// 向客户端写入 HTTP 错误响应
+// Writes an HTTP error response to the client
 func (c *Upgrader) writeErr(conn net.Conn, err error) error {
 	var str = err.Error()
 	var buf = binaryPool.Get(256)
@@ -157,12 +183,18 @@ func (c *Upgrader) writeErr(conn net.Conn, err error) error {
 	return result
 }
 
+// 从现有的网络连接升级到 WebSocket 连接
+// Upgrades from an existing network connection to a WebSocket connection
 func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
+	// 授权请求，如果授权失败，返回未授权错误
+	// Authorize the request, if authorization fails, return an unauthorized error
 	var session = c.option.NewSession()
 	if !c.option.Authorize(r, session) {
 		return nil, ErrUnauthorized
 	}
 
+	// 检查请求头
+	// check request headers
 	if r.Method != http.MethodGet {
 		return nil, ErrHandshake
 	}
@@ -224,19 +256,28 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 	return socket, nil
 }
 
+// Server WebSocket服务器
+// Websocket server
 type Server struct {
+	// 升级器，用于将 HTTP 连接升级到 WebSocket 连接
+	// Upgrader, used to upgrade HTTP connections to WebSocket connections
 	upgrader *Upgrader
-	option   *ServerOption
 
-	// OnError
+	// 服务器选项配置
+	// Server option configuration
+	option *ServerOption
+
+	// 错误处理回调函数
+	// Error handling callback function
 	OnError func(conn net.Conn, err error)
 
-	// OnRequest
+	// 请求处理回调函数
+	// Request handling callback function
 	OnRequest func(conn net.Conn, br *bufio.Reader, r *http.Request)
 }
 
-// NewServer 创建websocket服务器
-// create a websocket server
+// NewServer 创建一个新的 WebSocket 服务器实例
+// Creates a new WebSocket server instance
 func NewServer(eventHandler Event, option *ServerOption) *Server {
 	var c = &Server{upgrader: NewUpgrader(eventHandler, option)}
 	c.option = c.upgrader.option
@@ -252,10 +293,14 @@ func NewServer(eventHandler Event, option *ServerOption) *Server {
 	return c
 }
 
-func (c *Server) GetUpgrader() *Upgrader { return c.upgrader }
+// GetUpgrader 获取服务器的升级器实例
+// Retrieves the upgrader instance of the server
+func (c *Server) GetUpgrader() *Upgrader {
+	return c.upgrader
+}
 
-// Run 运行. 可以被多次调用, 监听不同的地址.
-// It can be called multiple times, listening to different addresses.
+// Run 启动 WebSocket 服务器，监听指定地址
+// Starts the WebSocket server and listens on the specified address
 func (c *Server) Run(addr string) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -264,8 +309,8 @@ func (c *Server) Run(addr string) error {
 	return c.RunListener(listener)
 }
 
-// RunTLS 运行. 可以被多次调用, 监听不同的地址.
-// It can be called multiple times, listening to different addresses.
+// RunTLS 启动支持 TLS 的 WebSocket 服务器，监听指定地址
+// Starts the WebSocket server with TLS support and listens on the specified address
 func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -286,8 +331,8 @@ func (c *Server) RunTLS(addr string, certFile, keyFile string) error {
 	return c.RunListener(tls.NewListener(listener, config))
 }
 
-// RunListener 运行网络监听器
-// Running the network listener
+// RunListener 使用指定的监听器运行 WebSocket 服务器
+// Runs the WebSocket server using the specified listener
 func (c *Server) RunListener(listener net.Listener) error {
 	defer listener.Close()
 

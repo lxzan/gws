@@ -14,8 +14,8 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// FlateTail Add four bytes as specified in RFC
-// Add final block to squelch unexpected EOF error from flate reader.
+// deflate压缩算法的尾部标记
+// The tail marker of the deflate compression algorithm
 var flateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 
 type deflaterPool struct {
@@ -24,6 +24,8 @@ type deflaterPool struct {
 	pool   []*deflater
 }
 
+// 初始化deflaterPool
+// Initialize the deflaterPool
 func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflaterPool {
 	c.num = uint64(options.PoolSize)
 	for i := uint64(0); i < c.num; i++ {
@@ -32,6 +34,8 @@ func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflate
 	return c
 }
 
+// Select 从deflaterPool中选择一个deflater对象
+// Select a deflater object from the deflaterPool
 func (c *deflaterPool) Select() *deflater {
 	var j = atomic.AddUint64(&c.serial, 1) & (c.num - 1)
 	return c.pool[j]
@@ -47,6 +51,8 @@ type deflater struct {
 	cpsWriter *flate.Writer
 }
 
+// 初始化deflater
+// Initialize the deflater
 func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
 	c.dpsReader = flate.NewReader(nil)
 	c.dpsBuffer = bytes.NewBuffer(nil)
@@ -61,16 +67,19 @@ func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit in
 	return c
 }
 
+// 重置deflate reader
+// Reset the deflate reader
 func (c *deflater) resetFR(r io.Reader, dict []byte) {
 	resetter := c.dpsReader.(flate.Resetter)
 	_ = resetter.Reset(r, dict) // must return a null pointer
-	if c.dpsBuffer.Cap() > 256*1024 {
+	if c.dpsBuffer.Cap() > int(bufferThreshold) {
 		c.dpsBuffer = bytes.NewBuffer(nil)
 	}
 	c.dpsBuffer.Reset()
 }
 
 // Decompress 解压
+// Decompress data
 func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, error) {
 	c.dpsLocker.Lock()
 	defer c.dpsLocker.Unlock()
@@ -87,6 +96,7 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 }
 
 // Compress 压缩
+// Compress data
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
@@ -107,12 +117,16 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 	return nil
 }
 
+// 滑动窗口
+// Sliding window
 type slideWindow struct {
 	enabled bool
 	dict    []byte
 	size    int
 }
 
+// 初始化滑动窗口
+// Initialize the sliding window
 func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *slideWindow {
 	c.enabled = true
 	c.size = internal.BinaryPow(windowBits)
@@ -124,6 +138,8 @@ func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *s
 	return c
 }
 
+// Write 将数据写入滑动窗口
+// Write data to the sliding window
 func (c *slideWindow) Write(p []byte) (int, error) {
 	if !c.enabled {
 		return 0, nil
@@ -153,6 +169,8 @@ func (c *slideWindow) Write(p []byte) (int, error) {
 	return total, nil
 }
 
+// 生成请求头
+// Generate request headers
 func (c *PermessageDeflate) genRequestHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -173,6 +191,8 @@ func (c *PermessageDeflate) genRequestHeader() string {
 	return strings.Join(options, "; ")
 }
 
+// 生成响应头
+// Generate response headers
 func (c *PermessageDeflate) genResponseHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -191,7 +211,8 @@ func (c *PermessageDeflate) genResponseHeader() string {
 	return strings.Join(options, "; ")
 }
 
-// 压缩拓展握手协商
+// 压缩拓展协商
+// Negotiation of compression parameters
 func permessageNegotiation(str string) PermessageDeflate {
 	var options = PermessageDeflate{
 		ServerContextTakeover: true,
@@ -229,7 +250,9 @@ func permessageNegotiation(str string) PermessageDeflate {
 	return options
 }
 
-func limitReader(r io.Reader, limit int) io.Reader { return &limitedReader{R: r, M: limit} }
+// 限制从io.Reader中最多读取m个字节
+// Limit reading up to m bytes from io.Reader
+func limitReader(r io.Reader, m int) io.Reader { return &limitedReader{R: r, M: m} }
 
 type limitedReader struct {
 	R io.Reader
