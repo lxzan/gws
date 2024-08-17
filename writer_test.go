@@ -509,3 +509,281 @@ func TestConn_Async(t *testing.T) {
 	wg.Wait()
 	assert.True(t, internal.IsSameSlice(arr1, arr2))
 }
+
+func TestConn_WriteReader(t *testing.T) {
+	t.Run("context_take_over 1", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			Threshold:             1,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), content) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+
+	t.Run("context_take_over 2", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   15,
+			ClientMaxWindowBits:   15,
+			Threshold:             1,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), content) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+
+	t.Run("context_take_over 3", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+			ServerMaxWindowBits:   15,
+			ClientMaxWindowBits:   15,
+			Threshold:             1,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var count = 1000
+		var wg = &sync.WaitGroup{}
+		wg.Add(count)
+
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			wg.Done()
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		for i := 0; i < count; i++ {
+			var length = 128*1024 + internal.AlphabetNumeric.Intn(10)
+			var content = internal.AlphabetNumeric.Generate(length)
+			var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+			assert.NoError(t, err)
+		}
+		wg.Wait()
+	})
+
+	t.Run("no_context_take_over", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: false,
+			ClientContextTakeover: false,
+			Threshold:             1,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), content) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+
+	t.Run("no_compress", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled: false,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		serverHandler.onMessage = func(socket *Conn, message *Message) {
+			if bytes.Equal(message.Bytes(), content) {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.NoError(t, err)
+		wg.Wait()
+	})
+
+	t.Run("close 1", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled: false,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		serverHandler.onClose = func(socket *Conn, err error) {
+			if ev, ok := err.(*CloseError); ok && ev.Code == 1000 {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		client.WriteClose(1000, nil)
+		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.Error(t, err)
+		wg.Wait()
+	})
+
+	t.Run("msg too big", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled: false,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate:   pd,
+			WriteMaxPayloadSize: 1024,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		var content = internal.AlphabetNumeric.Generate(512 * 1024)
+		clientHandler.onClose = func(socket *Conn, err error) {
+			wg.Done()
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		assert.Error(t, err)
+		wg.Wait()
+	})
+
+	t.Run("", func(t *testing.T) {
+		deflater := new(bigDeflater).initialize(true, PermessageDeflate{
+			Enabled:             true,
+			ServerMaxWindowBits: 12,
+			ClientMaxWindowBits: 12,
+		})
+		var fw = &flateWriter{cb: func(index int, eof bool, p []byte) error {
+			return nil
+		}}
+		err := deflater.Compress(new(writerTo), fw, nil, new(slideWindow))
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		deflater := new(bigDeflater).initialize(true, PermessageDeflate{
+			Enabled:             true,
+			ServerMaxWindowBits: 12,
+			ClientMaxWindowBits: 12,
+		})
+		var fw = &flateWriter{cb: func(index int, eof bool, p []byte) error {
+			return errors.New("2")
+		}}
+		src := bytes.NewBufferString("hello")
+		err := deflater.Compress(src, fw, nil, new(slideWindow))
+		assert.Error(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var fw = &flateWriter{
+			cb: func(index int, eof bool, p []byte) error {
+				return nil
+			},
+			buffers: []*bytes.Buffer{
+				bytes.NewBufferString("he"),
+				bytes.NewBufferString("llo"),
+			},
+		}
+		var err = fw.Flush()
+		assert.NoError(t, err)
+	})
+}

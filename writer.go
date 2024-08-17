@@ -104,7 +104,7 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 		return ErrConnClosed
 	}
 
-	frame, err := c.genFrame(opcode, payload, false)
+	frame, err := c.genFrame(opcode, true, c.pd.Enabled, payload, false)
 	if err != nil {
 		return err
 	}
@@ -117,8 +117,8 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 
 // 生成帧数据
 // Generates the frame data
-func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
-	if opcode == OpcodeText && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
+func (c *Conn) genFrame(opcode Opcode, fin bool, compress bool, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
+	if opcode == OpcodeText && fin && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
@@ -131,12 +131,12 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 	var buf = binaryPool.Get(n + frameHeaderSize)
 	buf.Write(framePadding[0:])
 
-	if c.pd.Enabled && opcode.isDataFrame() && n >= c.pd.Threshold {
-		return c.compressData(buf, opcode, payload, isBroadcast)
+	if compress && opcode.isDataFrame() && n >= c.pd.Threshold {
+		return c.compressData(buf, opcode, fin, payload, isBroadcast)
 	}
 
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, false, opcode, n)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, false, opcode, n)
 	_, _ = payload.WriteTo(buf)
 	var contents = buf.Bytes()
 	if !c.isServer {
@@ -150,7 +150,7 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, isBroadcast boo
 
 // 压缩数据并生成帧
 // Compresses the data and generates the frame
-func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
+func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, fin bool, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
 	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, payload internal.P
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, true, true, opcode, payloadSize)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, true, opcode, payloadSize)
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
@@ -218,7 +218,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var msg = c.msgs[idx]
 
 	msg.once.Do(func() {
-		msg.frame, msg.err = socket.genFrame(c.opcode, internal.Bytes(c.payload), true)
+		msg.frame, msg.err = socket.genFrame(c.opcode, true, socket.pd.Enabled, internal.Bytes(c.payload), true)
 	})
 	if msg.err != nil {
 		return msg.err

@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/lxzan/gws"
 	"log"
 	"net/http"
-
-	"github.com/lxzan/gws"
+	"os"
 )
 
 func main() {
@@ -41,5 +41,9 @@ func (c *Handler) OnPing(socket *gws.Conn, payload []byte) {
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	//file, _ := os.OpenFile("C:\\msys64\\home\\lxzan\\Open\\gws\\assets\\github.json", os.O_RDONLY, 0644)
+	file, _ := os.OpenFile("C:\\Users\\lxzan\\Pictures\\mg.png", os.O_RDONLY, 0644)
+	defer file.Close()
+	_ = socket.WriteReader(gws.OpcodeBinary, file)
+	//_ = socket.WriteReader(message.Opcode, message)
 }

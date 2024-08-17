@@ -259,3 +259,7 @@ func (c *writerTo) Len() int {
 func (c *writerTo) WriteTo(w io.Writer) (n int64, err error) {
 	return 0, errors.New("1")
 }
+
+func (c *writerTo) Read(p []byte) (n int, err error) {
+	return 0, errors.New("1")
+}

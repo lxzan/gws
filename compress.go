@@ -100,12 +100,7 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
-
-	c.cpsWriter.ResetDict(dst, dict)
-	if _, err := src.WriteTo(c.cpsWriter); err != nil {
-		return err
-	}
-	if err := c.cpsWriter.Flush(); err != nil {
+	if err := compressTo(c.cpsWriter, src, dst, dict); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
@@ -116,6 +111,8 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 	}
 	return nil
 }
+
+func (c *deflater) ToBigDeflater() *bigDeflater { return &bigDeflater{cpsWriter: c.cpsWriter} }
 
 // 滑动窗口
 // Sliding window

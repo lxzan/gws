@@ -104,6 +104,9 @@ type (
 		// Memory pool for bufio.Reader
 		brPool *internal.Pool[*bufio.Reader]
 
+		// 大文件压缩器
+		bdPool *internal.Pool[*bigDeflater]
+
 		// 压缩器滑动窗口内存池
 		// Memory pool for compressor sliding window
 		cswPool *internal.Pool[[]byte]
@@ -320,6 +323,9 @@ func initServerOption(c *ServerOption) *ServerOption {
 	}
 
 	if c.PermessageDeflate.Enabled {
+		c.config.bdPool = internal.NewPool[*bigDeflater](func() *bigDeflater {
+			return new(bigDeflater).initialize(true, c.PermessageDeflate)
+		})
 		if c.PermessageDeflate.ServerContextTakeover {
 			windowSize := internal.BinaryPow(c.PermessageDeflate.ServerMaxWindowBits)
 			c.config.cswPool = internal.NewPool[[]byte](func() []byte {
