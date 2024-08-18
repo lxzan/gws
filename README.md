@@ -102,8 +102,9 @@ ok      github.com/lxzan/gws    17.231s
 - [x] Broadcast
 - [x] Dial via Proxy
 - [x] Context-Takeover 
-- [x] Passed Autobahn Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 - [x] Concurrent & Asynchronous Non-Blocking Write
+- [x] Segmented Writing of Large Files
+- [x] Passed Autobahn Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 
 ### Attention
 

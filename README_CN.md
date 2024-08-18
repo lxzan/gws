@@ -92,6 +92,7 @@ ok      github.com/lxzan/gws    17.231s
 - [x] 广播
 - [x] 代理拨号
 - [x] 上下文接管 
+- [x] 大文件分段写入
 - [x] 支持并发和异步非阻塞写入
 - [x] 通过所有 Autobahn 测试用例 [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
 

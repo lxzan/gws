@@ -104,15 +104,12 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
-		compressedContent := dst.Bytes()
-		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
+		if tail := dst.Bytes()[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
 			dst.Truncate(n - 4)
 		}
 	}
 	return nil
 }
-
-func (c *deflater) ToBigDeflater() *bigDeflater { return &bigDeflater{cpsWriter: c.cpsWriter} }
 
 // 滑动窗口
 // Sliding window

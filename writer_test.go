@@ -510,7 +510,7 @@ func TestConn_Async(t *testing.T) {
 	assert.True(t, internal.IsSameSlice(arr1, arr2))
 }
 
-func TestConn_WriteReader(t *testing.T) {
+func TestConn_WriteFile(t *testing.T) {
 	t.Run("context_take_over 1", func(t *testing.T) {
 		var pd = PermessageDeflate{
 			Enabled:               true,
@@ -540,7 +540,7 @@ func TestConn_WriteReader(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = server.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.NoError(t, err)
 		wg.Wait()
 	})
@@ -576,7 +576,7 @@ func TestConn_WriteReader(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = server.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.NoError(t, err)
 		wg.Wait()
 	})
@@ -613,7 +613,7 @@ func TestConn_WriteReader(t *testing.T) {
 		for i := 0; i < count; i++ {
 			var length = 128*1024 + internal.AlphabetNumeric.Intn(10)
 			var content = internal.AlphabetNumeric.Generate(length)
-			var err = server.WriteReader(OpcodeBinary, bytes.NewReader(content))
+			var err = server.WriteFile(OpcodeBinary, bytes.NewReader(content))
 			assert.NoError(t, err)
 		}
 		wg.Wait()
@@ -648,7 +648,7 @@ func TestConn_WriteReader(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = client.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.NoError(t, err)
 		wg.Wait()
 	})
@@ -679,7 +679,7 @@ func TestConn_WriteReader(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = client.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.NoError(t, err)
 		wg.Wait()
 	})
@@ -711,7 +711,7 @@ func TestConn_WriteReader(t *testing.T) {
 		go client.ReadLoop()
 
 		client.WriteClose(1000, nil)
-		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = client.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.Error(t, err)
 		wg.Wait()
 	})
@@ -741,13 +741,13 @@ func TestConn_WriteReader(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 
-		var err = client.WriteReader(OpcodeBinary, bytes.NewReader(content))
+		var err = client.WriteFile(OpcodeBinary, bytes.NewReader(content))
 		assert.Error(t, err)
 		wg.Wait()
 	})
 
 	t.Run("", func(t *testing.T) {
-		deflater := new(bigDeflater).initialize(true, PermessageDeflate{
+		deflater := newBigDeflater(true, PermessageDeflate{
 			Enabled:             true,
 			ServerMaxWindowBits: 12,
 			ClientMaxWindowBits: 12,
@@ -760,7 +760,7 @@ func TestConn_WriteReader(t *testing.T) {
 	})
 
 	t.Run("", func(t *testing.T) {
-		deflater := new(bigDeflater).initialize(true, PermessageDeflate{
+		deflater := newBigDeflater(true, PermessageDeflate{
 			Enabled:             true,
 			ServerMaxWindowBits: 12,
 			ClientMaxWindowBits: 12,

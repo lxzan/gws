@@ -104,26 +104,53 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 		return ErrConnClosed
 	}
 
-	frame, err := c.genFrame(opcode, true, c.pd.Enabled, payload, false)
+	// 生成帧, 向连接写入内容, 最后更新压缩字典
+	// 为了使上下文接管模式正常工作, 压缩, 写入和更新字典三个操作的上下文必须保持同步
+	// Generate frames, write to the connection, and update the compression dictionary
+	// For context_takeover mode to work correctly, the contexts of compression, writing, and dictionary updating must be synchronized.
+	frame, err := c.genFrame(opcode, payload, frameConfig{
+		fin:           true,
+		compress:      c.pd.Enabled,
+		broadcast:     false,
+		checkEncoding: c.config.CheckUtf8Enabled,
+	})
 	if err != nil {
 		return err
 	}
-
 	err = internal.WriteN(c.conn, frame.Bytes())
 	_, _ = payload.WriteTo(&c.cpsWindow)
 	binaryPool.Put(frame)
 	return err
 }
 
+// WebSocket帧配置, 用于重写连接里面的配置, 以适配各种场景
+// WebSocket frame configuration, used to rewrite the configuration inside the connection, to adapt to various scenarios
+type frameConfig struct {
+	// 结束标志位
+	// Finish flag
+	fin bool
+
+	// 是否开启压缩
+	// Whether to enable compression
+	compress bool
+
+	// 帧生成动作是否由广播发起
+	// Whether the frame generation action is initiated by a broadcast
+	broadcast bool
+
+	// 是否检查文本编码
+	// Whether to check text encoding
+	checkEncoding bool
+}
+
 // 生成帧数据
 // Generates the frame data
-func (c *Conn) genFrame(opcode Opcode, fin bool, compress bool, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
-	if opcode == OpcodeText && fin && !payload.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode)) {
+func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, cfg frameConfig) (*bytes.Buffer, error) {
+	if opcode == OpcodeText && !payload.CheckEncoding(cfg.checkEncoding, uint8(opcode)) {
 		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 
 	var n = payload.Len()
-
 	if n > c.config.WriteMaxPayloadSize {
 		return nil, internal.CloseMessageTooLarge
 	}
@@ -131,12 +158,12 @@ func (c *Conn) genFrame(opcode Opcode, fin bool, compress bool, payload internal
 	var buf = binaryPool.Get(n + frameHeaderSize)
 	buf.Write(framePadding[0:])
 
-	if compress && opcode.isDataFrame() && n >= c.pd.Threshold {
-		return c.compressData(buf, opcode, fin, payload, isBroadcast)
+	if cfg.compress && opcode.isDataFrame() && n >= c.pd.Threshold {
+		return c.compressData(buf, opcode, cfg.fin, payload, cfg.broadcast)
 	}
 
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, false, opcode, n)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, cfg.fin, false, opcode, n)
 	_, _ = payload.WriteTo(buf)
 	var contents = buf.Bytes()
 	if !c.isServer {
@@ -218,7 +245,12 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	var msg = c.msgs[idx]
 
 	msg.once.Do(func() {
-		msg.frame, msg.err = socket.genFrame(c.opcode, true, socket.pd.Enabled, internal.Bytes(c.payload), true)
+		msg.frame, msg.err = socket.genFrame(c.opcode, internal.Bytes(c.payload), frameConfig{
+			fin:           true,
+			compress:      socket.pd.Enabled,
+			broadcast:     true,
+			checkEncoding: socket.config.CheckUtf8Enabled,
+		})
 	})
 	if msg.err != nil {
 		return msg.err

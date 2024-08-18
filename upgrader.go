@@ -244,6 +244,9 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 		writeQueue:        workerQueue{maxConcurrency: 1},
 		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
+
+	// 压缩字典和解压字典内存开销比较大, 故使用懒加载
+	// Compressing and decompressing dictionaries has a large memory overhead, so use lazy loading.
 	if pd.Enabled {
 		socket.deflater = c.deflaterPool.Select()
 		if c.option.PermessageDeflate.ServerContextTakeover {
