@@ -165,7 +165,7 @@ func (c *Conn) emitMessage(msg *Message) (err error) {
 		if err != nil {
 			return internal.NewError(internal.CloseInternalServerErr, err)
 		}
-		c.dpsWindow.Write(msg.Bytes())
+		_, _ = c.dpsWindow.Write(msg.Bytes())
 	}
 	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)

@@ -287,7 +287,12 @@ func TestSegments(t *testing.T) {
 		go client.ReadLoop()
 
 		go func() {
-			frame, _ := client.genFrame(OpcodeText, internal.Bytes(testdata), false)
+			frame, _ := client.genFrame(OpcodeText, internal.Bytes(testdata), frameConfig{
+				fin:           true,
+				compress:      client.pd.Enabled,
+				broadcast:     false,
+				checkEncoding: client.config.CheckUtf8Enabled,
+			})
 			data := frame.Bytes()
 			data[20] = 'x'
 			client.conn.Write(data)
@@ -366,7 +371,12 @@ func TestConn_ReadMessage(t *testing.T) {
 		var serverHandler = &webSocketMocker{}
 		serverHandler.onOpen = func(socket *Conn) {
 			var p = []byte("123")
-			frame, _ := socket.genFrame(OpcodePing, internal.Bytes(p), false)
+			frame, _ := socket.genFrame(OpcodePing, internal.Bytes(p), frameConfig{
+				fin:           true,
+				compress:      socket.pd.Enabled,
+				broadcast:     false,
+				checkEncoding: socket.config.CheckUtf8Enabled,
+			})
 			socket.conn.Write(frame.Bytes()[:2])
 			socket.conn.Close()
 		}
@@ -391,7 +401,12 @@ func TestConn_ReadMessage(t *testing.T) {
 		var serverHandler = &webSocketMocker{}
 		serverHandler.onOpen = func(socket *Conn) {
 			var p = []byte("123")
-			frame, _ := socket.genFrame(OpcodeText, internal.Bytes(p), false)
+			frame, _ := socket.genFrame(OpcodeText, internal.Bytes(p), frameConfig{
+				fin:           true,
+				compress:      socket.pd.Enabled,
+				broadcast:     false,
+				checkEncoding: false,
+			})
 			socket.conn.Write(frame.Bytes()[:2])
 			socket.conn.Close()
 		}

@@ -100,17 +100,11 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
-
-	c.cpsWriter.ResetDict(dst, dict)
-	if _, err := src.WriteTo(c.cpsWriter); err != nil {
-		return err
-	}
-	if err := c.cpsWriter.Flush(); err != nil {
+	if err := compressTo(c.cpsWriter, src, dst, dict); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
-		compressedContent := dst.Bytes()
-		if tail := compressedContent[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
+		if tail := dst.Bytes()[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
 			dst.Truncate(n - 4)
 		}
 	}

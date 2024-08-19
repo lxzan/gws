@@ -1,67 +1,80 @@
 package main
 
 import (
-	"bufio"
+	"fmt"
 	"log"
-	"net"
 	"net/http"
 
 	"github.com/lxzan/gws"
 )
 
 func main() {
-	var app = gws.NewServer(new(Handler), nil)
+	var h = &Handler{conns: gws.NewConcurrentMap[string, *gws.Conn]()}
 
-	app.OnRequest = func(conn net.Conn, br *bufio.Reader, r *http.Request) {
-		socket, err := app.GetUpgrader().UpgradeFromConn(conn, br, r)
+	var upgrader = gws.NewUpgrader(h, &gws.ServerOption{
+		PermessageDeflate: gws.PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
+	})
+
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(writer, request)
 		if err != nil {
-			log.Print(err.Error())
+			log.Println(err.Error())
 			return
 		}
-		var channel = make(chan []byte, 8)
-		var closer = make(chan struct{})
-		socket.Session().Store("channel", channel)
-		socket.Session().Store("closer", closer)
-		go socket.ReadLoop()
+		websocketKey := request.Header.Get("Sec-WebSocket-Key")
+		socket.Session().Store("websocketKey", websocketKey)
+		h.conns.Store(websocketKey, socket)
 		go func() {
-			for {
-				select {
-				case p := <-channel:
-					_ = socket.WriteMessage(gws.OpcodeText, p)
-				case <-closer:
-					return
-				}
-			}
+			socket.ReadLoop()
 		}()
-	}
+	})
 
-	log.Fatalf("%v", app.Run(":8000"))
+	go func() {
+		if err := http.ListenAndServe(":8000", nil); err != nil {
+			return
+		}
+	}()
+
+	for {
+		var msg = ""
+		if _, err := fmt.Scanf("%s\n", &msg); err != nil {
+			log.Println(err.Error())
+			return
+		}
+		h.Broadcast(msg)
+	}
+}
+
+func getSession[T any](s gws.SessionStorage, key string) (val T) {
+	if v, ok := s.Load(key); ok {
+		val, _ = v.(T)
+	}
+	return
 }
 
 type Handler struct {
 	gws.BuiltinEventHandler
+	conns *gws.ConcurrentMap[string, *gws.Conn]
 }
 
-func (c *Handler) getSession(socket *gws.Conn, key string) any {
-	v, _ := socket.Session().Load(key)
-	return v
-}
-
-func (c *Handler) Send(socket *gws.Conn, payload []byte) {
-	var channel = c.getSession(socket, "channel").(chan []byte)
-	select {
-	case channel <- payload:
-	default:
-		return
-	}
+func (c *Handler) Broadcast(msg string) {
+	var b = gws.NewBroadcaster(gws.OpcodeText, []byte(msg))
+	c.conns.Range(func(key string, conn *gws.Conn) bool {
+		_ = b.Broadcast(conn)
+		return true
+	})
+	_ = b.Close()
 }
 
 func (c *Handler) OnClose(socket *gws.Conn, err error) {
-	var closer = c.getSession(socket, "closer").(chan struct{})
-	closer <- struct{}{}
+	websocketKey := getSession[string](socket.Session(), "websocketKey")
+	c.conns.Delete(websocketKey)
 }
 
 func (c *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	defer message.Close()
-	_ = socket.WriteMessage(message.Opcode, message.Bytes())
 }

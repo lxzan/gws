@@ -3,6 +3,7 @@ linters:
   # Disable specific linter
   # https://golangci-lint.run/usage/linters/#disabled-by-default
   disable:
+    - maintidx
     - mnd
     - testpackage
     - nlreturn

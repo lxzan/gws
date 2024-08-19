@@ -61,7 +61,7 @@ func main() {
 
 func MustLoad[T any](session gws.SessionStorage, key string) (v T) {
 	if value, exist := session.Load(key); exist {
-		v = value.(T)
+		v, _ = value.(T)
 	}
 	return
 }

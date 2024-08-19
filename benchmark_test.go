@@ -68,7 +68,12 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			conn:     &benchConn{},
 			config:   upgrader.option.getConfig(),
 		}
-		var buf, _ = conn1.genFrame(OpcodeText, internal.Bytes(githubData), false)
+		var buf, _ = conn1.genFrame(OpcodeText, internal.Bytes(githubData), frameConfig{
+			fin:           true,
+			compress:      conn1.pd.Enabled,
+			broadcast:     false,
+			checkEncoding: false,
+		})
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
@@ -98,7 +103,12 @@ func BenchmarkConn_ReadMessage(b *testing.B) {
 			deflater: new(deflater),
 		}
 		conn1.deflater.initialize(false, conn1.pd, config.ReadMaxPayloadSize)
-		var buf, _ = conn1.genFrame(OpcodeText, internal.Bytes(githubData), false)
+		var buf, _ = conn1.genFrame(OpcodeText, internal.Bytes(githubData), frameConfig{
+			fin:           true,
+			compress:      conn1.pd.Enabled,
+			broadcast:     false,
+			checkEncoding: false,
+		})
 
 		var reader = bytes.NewBuffer(buf.Bytes())
 		var conn2 = &Conn{
