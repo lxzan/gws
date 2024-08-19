@@ -153,13 +153,14 @@ func (c *flateWriter) shouldCall() bool {
 // 聚合写入, 减少syscall.write调用次数
 // Aggregate writes, reducing the number of syscall.write calls
 func (c *flateWriter) write(p []byte) {
+	var size = internal.Max(segmentSize, len(p))
 	if len(c.buffers) == 0 {
-		c.buffers = append(c.buffers, binaryPool.Get(segmentSize))
+		c.buffers = append(c.buffers, binaryPool.Get(size))
 	}
 	var n = len(c.buffers)
 	var tail = c.buffers[n-1]
 	if tail.Len()+len(p)+frameHeaderSize > tail.Cap() {
-		tail = binaryPool.Get(segmentSize)
+		tail = binaryPool.Get(size)
 		c.buffers = append(c.buffers, tail)
 	}
 	tail.Write(p)
