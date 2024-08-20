@@ -73,6 +73,10 @@ var (
 	// Text message encoding error (must be utf8)
 	ErrTextEncoding = errors.New("invalid text encoding")
 
+	// ErrMessageTooLarge 消息体积过大
+	// message is too large
+	ErrMessageTooLarge = errors.New("message too large")
+
 	// ErrConnClosed 连接已关闭
 	// Connection closed
 	ErrConnClosed = net.ErrClosed

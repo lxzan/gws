@@ -100,7 +100,7 @@ func (c *Conn) ReadLoop() {
 	// Infinite loop to read messages, if an error occurs, trigger the error event and exit the loop
 	for {
 		if err := c.readMessage(); err != nil {
-			c.emitError(err)
+			c.emitError(true, err)
 			break
 		}
 	}
@@ -125,106 +125,36 @@ func (c *Conn) ReadLoop() {
 	}
 }
 
-// 获取压缩字典
-// Get compressed dictionary
-func (c *Conn) getCpsDict(isBroadcast bool) []byte {
-	// 广播模式必须保证每一帧都是相同的内容, 所以不使用上下文接管优化压缩率
-	// In broadcast mode, each frame must be the same content, so context takeover is not used to optimize compression ratio
-	if isBroadcast {
-		return nil
-	}
-
-	// 如果是服务器并且服务器上下文接管启用，返回压缩字典
-	// If it is a server and server context takeover is enabled, return the compression dictionary
-	if c.isServer && c.pd.ServerContextTakeover {
-		return c.cpsWindow.dict
-	}
-
-	// 如果是客户端并且客户端上下文接管启用，返回压缩字典
-	// If client-side and client context takeover is enabled, return the compression dictionary
-	if !c.isServer && c.pd.ClientContextTakeover {
-		return c.cpsWindow.dict
-	}
-
-	return nil
-}
-
-// 获取解压字典
-// Get decompression dictionary
-func (c *Conn) getDpsDict() []byte {
-	// 如果是服务器并且客户端上下文接管启用，返回解压字典
-	// If it is a server and client context takeover is enabled, return the decompression dictionary
-	if c.isServer && c.pd.ClientContextTakeover {
-		return c.dpsWindow.dict
-	}
-
-	// 如果是客户端并且服务器上下文接管启用，返回解压字典
-	// If it is a client and server context takeover is enabled, return the decompressed dictionary
-	if !c.isServer && c.pd.ServerContextTakeover {
-		return c.dpsWindow.dict
-	}
-
-	return nil
-}
-
-// UTF8编码检查
-// UTF8 encoding check
-func (c *Conn) isTextValid(opcode Opcode, payload []byte) bool {
-	if c.config.CheckUtf8Enabled {
-		return internal.CheckEncoding(uint8(opcode), payload)
-	}
-	return true
-}
-
 // 检查连接是否已关闭
 // Checks if the connection is closed
 func (c *Conn) isClosed() bool {
 	return atomic.LoadUint32(&c.closed) == 1
 }
 
-// 关闭连接并存储错误信息
-// Closes the connection and stores the error information
-func (c *Conn) close(reason []byte, err error) {
-	c.ev.Store(err)
-	_ = c.doWrite(OpcodeCloseConnection, internal.Bytes(reason))
-	_ = c.conn.Close()
-}
-
 // 处理错误事件
 // Handle the error event
-func (c *Conn) emitError(err error) {
+func (c *Conn) emitError(reading bool, err error) {
 	if err == nil {
 		return
 	}
 
-	// 使用原子操作检查并设置连接的关闭状态
-	// Use atomic operation to check and set the closed state of the connection
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		var responseCode = internal.CloseNormalClosure
-		var responseErr error = internal.CloseNormalClosure
-
-		// 根据错误类型设置响应代码和响应错误
-		// Set response code and response error based on the error type
-		switch v := err.(type) {
-		case internal.StatusCode:
-			responseCode = v
-		case *internal.Error:
-			responseCode = v.Code
-			responseErr = v.Err
-		default:
-			responseErr = err
+		// 待发送的错误码和错误原因
+		// Error code to be sent and cause of error
+		var sendCode, sendErr = internal.CloseGoingAway, error(internal.CloseGoingAway)
+		if reading {
+			switch v := err.(type) {
+			case internal.StatusCode:
+				sendCode, sendErr = v, v
+			case *internal.Error:
+				sendCode, sendErr, err = v.Code, v.Err, v.Err
+			default:
+				sendCode, sendErr = internal.CloseNormalClosure, err
+			}
 		}
 
-		var content = responseCode.Bytes()
-		content = append(content, err.Error()...)
-
-		// 如果内容长度超过阈值，截断内容
-		// If the content length exceeds the threshold, truncate the content
-		if len(content) > internal.ThresholdV1 {
-			content = content[:internal.ThresholdV1]
-		}
-
-		c.close(content, responseErr)
+		var reason = append(sendCode.Bytes(), sendErr.Error()...)
+		_ = c.writeClose(err, reason)
 	}
 }
 
@@ -257,12 +187,12 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 				responseCode = internal.StatusCode(realCode)
 			}
 		}
-		if !c.isTextValid(OpcodeCloseConnection, buf.Bytes()) {
+		if !internal.CheckEncoding(c.config.CheckUtf8Enabled, uint8(OpcodeCloseConnection), buf.Bytes()) {
 			responseCode = internal.CloseUnsupportedData
 		}
 	}
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.close(responseCode.Bytes(), &CloseError{Code: realCode, Reason: buf.Bytes()})
+		_ = c.writeClose(&CloseError{Code: realCode, Reason: buf.Bytes()}, responseCode.Bytes())
 	}
 	return internal.CloseNormalClosure
 }
@@ -271,7 +201,7 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 // Sets the deadline for the connection
 func (c *Conn) SetDeadline(t time.Time) error {
 	err := c.conn.SetDeadline(t)
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 
@@ -279,7 +209,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 // Sets the deadline for read operations
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	err := c.conn.SetReadDeadline(t)
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 
@@ -287,7 +217,7 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // Sets the deadline for write operations
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	err := c.conn.SetWriteDeadline(t)
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 

@@ -57,7 +57,7 @@ func (c *Conn) splitReader(r io.Reader, f func(index int, eof bool, p []byte) er
 // Segmented write technology to reduce memory usage during write process
 func (c *Conn) WriteFile(opcode Opcode, payload io.Reader) error {
 	err := c.doWriteFile(opcode, payload)
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 
@@ -92,7 +92,8 @@ func (c *Conn) doWriteFile(opcode Opcode, payload io.Reader) error {
 	if c.pd.Enabled {
 		var deflater = c.getBigDeflater()
 		var fw = &flateWriter{cb: cb}
-		err := deflater.Compress(payload, fw, c.getCpsDict(false), &c.cpsWindow)
+		var reader = &readerWrapper{r: payload, sw: &c.cpsWindow}
+		err := deflater.Compress(reader, fw, c.cpsWindow.dict)
 		c.putBigDeflater(deflater)
 		return err
 	} else {
@@ -119,11 +120,11 @@ func newBigDeflater(isServer bool, options PermessageDeflate) *bigDeflater {
 func (c *bigDeflater) FlateWriter() *flate.Writer { return (*flate.Writer)(c) }
 
 // Compress 压缩
-func (c *bigDeflater) Compress(src io.Reader, dst *flateWriter, dict []byte, sw *slideWindow) error {
-	if err := compressTo(c.FlateWriter(), &readerWrapper{r: src, sw: sw}, dst, dict); err != nil {
+func (c *bigDeflater) Compress(r io.WriterTo, w *flateWriter, dict []byte) error {
+	if err := compressTo(c.FlateWriter(), r, w, dict); err != nil {
 		return err
 	}
-	return dst.Flush()
+	return w.Flush()
 }
 
 // 写入代理
@@ -222,12 +223,4 @@ func (c *readerWrapper) WriteTo(w io.Writer) (int64, error) {
 		}
 	}
 	return int64(sum), err
-}
-
-func compressTo(cpsWriter *flate.Writer, r io.WriterTo, w io.Writer, dict []byte) error {
-	cpsWriter.ResetDict(w, dict)
-	if _, err := r.WriteTo(cpsWriter); err != nil {
-		return err
-	}
-	return cpsWriter.Flush()
 }

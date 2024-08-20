@@ -111,6 +111,14 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 	return nil
 }
 
+func compressTo(cpsWriter *flate.Writer, r io.WriterTo, w io.Writer, dict []byte) error {
+	cpsWriter.ResetDict(w, dict)
+	if _, err := r.WriteTo(cpsWriter); err != nil {
+		return err
+	}
+	return cpsWriter.Flush()
+}
+
 // 滑动窗口
 // Sliding window
 type slideWindow struct {
