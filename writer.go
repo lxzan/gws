@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bytes"
-	"errors"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -15,12 +14,29 @@ import (
 // Send shutdown frame, active disconnection
 // If you don't have any special needs, we recommend code=1000, reason=nil
 // https://developer.mozilla.org/zh-CN/docs/Web/API/CloseEvent#status_codes
-func (c *Conn) WriteClose(code uint16, reason []byte) {
-	var err = internal.NewError(internal.StatusCode(code), errEmpty)
-	if len(reason) > 0 {
-		err.Err = errors.New(string(reason))
+func (c *Conn) WriteClose(code uint16, reason []byte) error {
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		var buf = binaryPool.Get(128)
+		code = internal.SelectValue(code < 1000, 1000, code)
+		buf.Write(internal.StatusCode(code).Bytes())
+		buf.Write(reason)
+		err := c.writeClose(internal.StatusCode(code), buf.Bytes())
+		binaryPool.Put(buf)
+		return err
 	}
-	c.emitError(err)
+	return ErrConnClosed
+}
+
+// 关闭连接并存储错误信息
+// Closes the connection and stores the error information
+func (c *Conn) writeClose(ev error, reason []byte) error {
+	if len(reason) > internal.ThresholdV1 {
+		reason = reason[:internal.ThresholdV1]
+	}
+	c.ev.Store(ev)
+	err := c.doWrite(OpcodeCloseConnection, internal.Bytes(reason))
+	_ = c.conn.Close()
+	return err
 }
 
 // WritePing
@@ -49,7 +65,7 @@ func (c *Conn) WriteString(s string) error {
 // Writes text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 	err := c.doWrite(opcode, internal.Bytes(payload))
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 
@@ -59,7 +75,7 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // Write messages to the task queue asynchronously and non-blockingly,
 // allowing payload memory to be recycled only after receiving the callback
 func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
-	c.writeQueue.Push(func() {
+	c.Async(func() {
 		if err := c.WriteMessage(opcode, payload); callback != nil {
 			callback(err)
 		}
@@ -71,14 +87,14 @@ func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
 // Writev is similar to WriteMessage, except that you can write multiple slices at once.
 func (c *Conn) Writev(opcode Opcode, payloads ...[]byte) error {
 	var err = c.doWrite(opcode, internal.Buffers(payloads))
-	c.emitError(err)
+	c.emitError(false, err)
 	return err
 }
 
 // WritevAsync 类似 WriteAsync, 区别是可以一次写入多个切片
 // It's similar to WriteAsync, except that you can write multiple slices at once.
 func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error)) {
-	c.writeQueue.Push(func() {
+	c.Async(func() {
 		if err := c.Writev(opcode, payloads...); callback != nil {
 			callback(err)
 		}
@@ -146,20 +162,19 @@ type frameConfig struct {
 // 生成帧数据
 // Generates the frame data
 func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, cfg frameConfig) (*bytes.Buffer, error) {
-	if opcode == OpcodeText && !payload.CheckEncoding(cfg.checkEncoding, uint8(opcode)) {
-		return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
-	}
-
 	var n = payload.Len()
+	if opcode == OpcodeText && !payload.CheckEncoding(cfg.checkEncoding, uint8(opcode)) {
+		return nil, ErrTextEncoding
+	}
 	if n > c.config.WriteMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
+		return nil, ErrMessageTooLarge
 	}
 
 	var buf = binaryPool.Get(n + frameHeaderSize)
 	buf.Write(framePadding[0:])
 
 	if cfg.compress && opcode.isDataFrame() && n >= c.pd.Threshold {
-		return c.compressData(buf, opcode, cfg.fin, payload, cfg.broadcast)
+		return c.compressData(opcode, payload, buf, cfg)
 	}
 
 	var header = frameHeader{}
@@ -177,15 +192,18 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, cfg frameConfig
 
 // 压缩数据并生成帧
 // Compresses the data and generates the frame
-func (c *Conn) compressData(buf *bytes.Buffer, opcode Opcode, fin bool, payload internal.Payload, isBroadcast bool) (*bytes.Buffer, error) {
-	err := c.deflater.Compress(payload, buf, c.getCpsDict(isBroadcast))
-	if err != nil {
+func (c *Conn) compressData(opcode Opcode, payload internal.Payload, buf *bytes.Buffer, cfg frameConfig) (*bytes.Buffer, error) {
+	// 广播模式必须保证每一帧都是相同的内容, 所以不能使用字典优化压缩率
+	// Broadcast mode must ensure that every frame is the same, so you can't use a dictionary to optimize the compression rate.
+	var dict = internal.SelectValue(cfg.broadcast, nil, c.cpsWindow.dict)
+	if err := c.deflater.Compress(payload, buf, dict); err != nil {
 		return nil, err
 	}
+
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, true, opcode, payloadSize)
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, cfg.fin, true, opcode, payloadSize)
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
 	}
@@ -232,7 +250,7 @@ func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
 	}
 	socket.mu.Lock()
 	var err = internal.WriteN(socket.conn, frame.Bytes())
-	socket.cpsWindow.Write(c.payload)
+	_, _ = socket.cpsWindow.Write(c.payload)
 	socket.mu.Unlock()
 	return err
 }
@@ -259,7 +277,7 @@ func (c *Broadcaster) Broadcast(socket *Conn) error {
 	atomic.AddInt64(&c.state, 1)
 	socket.writeQueue.Push(func() {
 		var err = c.writeFrame(socket, msg.frame)
-		socket.emitError(err)
+		socket.emitError(false, err)
 		if atomic.AddInt64(&c.state, -1) == 0 {
 			c.doClose()
 		}

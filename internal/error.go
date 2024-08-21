@@ -3,21 +3,21 @@ package internal
 // closeErrorMap 将状态码映射到错误信息
 // map status codes to error messages
 var closeErrorMap = map[StatusCode]string{
-	0:                      "empty code",
-	CloseNormalClosure:     "close normal",
-	CloseGoingAway:         "client going away",
-	CloseProtocolError:     "protocol error",
-	CloseUnsupported:       "unsupported data",
-	CloseNoStatusReceived:  "no status",
-	CloseAbnormalClosure:   "abnormal closure",
-	CloseUnsupportedData:   "invalid payload data",
-	ClosePolicyViolation:   "policy violation",
-	CloseMessageTooLarge:   "message too large",
-	CloseMissingExtension:  "mandatory extension missing",
-	CloseInternalServerErr: "internal server error",
-	CloseServiceRestart:    "server restarting",
-	CloseTryAgainLater:     "try again later",
-	CloseTLSHandshake:      "TLS handshake error",
+	0:                     "empty code",
+	CloseNormalClosure:    "close normal",
+	CloseGoingAway:        "client going away",
+	CloseProtocolError:    "protocol error",
+	CloseUnsupported:      "unsupported data",
+	CloseNoStatusReceived: "no status",
+	CloseAbnormalClosure:  "abnormal closure",
+	CloseUnsupportedData:  "invalid payload data",
+	ClosePolicyViolation:  "policy violation",
+	CloseMessageTooLarge:  "message too large",
+	CloseMissingExtension: "mandatory extension missing",
+	CloseInternalErr:      "internal error",
+	CloseServiceRestart:   "server restarting",
+	CloseTryAgainLater:    "try again later",
+	CloseTLSHandshake:     "TLS handshake error",
 }
 
 // StatusCode WebSocket错误码
@@ -55,8 +55,8 @@ const (
 	// CloseMissingExtension 客户端期望服务器商定一个或多个拓展, 但服务器没有处理, 因此客户端断开连接.
 	CloseMissingExtension StatusCode = 1010
 
-	// CloseInternalServerErr 客户端由于遇到没有预料的情况阻止其完成请求, 因此服务端断开连接.
-	CloseInternalServerErr StatusCode = 1011
+	// CloseInternalErr 客户端由于遇到没有预料的情况阻止其完成请求, 因此服务端断开连接.
+	CloseInternalErr StatusCode = 1011
 
 	// CloseServiceRestart 服务器由于重启而断开连接. [Ref]
 	CloseServiceRestart StatusCode = 1012

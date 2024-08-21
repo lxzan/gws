@@ -67,8 +67,8 @@ ok      github.com/lxzan/gws    17.231s
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-  - [IOPS (Echo Server)](#iops-echo-server)
-  - [GoBench](#gobench)
+	- [IOPS (Echo Server)](#iops-echo-server)
+	- [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -77,13 +77,14 @@ ok      github.com/lxzan/gws    17.231s
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-  - [KCP](#kcp)
-  - [代理](#代理)
-  - [广播](#广播)
-  - [写入超时](#写入超时)
-  - [发布/订阅](#发布订阅)
+	- [KCP](#kcp)
+	- [代理](#代理)
+	- [广播](#广播)
+	- [写入超时](#写入超时)
+	- [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [交流](#交流)
+- [赞赏](#赞赏)
 - [致谢](#致谢)
 
 ### 特性
@@ -374,6 +375,10 @@ docker run -it --rm \
 <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
+
+### 赞赏
+
+<img src="assets/alipay.jpg" alt="WeChat" width="300" style="display: inline-block;"/>
 
 ### 致谢
 

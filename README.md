@@ -77,8 +77,8 @@ ok      github.com/lxzan/gws    17.231s
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-  - [IOPS (Echo Server)](#iops-echo-server)
-  - [GoBench](#gobench)
+	- [IOPS (Echo Server)](#iops-echo-server)
+	- [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -87,13 +87,14 @@ ok      github.com/lxzan/gws    17.231s
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-  - [KCP](#kcp)
-  - [Proxy](#proxy)
-  - [Broadcast](#broadcast)
-  - [WriteWithTimeout](#writewithtimeout)
-  - [Pub / Sub](#pub--sub)
+	- [KCP](#kcp)
+	- [Proxy](#proxy)
+	- [Broadcast](#broadcast)
+	- [WriteWithTimeout](#writewithtimeout)
+	- [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Communication](#communication)
+- [Buy me a coffee](#buy-me-a-coffee)
 - [Acknowledgments](#acknowledgments)
 
 ### Feature
@@ -387,6 +388,10 @@ docker run -it --rm \
 <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
 <img src="assets/qq.jpg" alt="QQ" width="300" height="300" style="display: inline-block"/>
 </div>
+
+### Buy me a coffee
+
+<img src="assets/alipay.jpg" alt="WeChat" width="300" style="display: inline-block;"/>
 
 ### Acknowledgments
 

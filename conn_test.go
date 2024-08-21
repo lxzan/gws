@@ -151,6 +151,6 @@ func TestConn_EmitError(t *testing.T) {
 	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 	go client.ReadLoop()
 	err := errors.New(string(internal.AlphabetNumeric.Generate(500)))
-	server.emitError(err)
+	server.emitError(false, err)
 	wg.Wait()
 }

@@ -116,7 +116,7 @@ func NewUpgrader(eventHandler Event, option *ServerOption) *Upgrader {
 func (c *Upgrader) hijack(w http.ResponseWriter) (net.Conn, *bufio.Reader, error) {
 	hj, ok := w.(http.Hijacker)
 	if !ok {
-		return nil, nil, internal.CloseInternalServerErr
+		return nil, nil, internal.CloseInternalErr
 	}
 	netConn, _, err := hj.Hijack()
 	if err != nil {
@@ -249,11 +249,11 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 	// Compressing and decompressing dictionaries has a large memory overhead, so use lazy loading.
 	if pd.Enabled {
 		socket.deflater = c.deflaterPool.Select()
-		if c.option.PermessageDeflate.ServerContextTakeover {
-			socket.cpsWindow.initialize(config.cswPool, c.option.PermessageDeflate.ServerMaxWindowBits)
+		if pd.ServerContextTakeover {
+			socket.cpsWindow.initialize(config.cswPool, pd.ServerMaxWindowBits)
 		}
-		if c.option.PermessageDeflate.ClientContextTakeover {
-			socket.dpsWindow.initialize(config.dswPool, c.option.PermessageDeflate.ClientMaxWindowBits)
+		if pd.ClientContextTakeover {
+			socket.dpsWindow.initialize(config.dswPool, pd.ClientMaxWindowBits)
 		}
 	}
 	return socket, nil

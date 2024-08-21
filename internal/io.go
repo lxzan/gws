@@ -21,13 +21,11 @@ func WriteN(writer io.Writer, content []byte) error {
 
 // CheckEncoding 检查 payload 的编码是否有效
 // checks if the encoding of the payload is valid
-func CheckEncoding(opcode uint8, payload []byte) bool {
-	switch opcode {
-	case 1, 8:
+func CheckEncoding(enabled bool, opcode uint8, payload []byte) bool {
+	if enabled && (opcode == 1 || opcode == 8) {
 		return utf8.Valid(payload)
-	default:
-		return true
 	}
+	return true
 }
 
 type Payload interface {
@@ -39,11 +37,9 @@ type Payload interface {
 type Buffers [][]byte
 
 func (b Buffers) CheckEncoding(enabled bool, opcode uint8) bool {
-	if enabled {
-		for i, _ := range b {
-			if !CheckEncoding(opcode, b[i]) {
-				return false
-			}
+	for i, _ := range b {
+		if !CheckEncoding(enabled, opcode, b[i]) {
+			return false
 		}
 	}
 	return true
@@ -73,10 +69,7 @@ func (b Buffers) WriteTo(w io.Writer) (int64, error) {
 type Bytes []byte
 
 func (b Bytes) CheckEncoding(enabled bool, opcode uint8) bool {
-	if enabled {
-		return CheckEncoding(opcode, b)
-	}
-	return true
+	return CheckEncoding(enabled, opcode, b)
 }
 
 func (b Bytes) Len() int {

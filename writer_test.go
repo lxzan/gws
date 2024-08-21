@@ -21,7 +21,7 @@ func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {
 		var buf = bytes.NewBufferString("")
 		err := c.deflater.Compress(internal.Bytes(payload), buf, c.cpsWindow.dict)
 		if err != nil {
-			return internal.NewError(internal.CloseInternalServerErr, err)
+			return internal.NewError(internal.CloseInternalErr, err)
 		}
 		payload = buf.Bytes()
 	}
@@ -114,27 +114,89 @@ func TestWriteBigMessage(t *testing.T) {
 
 func TestWriteClose(t *testing.T) {
 	var as = assert.New(t)
-	var serverHandler = new(webSocketMocker)
-	var clientHandler = new(webSocketMocker)
-	var serverOption = &ServerOption{}
-	var clientOption = &ClientOption{}
-
-	var wg = sync.WaitGroup{}
-	wg.Add(1)
-	serverHandler.onClose = func(socket *Conn, err error) {
-		as.Error(err)
-		wg.Done()
-	}
-	server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
-	go server.ReadLoop()
-	go client.ReadLoop()
-	server.WriteClose(1000, []byte("goodbye"))
-	wg.Wait()
 
 	t.Run("", func(t *testing.T) {
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{}
+		var clientOption = &ClientOption{}
+
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		serverHandler.onClose = func(socket *Conn, err error) {
+			as.Error(err)
+			wg.Done()
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+		server.WriteClose(1000, []byte("goodbye"))
+		wg.Wait()
 		var socket = &Conn{closed: 1, config: server.config}
 		socket.WriteMessage(OpcodeText, nil)
 		socket.WriteAsync(OpcodeText, nil, nil)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled: true,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		serverHandler.onClose = func(socket *Conn, err error) {
+			if v, ok := err.(*CloseError); ok && string(v.Reason) == "goodbye" {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteClose(1006, []byte("goodbye"))
+		assert.NoError(t, err)
+		err = client.WriteClose(1006, []byte("goodbye"))
+		assert.True(t, errors.Is(err, ErrConnClosed))
+		wg.Wait()
+	})
+
+	t.Run("", func(t *testing.T) {
+		var pd = PermessageDeflate{
+			Enabled: true,
+		}
+		var serverHandler = new(webSocketMocker)
+		var clientHandler = new(webSocketMocker)
+		var serverOption = &ServerOption{
+			PermessageDeflate: pd,
+		}
+		var clientOption = &ClientOption{
+			PermessageDeflate: pd,
+		}
+		var wg = &sync.WaitGroup{}
+		wg.Add(1)
+
+		serverHandler.onClose = func(socket *Conn, err error) {
+			if v, ok := err.(*CloseError); ok && len(v.Reason) == 123 {
+				wg.Done()
+			}
+		}
+
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go server.ReadLoop()
+		go client.ReadLoop()
+
+		var err = client.WriteClose(1006, internal.AlphabetNumeric.Generate(1024))
+		assert.NoError(t, err)
+		wg.Wait()
 	})
 }
 
@@ -755,7 +817,8 @@ func TestConn_WriteFile(t *testing.T) {
 		var fw = &flateWriter{cb: func(index int, eof bool, p []byte) error {
 			return nil
 		}}
-		err := deflater.Compress(new(writerTo), fw, nil, new(slideWindow))
+		var reader = &readerWrapper{r: new(writerTo), sw: new(slideWindow)}
+		err := deflater.Compress(reader, fw, nil)
 		assert.Error(t, err)
 	})
 
@@ -768,8 +831,8 @@ func TestConn_WriteFile(t *testing.T) {
 		var fw = &flateWriter{cb: func(index int, eof bool, p []byte) error {
 			return errors.New("2")
 		}}
-		src := bytes.NewBufferString("hello")
-		err := deflater.Compress(src, fw, nil, new(slideWindow))
+		var reader = &readerWrapper{r: new(writerTo), sw: new(slideWindow)}
+		err := deflater.Compress(reader, fw, nil)
 		assert.Error(t, err)
 	})
 

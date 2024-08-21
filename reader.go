@@ -161,13 +161,13 @@ func (c *Conn) dispatch(msg *Message) error {
 // Emit onmessage event
 func (c *Conn) emitMessage(msg *Message) (err error) {
 	if msg.compressed {
-		msg.Data, err = c.deflater.Decompress(msg.Data, c.getDpsDict())
+		msg.Data, err = c.deflater.Decompress(msg.Data, c.dpsWindow.dict)
 		if err != nil {
-			return internal.NewError(internal.CloseInternalServerErr, err)
+			return internal.NewError(internal.CloseInternalErr, err)
 		}
 		_, _ = c.dpsWindow.Write(msg.Bytes())
 	}
-	if !c.isTextValid(msg.Opcode, msg.Bytes()) {
+	if !internal.CheckEncoding(c.config.CheckUtf8Enabled, uint8(msg.Opcode), msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 	if c.config.ParallelEnabled {
