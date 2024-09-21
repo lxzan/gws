@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"hash/fnv"
 	"io"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -232,4 +233,36 @@ func TestIsSameSlice(t *testing.T) {
 		[]int{1, 2, 3},
 		[]int{1, 2, 4},
 	))
+}
+
+func TestIsIPv6(t *testing.T) {
+	assert.False(t, IsIPv6("192.168.1.1"))
+	assert.False(t, IsIPv6("google.com"))
+	assert.True(t, IsIPv6("2001:0:2851:b9f0:3866:a7c6:871b:706a"))
+}
+
+func TestGetAddrFromURL(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		u, _ := url.Parse("wss://[2001:0:2851:b9f0:3866:a7c6:871b:706a]/connect")
+		addr := GetAddrFromURL(u, true)
+		assert.Equal(t, addr, "[2001:0:2851:b9f0:3866:a7c6:871b:706a]:443")
+	})
+
+	t.Run("", func(t *testing.T) {
+		u, _ := url.Parse("wss://:9443")
+		addr := GetAddrFromURL(u, true)
+		assert.Equal(t, addr, "127.0.0.1:9443")
+	})
+
+	t.Run("", func(t *testing.T) {
+		u, _ := url.Parse("wss://")
+		addr := GetAddrFromURL(u, true)
+		assert.Equal(t, addr, "127.0.0.1:443")
+	})
+
+	t.Run("", func(t *testing.T) {
+		u, _ := url.Parse("ws://google.com/connect")
+		addr := GetAddrFromURL(u, false)
+		assert.Equal(t, addr, "google.com:80")
+	})
 }
