@@ -5,6 +5,8 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"net"
+	"net/url"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -237,4 +239,26 @@ func IsSameSlice[T comparable](a, b []T) bool {
 		}
 	}
 	return true
+}
+
+func IsIPv6(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	return ip.To4() == nil
+}
+
+// GetAddrFromURL 根据URL获取网络连接地址
+// Get the network connection address based on the URL
+func GetAddrFromURL(URL *url.URL, tlsEnabled bool) string {
+	port := SelectValue(URL.Port() == "", SelectValue(tlsEnabled, "443", "80"), URL.Port())
+	hostname := URL.Hostname()
+	if hostname == "" {
+		hostname = "127.0.0.1"
+	}
+	if IsIPv6(hostname) {
+		hostname = "[" + hostname + "]"
+	}
+	return hostname + ":" + port
 }

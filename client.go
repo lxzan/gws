@@ -49,9 +49,7 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 		return nil, nil, err
 	}
 
-	port := internal.SelectValue(URL.Port() == "", internal.SelectValue(tlsEnabled, "443", "80"), URL.Port())
-	hp := internal.SelectValue(URL.Hostname() == "", "127.0.0.1", URL.Hostname()) + ":" + port
-	c.conn, err = dialer.Dial("tcp", hp)
+	c.conn, err = dialer.Dial("tcp", internal.GetAddrFromURL(URL, tlsEnabled))
 	if err != nil {
 		return nil, nil, err
 	}

@@ -6,3 +6,6 @@ bench:
 
 cover:
 	go test -coverprofile=./bin/cover.out --cover ./...
+
+clean:
+	rm -rf ./bin/*
