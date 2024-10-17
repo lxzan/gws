@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -219,7 +220,10 @@ func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
 // Checks the response headers to verify if the handshake was successful
 func (c *connector) checkHeaders(resp *http.Response) error {
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		return ErrHandshake
+		return fmt.Errorf("gws: handshake error, expected status_code %d but actual is %d",
+			http.StatusSwitchingProtocols,
+			resp.StatusCode,
+		)
 	}
 	if !internal.HttpHeaderContains(resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
 		return ErrHandshake

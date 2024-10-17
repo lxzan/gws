@@ -4,7 +4,6 @@ linters:
   # https://golangci-lint.run/usage/linters/#disabled-by-default
   disable:
     - maintidx
-    - mnd
     - testpackage
     - nlreturn
     - gomnd
@@ -26,6 +25,9 @@ linters:
     - goconst
     - depguard
     - nestif
+    - ifshort
+    - nosnakecase
+    - scopelint
   # Enable presets.
   # https://golangci-lint.run/usage/linters
   # Run only fast linters from enabled linters set (first run won't be fast)
