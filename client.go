@@ -2,10 +2,12 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -70,6 +72,46 @@ func NewClient(handler Event, option *ClientOption) (*Conn, *http.Response, erro
 	return client, resp, err
 }
 
+// NewClient 创建一个新的 WebSocket 客户端连接 WithPredefinedPacket 预定义包
+// Creates a new WebSocket client connection WithPredefinedPacket predefined packet
+func NewClientWithPacket(handler Event, option *ClientOption, packet []byte) (*Conn, *http.Response, error) {
+	option = initClientOption(option)
+	c := &connector{option: option, eventHandler: handler}
+	URL, err := url.Parse(option.Addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	if URL.Scheme != "ws" && URL.Scheme != "wss" {
+		return nil, nil, ErrUnsupportedProtocol
+	}
+
+	var tlsEnabled = URL.Scheme == "wss"
+	dialer, err := option.NewDialer()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	c.conn, err = dialer.Dial("tcp", internal.GetAddrFromURL(URL, tlsEnabled))
+	if err != nil {
+		return nil, nil, err
+	}
+	if tlsEnabled {
+		if option.TlsConfig == nil {
+			option.TlsConfig = &tls.Config{}
+		}
+		if option.TlsConfig.ServerName == "" {
+			option.TlsConfig.ServerName = URL.Hostname()
+		}
+		c.conn = tls.Client(c.conn, option.TlsConfig)
+	}
+
+	client, resp, err := c.handshakeWithPacket(packet)
+	if err != nil {
+		_ = c.conn.Close()
+	}
+	return client, resp, err
+}
+
 // NewClientFromConn 通过外部连接创建客户端, 支持 TCP/KCP/Unix Domain Socket
 // Create new client via external connection, supports TCP/KCP/Unix Domain Socket.
 func NewClientFromConn(handler Event, option *ClientOption, conn net.Conn) (*Conn, *http.Response, error) {
@@ -96,6 +138,66 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 		return nil, nil, err
 	}
 	for k, v := range c.option.RequestHeader {
+		if k == "Host" {
+			r.Host = v[0]
+		}
+		r.Header[k] = v
+	}
+	r.Header.Set(internal.Connection.Key, internal.Connection.Val)
+	r.Header.Set(internal.Upgrade.Key, internal.Upgrade.Val)
+	r.Header.Set(internal.SecWebSocketVersion.Key, internal.SecWebSocketVersion.Val)
+	if c.option.PermessageDeflate.Enabled {
+		r.Header.Set(internal.SecWebSocketExtensions.Key, c.option.PermessageDeflate.genRequestHeader())
+	}
+	if c.secWebsocketKey == "" {
+		var key [16]byte
+		binary.BigEndian.PutUint64(key[0:8], internal.AlphabetNumeric.Uint64())
+		binary.BigEndian.PutUint64(key[8:16], internal.AlphabetNumeric.Uint64())
+		c.secWebsocketKey = base64.StdEncoding.EncodeToString(key[0:])
+		r.Header.Set(internal.SecWebSocketKey.Key, c.secWebsocketKey)
+	}
+
+	var ch = make(chan error)
+
+	// 发送http请求
+	// send http request
+	go func() { ch <- r.Write(c.conn) }()
+
+	// 同步等待请求是否发送成功
+	// Synchronized waiting for the request to be sent successfully
+	select {
+	case err = <-ch:
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 读取响应结果
+	// Read the response result
+	br := bufio.NewReaderSize(c.conn, c.option.ReadBufferSize)
+	resp, err := http.ReadResponse(br, r)
+	return resp, br, err
+}
+
+// 发送HTTP请求, 即WebSocket握手 WithPredefinedPacket 预定义包
+// Sends an http request, i.e., websocket handshake WithPredefinedPacket predefined packet
+func (c *connector) requestWithPacket(packet []byte) (*http.Response, *bufio.Reader, error) {
+	_ = c.conn.SetDeadline(time.Now().Add(c.option.HandshakeTimeout))
+	ctx, cancel := context.WithTimeout(context.Background(), c.option.HandshakeTimeout)
+	defer cancel()
+
+	// 构建HTTP请求
+	// building a http request
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, c.option.Addr, bytes.NewReader(packet))
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, v := range c.option.RequestHeader {
+		if k == "Host" {
+			r.Host = v[0]
+		}
 		r.Header[k] = v
 	}
 	r.Header.Set(internal.Connection.Key, internal.Connection.Val)
@@ -203,6 +305,54 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	return socket, resp, c.conn.SetDeadline(time.Time{})
 }
 
+// 执行 WebSocket 握手操作 WithPredefinedPacket 预定义包
+// Performs the WebSocket handshake operation with predefined packet
+func (c *connector) handshakeWithPacket(packet []byte) (*Conn, *http.Response, error) {
+	resp, br, err := c.requestWithPacket(packet)
+	if err != nil {
+		return nil, resp, err
+	}
+	if err = c.checkHeaders(resp); err != nil {
+		return nil, resp, err
+	}
+	subprotocol, err := c.getSubProtocol(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	var extensions = resp.Header.Get(internal.SecWebSocketExtensions.Key)
+	var pd = c.getPermessageDeflate(extensions)
+	socket := &Conn{
+		ss:                c.option.NewSession(),
+		isServer:          false,
+		subprotocol:       subprotocol,
+		pd:                pd,
+		conn:              c.conn,
+		config:            c.option.getConfig(),
+		br:                br,
+		continuationFrame: continuationFrame{},
+		fh:                frameHeader{},
+		handler:           c.eventHandler,
+		closed:            0,
+		deflater:          new(deflater),
+		writeQueue:        workerQueue{maxConcurrency: 1},
+		readQueue:         make(channel, c.option.ParallelGolimit),
+	}
+
+	// 压缩字典和解压字典内存开销比较大, 故使用懒加载
+	// Compressing and decompressing dictionaries has a large memory overhead, so use lazy loading.
+	if pd.Enabled {
+		socket.deflater.initialize(false, pd, c.option.ReadMaxPayloadSize)
+		if pd.ServerContextTakeover {
+			socket.dpsWindow.initialize(nil, pd.ServerMaxWindowBits)
+		}
+		if pd.ClientContextTakeover {
+			socket.cpsWindow.initialize(nil, pd.ClientMaxWindowBits)
+		}
+	}
+	return socket, resp, c.conn.SetDeadline(time.Time{})
+}
+
 // 从响应中获取子协议
 // Retrieves the subprotocol from the response
 func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
@@ -219,16 +369,16 @@ func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
 // Checks the response headers to verify if the handshake was successful
 func (c *connector) checkHeaders(resp *http.Response) error {
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		return ErrHandshake
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	if !internal.HttpHeaderContains(resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
-		return ErrHandshake
+		return fmt.Errorf("missing %s header", internal.Connection.Key)
 	}
 	if !strings.EqualFold(resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
-		return ErrHandshake
+		return fmt.Errorf("missing %s header", internal.Upgrade.Key)
 	}
 	if resp.Header.Get(internal.SecWebSocketAccept.Key) != internal.ComputeAcceptKey(c.secWebsocketKey) {
-		return ErrHandshake
+		return fmt.Errorf("invalid %s header", internal.SecWebSocketAccept.Key)
 	}
 	return nil
 }
