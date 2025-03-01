@@ -2,10 +2,12 @@ package gws
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -96,6 +98,9 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 		return nil, nil, err
 	}
 	for k, v := range c.option.RequestHeader {
+		if k == "Host" {
+			r.Host = v[0]
+		}
 		r.Header[k] = v
 	}
 	r.Header.Set(internal.Connection.Key, internal.Connection.Val)
@@ -219,16 +224,16 @@ func (c *connector) getSubProtocol(resp *http.Response) (string, error) {
 // Checks the response headers to verify if the handshake was successful
 func (c *connector) checkHeaders(resp *http.Response) error {
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		return ErrHandshake
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	if !internal.HttpHeaderContains(resp.Header.Get(internal.Connection.Key), internal.Connection.Val) {
-		return ErrHandshake
+		return fmt.Errorf("missing %s header", internal.Connection.Key)
 	}
 	if !strings.EqualFold(resp.Header.Get(internal.Upgrade.Key), internal.Upgrade.Val) {
-		return ErrHandshake
+		return fmt.Errorf("missing %s header", internal.Upgrade.Key)
 	}
 	if resp.Header.Get(internal.SecWebSocketAccept.Key) != internal.ComputeAcceptKey(c.secWebsocketKey) {
-		return ErrHandshake
+		return fmt.Errorf("invalid %s header", internal.SecWebSocketAccept.Key)
 	}
 	return nil
 }
