@@ -2,7 +2,6 @@ package gws
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -98,7 +97,7 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 		return nil, nil, err
 	}
 	for k, v := range c.option.RequestHeader {
-		if k == "Host" {
+		if k == "Host" && len(v) > 0 {
 			r.Host = v[0]
 		}
 		r.Header[k] = v
