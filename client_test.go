@@ -57,7 +57,11 @@ func TestNewClientFromConn(t *testing.T) {
 			as.NoError(err)
 			return
 		}
-		_, _, err = NewClientFromConn(BuiltinEventHandler{}, nil, conn)
+		_, _, err = NewClientFromConn(BuiltinEventHandler{}, &ClientOption{
+			RequestHeader: http.Header{
+				"Host": []string{"localhost"},
+			},
+		}, conn)
 		as.NoError(err)
 	})
 
