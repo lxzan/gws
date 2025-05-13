@@ -55,27 +55,27 @@ var (
 
 	// ErrUnauthorized 未通过鉴权认证
 	// Failure to pass forensic authentication
-	ErrUnauthorized = errors.New("unauthorized")
+	ErrUnauthorized = errors.New("gws: unauthorized")
 
 	// ErrHandshake 握手错误, 请求头未通过校验
 	// Handshake error, request header does not pass checksum.
-	ErrHandshake = errors.New("handshake error")
+	ErrHandshake = errors.New("gws: handshake error")
 
 	// ErrCompressionNegotiation 压缩拓展协商失败, 请尝试关闭压缩
 	// Compression extension negotiation failed, please try to disable compression.
-	ErrCompressionNegotiation = errors.New("invalid compression negotiation")
+	ErrCompressionNegotiation = errors.New("gws: invalid compression negotiation")
 
 	// ErrSubprotocolNegotiation 子协议协商失败
 	// Sub-protocol negotiation failed
-	ErrSubprotocolNegotiation = errors.New("sub-protocol negotiation failed")
+	ErrSubprotocolNegotiation = errors.New("gws: sub-protocol negotiation failed")
 
 	// ErrTextEncoding 文本消息编码错误(必须是utf8编码)
 	// Text message encoding error (must be utf8)
-	ErrTextEncoding = errors.New("invalid text encoding")
+	ErrTextEncoding = errors.New("gws: invalid text encoding")
 
 	// ErrMessageTooLarge 消息体积过大
 	// message is too large
-	ErrMessageTooLarge = errors.New("message too large")
+	ErrMessageTooLarge = errors.New("gws: message too large")
 
 	// ErrConnClosed 连接已关闭
 	// Connection closed
@@ -83,7 +83,7 @@ var (
 
 	// ErrUnsupportedProtocol 不支持的网络协议
 	// Unsupported network protocols
-	ErrUnsupportedProtocol = errors.New("unsupported protocol")
+	ErrUnsupportedProtocol = errors.New("gws: unsupported protocol")
 )
 
 type Event interface {

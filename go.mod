@@ -1,10 +1,10 @@
 module github.com/lxzan/gws
 
-go 1.18
+go 1.20
 
 require (
 	github.com/dolthub/maphash v0.1.0
-	github.com/klauspost/compress v1.17.5
+	github.com/klauspost/compress v1.17.9
 	github.com/stretchr/testify v1.8.4
 )
 
