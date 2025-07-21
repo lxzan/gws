@@ -414,6 +414,10 @@ type ClientOption struct {
 	// NewDialer: func() (proxy.Dialer, error) {
 	//     return proxy.SOCKS5("tcp", "127.0.0.1:1080", nil, nil)
 	// },
+	// or:
+	// NewDialer: func() (Dialer, error) {
+	//     return NewProxyConnectDialer(url, &net.Dialer{})
+	// }
 	NewDialer func() (Dialer, error)
 
 	// 创建 session 存储空间

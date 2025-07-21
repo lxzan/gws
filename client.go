@@ -16,14 +16,6 @@ import (
 	"github.com/lxzan/gws/internal"
 )
 
-// Dialer 拨号器接口
-// Dialer interface
-type Dialer interface {
-	// Dial 连接到指定网络上的地址
-	// Connects to the address on the named network
-	Dial(network, addr string) (c net.Conn, err error)
-}
-
 type connector struct {
 	option          *ClientOption
 	conn            net.Conn
