@@ -83,6 +83,7 @@ ok      github.com/lxzan/gws    17.231s
 	- [写入超时](#写入超时)
 	- [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
+- [生态](#生态)
 - [交流](#交流)
 - [赞赏](#赞赏)
 - [致谢](#致谢)
@@ -365,6 +366,10 @@ docker run -it --rm \
     crossbario/autobahn-testsuite \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
+
+### 生态
+
+- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - 自定义Dialer, 在CONNECT请求期间向代理服务器发送Headers
 
 ### 交流
 
