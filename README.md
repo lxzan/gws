@@ -93,6 +93,7 @@ ok      github.com/lxzan/gws    17.231s
 	- [WriteWithTimeout](#writewithtimeout)
 	- [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
+- [Ecosystem](#ecosystem)
 - [Communication](#communication)
 - [Buy me a coffee](#buy-me-a-coffee)
 - [Acknowledgments](#acknowledgments)
@@ -378,6 +379,10 @@ docker run -it --rm \
     crossbario/autobahn-testsuite \
     wstest -m fuzzingclient -s /config/fuzzingclient.json
 ```
+
+### Ecosystem
+
+- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - Custom dialer that sends headers to the proxy server during CONNECT requests.
 
 ### Communication
 
