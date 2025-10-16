@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -166,7 +167,10 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err != nil {
 		return nil, resp, err
 	}
-	if resp.StatusCode >= 300 && resp.StatusCode < 400 && c.option.redirectNum < 5 {
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		if c.option.redirectNum >= 5 {
+			return nil, nil, errors.New("too many redirects")
+		}
 		c.option.redirectNum++
 		c.option.Addr = resp.Header.Get("Location")
 		return NewClient(c.eventHandler, c.option)

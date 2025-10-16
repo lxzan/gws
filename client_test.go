@@ -422,3 +422,38 @@ func TestNewClient_WriteRequest(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestNewClientRedirect(t *testing.T) {
+	var addr = "127.0.0.1:" + nextPort()
+	var upgrader = NewUpgrader(&BuiltinEventHandler{}, nil)
+	http.HandleFunc("/ws", func(writer http.ResponseWriter, request *http.Request) {
+		socket, err := upgrader.Upgrade(writer, request)
+		if err != nil {
+			return
+		}
+		socket.ReadLoop()
+	})
+	http.HandleFunc("/redirect1", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Location", "ws://"+addr+"/ws")
+		writer.WriteHeader(http.StatusTemporaryRedirect)
+	})
+	http.HandleFunc("/redirect2", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Location", "ws://"+addr+"/redirect2")
+		writer.WriteHeader(http.StatusTemporaryRedirect)
+	})
+	go func() {
+		http.ListenAndServe(addr, nil)
+	}()
+
+	t.Run("", func(t *testing.T) {
+		var opt = &ClientOption{Addr: "ws://" + addr + "/redirect1"}
+		_, _, err := NewClient(&BuiltinEventHandler{}, opt)
+		assert.NoError(t, err)
+	})
+
+	t.Run("", func(t *testing.T) {
+		var opt = &ClientOption{Addr: "ws://" + addr + "/redirect2"}
+		_, _, err := NewClient(&BuiltinEventHandler{}, opt)
+		assert.Error(t, err)
+	})
+}
