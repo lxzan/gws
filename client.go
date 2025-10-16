@@ -166,6 +166,11 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 	if err != nil {
 		return nil, resp, err
 	}
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 && c.option.redirectNum < 5 {
+		c.option.redirectNum++
+		c.option.Addr = resp.Header.Get("Location")
+		return NewClient(c.eventHandler, c.option)
+	}
 	if err = c.checkHeaders(resp); err != nil {
 		return nil, resp, err
 	}
