@@ -87,6 +87,9 @@ type Conn struct {
 	// 压缩拓展配置
 	// Compression extension configuration
 	pd PermessageDeflate
+
+	// 用户自定义数据
+	Userdata any
 }
 
 // ReadLoop
