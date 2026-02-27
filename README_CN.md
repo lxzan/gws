@@ -3,7 +3,7 @@
 	<img src="assets/logo.png" alt="logo" width="300px">
 </div>
 
-<h3 align="center">简单, 快速, 可靠的 WebSocket 服务器和客户端</h3>
+<h3 align="center">简单 · 高性能 · 可靠 的 WebSocket 服务器与客户端库</h3>
 
 <div align="center">
 
@@ -19,24 +19,26 @@
 
 ### 介绍
 
-GWS（Go WebSocket）是一个用 Go 编写的非常简单、快速、可靠且功能丰富的 WebSocket 实现。它设计用于高并发环境，构建"接口", "代理", "游戏", "流媒体", "消息发布订阅"等服务。它提供非常简单的 API,
-您可以轻松编写自己的服务器或客户端。
+GWS（Go WebSocket）是一个使用 Go 编写的、**简单、高性能且功能完备**的 WebSocket 库。  
+它专为高并发场景设计，非常适合构建 **接口服务、长连接网关、代理、IM / 聊天室、游戏、实时流媒体、消息推送 / 订阅** 等系统。  
+GWS 提供了**极简的事件驱动 API**，你可以用极少的代码构建出稳定可靠的 WebSocket 服务器或客户端。
 
 ### 为什么选择 GWS
 
 - <font size=3>简单易用</font>
 
-  - **用户友好**: 简洁明了的 `WebSocket` 事件接口设计，让服务器和客户端的交互变得轻松简单.
-  - **编码效率**: 最大限度地减少实施复杂的解决方案所需的代码量.
+  - **事件友好**：基于 `Event` 接口的事件驱动模型，`OnOpen / OnMessage / OnClose / OnPing / OnPong` 一目了然。
+  - **编码效率高**：隐藏协议细节，最大限度减少业务代码量，上手几乎零成本。
 
 - <font size=3>性能出众</font>
 
-  - **高吞吐低延迟**: 专为快速传输和接收数据而设计，是时间敏感型应用的理想之选.
-  - **低内存占用**: 高度优化的内存复用系统, 最大限度降低内存使用量，降低您的成本.
+  - **高吞吐 / 低延迟**：针对 WebSocket 场景深度优化，在 Echo、长连接推送等场景下表现优秀。
+  - **低内存占用**：内建高效的 buffer 复用和压缩策略，在高并发场景下显著降低内存与 CPU 成本。
 
 - <font size=3>稳定可靠</font>
-  - **健壮的错误处理**: 管理和减少错误的先进机制，确保持续运行.
-  - **完善的测试用例**: 通过了所有 `Autobahn` 测试用例, 符合 `RFC 7692` 标准. 单元测试覆盖率几乎达到 100%, 覆盖所有条件分支.
+
+  - **健壮的错误处理**：对连接异常、协议错误、压缩异常等都提供清晰的处理路径。
+  - **测试完备**：通过全部 `Autobahn` 用例，兼容 `RFC 6455` / `RFC 7692`，单元测试覆盖率接近 100%，覆盖所有条件分支。
 
 ### 基准测试
 
@@ -90,19 +92,20 @@ ok      github.com/lxzan/gws    17.231s
 
 ### 特性
 
-- [x] 事件驱动式 API
-- [x] 广播
-- [x] 代理拨号
-- [x] 上下文接管 
-- [x] 大文件分段写入
-- [x] 支持并发和异步非阻塞写入
-- [x] 通过所有 Autobahn 测试用例 [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
+- [x] **事件驱动式 API**：基于 `Event` 接口，使用体验类似常见的 WebSocket SDK。
+- [x] **广播能力**：提供 `Broadcaster`，支持高效复用压缩结果进行大规模广播。
+- [x] **代理拨号**：支持自定义 `Dialer`，可与 SOCKS5 / HTTP 代理等一起使用。
+- [x] **上下文接管（permessage-deflate）**：支持按需配置上下文接管与滑动窗口大小。
+- [x] **大文件分段写入**：`WriteFile` 采用分段策略，减少大文件写入时的峰值内存。
+- [x] **并发与异步写入**：内置任务队列，支持异步写、多切片写 `Writev` / `WritevAsync`。
+- [x] **标准兼容性强**：通过所有 Autobahn 用例  
+  [Server 报告](https://lxzan.github.io/gws/reports/servers/) / [Client 报告](https://lxzan.github.io/gws/reports/clients/)
 
 ### 注意
 
-- 所有 gws.Conn 导出方法返回的错误都是可忽略的, 它们在内部已经被妥善处理了
-- 传输大文件有阻塞连接的风险
-- 如果复用 HTTP 服务器, 建议开启新的 Goroutine 来调用 ReadLoop, 以避免请求上下文内存不能及时回收.
+- 所有 `gws.Conn` 的导出方法返回的错误**在多数业务场景下可忽略**：库内部已经根据错误类型做了适当处理（例如关闭连接、上报事件等）。
+- 传输**超大文件**时，底层连接在传输过程中可能会长时间占用带宽与 IO，需结合业务做限流或切分。
+- 如果复用 `net/http` 服务器（例如 `http.HandleFunc` 中升级），强烈建议在 **新的 Goroutine** 中调用 `ReadLoop`，避免请求上下文无法及时 GC。
 
 ### 安装
 
