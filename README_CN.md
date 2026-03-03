@@ -19,8 +19,8 @@
 
 ### 介绍
 
-GWS（Go WebSocket）是一个使用 Go 编写的、**简单、高性能且功能完备**的 WebSocket 库。  
-它专为高并发场景设计，非常适合构建 **接口服务、长连接网关、代理、IM / 聊天室、游戏、实时流媒体、消息推送 / 订阅** 等系统。  
+GWS（Go WebSocket）是一个使用 Go 编写的、**简单、高性能且功能完备**的 WebSocket 库。
+它专为高并发场景设计，非常适合构建 **接口服务、长连接网关、代理、IM / 聊天室、游戏、实时流媒体、消息推送 / 订阅** 等系统。
 GWS 提供了**极简的事件驱动 API**，你可以用极少的代码构建出稳定可靠的 WebSocket 服务器或客户端。
 
 ### 为什么选择 GWS
@@ -98,7 +98,7 @@ ok      github.com/lxzan/gws    17.231s
 - [x] **上下文接管（permessage-deflate）**：支持按需配置上下文接管与滑动窗口大小。
 - [x] **大文件分段写入**：`WriteFile` 采用分段策略，减少大文件写入时的峰值内存。
 - [x] **并发与异步写入**：内置任务队列，支持异步写、多切片写 `Writev` / `WritevAsync`。
-- [x] **标准兼容性强**：通过所有 Autobahn 用例  
+- [x] **标准兼容性强**：通过所有 Autobahn 用例
   [Server 报告](https://lxzan.github.io/gws/reports/servers/) / [Client 报告](https://lxzan.github.io/gws/reports/clients/)
 
 ### 注意
@@ -372,7 +372,7 @@ docker run -it --rm \
 
 ### 生态
 
-- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - 自定义Dialer, 在CONNECT请求期间向代理服务器发送Headers
+- [proxy-connect-dialer-go](https://github.com/elastic/proxy-connect-dialer-go) - 自定义Dialer, 在CONNECT请求期间向代理服务器发送Headers
 
 ### 交流
 
