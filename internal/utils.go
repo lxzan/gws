@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
-	"encoding/binary"
 	"net"
 	"net/url"
 	"reflect"
@@ -81,44 +80,6 @@ func FnvNumber[T Integer](x T) uint64 {
 	h *= prime64
 	h ^= uint64(x)
 	return h
-}
-
-// MaskXOR 计算掩码
-func MaskXOR(b []byte, key []byte) {
-	var maskKey = binary.LittleEndian.Uint32(key)
-	var key64 = uint64(maskKey)<<32 + uint64(maskKey)
-
-	for len(b) >= 64 {
-		v := binary.LittleEndian.Uint64(b)
-		binary.LittleEndian.PutUint64(b, v^key64)
-		v = binary.LittleEndian.Uint64(b[8:16])
-		binary.LittleEndian.PutUint64(b[8:16], v^key64)
-		v = binary.LittleEndian.Uint64(b[16:24])
-		binary.LittleEndian.PutUint64(b[16:24], v^key64)
-		v = binary.LittleEndian.Uint64(b[24:32])
-		binary.LittleEndian.PutUint64(b[24:32], v^key64)
-		v = binary.LittleEndian.Uint64(b[32:40])
-		binary.LittleEndian.PutUint64(b[32:40], v^key64)
-		v = binary.LittleEndian.Uint64(b[40:48])
-		binary.LittleEndian.PutUint64(b[40:48], v^key64)
-		v = binary.LittleEndian.Uint64(b[48:56])
-		binary.LittleEndian.PutUint64(b[48:56], v^key64)
-		v = binary.LittleEndian.Uint64(b[56:64])
-		binary.LittleEndian.PutUint64(b[56:64], v^key64)
-		b = b[64:]
-	}
-
-	for len(b) >= 8 {
-		v := binary.LittleEndian.Uint64(b[:8])
-		binary.LittleEndian.PutUint64(b[:8], v^key64)
-		b = b[8:]
-	}
-
-	var n = len(b)
-	for i := 0; i < n; i++ {
-		idx := i & 3
-		b[i] ^= key[idx]
-	}
 }
 
 // InCollection 检查给定的字符串 elem 是否在字符串切片 elems 中
