@@ -5,7 +5,7 @@
 	<img src="assets/logo.png" alt="logo" width="300px">
 </div>
 
-<h3 align="center">Simple, Fast, Reliable WebSocket Server & Client</h3>
+<h3 align="center">Simple · High Performance · Reliable WebSocket Server & Client Library</h3>
 
 <div align="center">
 
@@ -21,32 +21,28 @@
 
 ### Introduction
 
-GWS (Go WebSocket) is a very simple, fast, reliable and feature-rich WebSocket implementation written in Go. It is
-designed to be used in highly-concurrent environments, and it is suitable for
-building `API`, `Proxy`, `Game`, `Live Video`, `Message`, etc. It supports both server and client side with a simple API
-which mean you can easily write a server or client by yourself.
+GWS (Go WebSocket) is a **simple, high‑performance and feature‑complete** WebSocket library written in Go.
+It is designed for **high‑concurrency** scenarios and is ideal for building **API gateways, long‑lived connection hubs, reverse proxies, IM / chat, online games, real‑time streaming, and push / subscribe systems**.
+GWS exposes an extremely **minimal, event‑driven API**, so you can build a stable WebSocket server or client with very little code.
 
-GWS developed base on Event-Driven model. every connection has a goroutine to handle the event, and the event is able
-to be processed in a non-blocking way.
+GWS is built on an event‑driven model: every connection has its own goroutine to drive the event loop, and events can be processed in a non‑blocking way.
 
 ### Why GWS
 
-- <font size=3>Simplicity and Ease of Use</font>
+- <font size=3>Simplicity & Developer Experience</font>
 
-    - **User-Friendly**: Simple and clear `WebSocket` Event API design makes server-client interaction easy.
-    - **Code Efficiency**: Minimizes the amount of code needed to implement complex WebSocket solutions.
+    - **Event‑driven & intuitive**: The `Event` interface (`OnOpen / OnMessage / OnClose / OnPing / OnPong`) mirrors how you think about WebSocket lifecycles.
+    - **High coding efficiency**: Protocol details are hidden behind a small, clear API, so you can focus almost entirely on business logic.
 
-- <font size=3>High-Performance</font>
+- <font size=3>High Performance</font>
 
-    - **High IOPS Low Latency**: Designed for rapid data transmission and reception, ideal for time-sensitive
-      applications.
-    - **Low Memory Usage**: Highly optimized memory multiplexing system to minimize memory usage and reduce your cost of
-      ownership.
+    - **High throughput & low latency**: Carefully tuned for WebSocket workloads such as echo servers and long‑lived push streams, making it a great fit for latency‑sensitive applications.
+    - **Low memory footprint**: Aggressive buffer reuse and compression strategies significantly reduce memory and CPU cost under heavy concurrency.
 
-- <font size=3>Reliability and Stability</font>
-    - **Robust Error Handling**: Advanced mechanisms to manage and mitigate errors, ensuring continuous operation.
-    - **Well-Developed Test Cases**: Passed all `Autobahn` test cases, fully compliant with `RFC 7692`. Unit test
-      coverage is almost 100%, covering all conditional branches.
+- <font size=3>Reliability & Standards Compliance</font>
+
+    - **Robust error handling**: Clear, well‑defined behaviors for connection errors, protocol violations, compression failures, etc.
+    - **Battle‑tested**: Passes all `Autobahn` test cases and is compliant with `RFC 6455` / `RFC 7692`. Unit tests cover almost all conditional branches.
 
 ### Benchmark
 
@@ -67,7 +63,7 @@ cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
 BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
 BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
 BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op 
+BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op
 PASS
 ok      github.com/lxzan/gws    17.231s
 ```
@@ -100,19 +96,20 @@ ok      github.com/lxzan/gws    17.231s
 
 ### Feature
 
-- [x] Event API
-- [x] Broadcast
-- [x] Dial via Proxy
-- [x] Context-Takeover 
-- [x] Concurrent & Asynchronous Non-Blocking Write
-- [x] Segmented Writing of Large Files
-- [x] Passed Autobahn Test Cases [Server](https://lxzan.github.io/gws/reports/servers/) / [Client](https://lxzan.github.io/gws/reports/clients/)
+- [x] **Event‑driven API** based on the `Event` interface, similar to common WebSocket SDKs.
+- [x] **Broadcast support** via `Broadcaster`, which reuses compressed frames for efficient fan‑out.
+- [x] **Dial via proxy** using a customizable `Dialer` (e.g. SOCKS5 / HTTP proxy).
+- [x] **Context‑takeover (permessage‑deflate)** with configurable sliding window sizes.
+- [x] **Segmented writing of large files** with `WriteFile` to reduce peak memory during large transfers.
+- [x] **Concurrent & asynchronous non‑blocking write** with built‑in task queues and `Writev` / `WritevAsync`.
+- [x] **Strong standards compatibility**, passing all Autobahn test cases
+  [Server report](https://lxzan.github.io/gws/reports/servers/) / [Client report](https://lxzan.github.io/gws/reports/clients/)
 
 ### Attention
 
-- The errors returned by the gws.Conn export methods are ignorable, and are handled internally.
-- Transferring large files with gws tends to block the connection.
-- If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
+- For most business use‑cases, errors returned by exported methods on `gws.Conn` can be treated as **informational**: the library has already taken appropriate action internally (e.g. closing the connection, emitting events).
+- When transferring **very large files**, a single connection may occupy bandwidth and I/O for a long time; you may want throttling, sharding or other flow‑control at the business layer.
+- If you reuse `net/http` (e.g. call `Upgrade` inside an HTTP handler), always call `ReadLoop` inside a **separate goroutine**, otherwise blocking will prevent the request context from being garbage‑collected in time.
 
 ### Install
 
@@ -382,7 +379,7 @@ docker run -it --rm \
 
 ### Ecosystem
 
-- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - Custom dialer that sends headers to the proxy server during CONNECT requests.
+- [proxy-connect-dialer-go](https://github.com/elastic/proxy-connect-dialer-go) - Custom dialer that sends headers to the proxy server during CONNECT requests.
 
 ### Communication
 

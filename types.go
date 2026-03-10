@@ -114,14 +114,24 @@ type Event interface {
 
 type BuiltinEventHandler struct{}
 
+// OnOpen 默认连接建立事件回调
+// Default callback when a WebSocket connection is established
 func (b BuiltinEventHandler) OnOpen(socket *Conn) {}
 
+// OnClose 默认连接关闭事件回调
+// Default callback when a WebSocket connection is closed
 func (b BuiltinEventHandler) OnClose(socket *Conn, err error) {}
 
+// OnPing 默认心跳探测事件回调, 自动回复 Pong 帧
+// Default callback when a ping frame is received, automatically replies with a pong frame
 func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) { _ = socket.WritePong(nil) }
 
+// OnPong 默认心跳响应事件回调
+// Default callback when a pong frame is received
 func (b BuiltinEventHandler) OnPong(socket *Conn, payload []byte) {}
 
+// OnMessage 默认消息事件回调
+// Default callback when a text/binary message is received
 func (b BuiltinEventHandler) OnMessage(socket *Conn, message *Message) {}
 
 type frameHeader [frameHeaderSize]byte
