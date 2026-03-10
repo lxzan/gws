@@ -351,6 +351,8 @@ func (c *ServerOption) getConfig() *Config { return c.config }
 // ClientOption 客户端配置
 // Client configurations
 type ClientOption struct {
+	redirectNum int
+
 	// 写缓冲区的大小, v1.4.5版本此参数被废弃
 	// Deprecated: Size of the write buffer, v1.4.5 version of this parameter is deprecated
 	WriteBufferSize int
