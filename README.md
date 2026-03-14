@@ -16,6 +16,7 @@
 [![HelloGithub](https://api.hellogithub.com/v1/widgets/recommend.svg?rid=268cee8eb54b4a7189d38fb12f165177&claim_uid=TeObZoJ8pgUvBWf&theme=small)](https://hellogithub.com/repository/268cee8eb54b4a7189d38fb12f165177)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lxzan/gws)
 
 </div>
 
@@ -70,8 +71,6 @@ ok      github.com/lxzan/gws    17.231s
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-    - [IOPS (Echo Server)](#iops-echo-server)
-    - [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -80,11 +79,6 @@ ok      github.com/lxzan/gws    17.231s
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-    - [KCP](#kcp)
-    - [Proxy](#proxy)
-    - [Broadcast](#broadcast)
-    - [WriteWithTimeout](#writewithtimeout)
-    - [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Ecosystem](#ecosystem)
 - [Communication](#communication)

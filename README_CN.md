@@ -14,6 +14,7 @@
 [![HelloGithub](https://api.hellogithub.com/v1/widgets/recommend.svg?rid=268cee8eb54b4a7189d38fb12f165177&claim_uid=TeObZoJ8pgUvBWf&theme=small)](https://hellogithub.com/repository/268cee8eb54b4a7189d38fb12f165177)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lxzan/gws)
 
 </div>
 
@@ -66,8 +67,6 @@ ok      github.com/lxzan/gws    17.231s
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-    - [IOPS (Echo Server)](#iops-echo-server)
-    - [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -76,11 +75,6 @@ ok      github.com/lxzan/gws    17.231s
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-    - [KCP](#kcp)
-    - [代理](#代理)
-    - [广播](#广播)
-    - [写入超时](#写入超时)
-    - [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [生态](#生态)
 - [交流](#交流)
