@@ -64,7 +64,7 @@ func (c *Conn) WriteString(s string) error {
 // 写入文本/二进制消息, 文本消息应该使用UTF8编码
 // Writes text/binary messages, text messages should be encoded in UTF8.
 func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
-	err := c.doWrite(opcode, internal.Bytes(payload))
+	err := c.doWriteBytes(opcode, payload)
 	c.emitError(false, err)
 	return err
 }
@@ -139,6 +139,31 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 	return err
 }
 
+// 执行写入逻辑（[]byte 快路径），避免 interface 装箱开销
+// Executes write logic with []byte fast path, avoiding interface boxing overhead.
+func (c *Conn) doWriteBytes(opcode Opcode, payload []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if opcode != OpcodeCloseConnection && c.isClosed() {
+		return ErrConnClosed
+	}
+
+	frame, err := c.genFrameBytes(opcode, payload, frameConfig{
+		fin:           true,
+		compress:      c.pd.Enabled,
+		broadcast:     false,
+		checkEncoding: c.config.CheckUtf8Enabled,
+	})
+	if err != nil {
+		return err
+	}
+	err = internal.WriteN(c.conn, frame.Bytes())
+	_, _ = c.cpsWindow.Write(payload)
+	binaryPool.Put(frame)
+	return err
+}
+
 // WebSocket帧配置, 用于重写连接里面的配置, 以适配各种场景
 // WebSocket frame configuration, used to rewrite the configuration inside the connection, to adapt to various scenarios
 type frameConfig struct {
@@ -178,11 +203,46 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, cfg frameConfig
 	}
 
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, cfg.fin, false, opcode, n)
+	var maskKey [4]byte
+	headerLength := header.GenerateHeaderFast(c.isServer, cfg.fin, false, opcode, n, &maskKey)
 	_, _ = payload.WriteTo(buf)
 	var contents = buf.Bytes()
 	if !c.isServer {
-		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
+		internal.MaskXOR(contents[frameHeaderSize:], maskKey[:])
+	}
+	var m = frameHeaderSize - headerLength
+	copy(contents[m:], header[:headerLength])
+	buf.Next(m)
+	return buf, nil
+}
+
+// 生成帧数据（[]byte 快路径）
+// Generates frame data with []byte fast path.
+func (c *Conn) genFrameBytes(opcode Opcode, payload []byte, cfg frameConfig) (*bytes.Buffer, error) {
+	var n = len(payload)
+	if opcode == OpcodeText && !internal.CheckEncoding(cfg.checkEncoding, uint8(opcode), payload) {
+		return nil, ErrTextEncoding
+	}
+	if n > c.config.WriteMaxPayloadSize {
+		return nil, ErrMessageTooLarge
+	}
+
+	var buf = binaryPool.Get(n + frameHeaderSize)
+	buf.Write(framePadding[0:])
+
+	if cfg.compress && opcode.isDataFrame() && n >= c.pd.Threshold {
+		return c.compressDataBytes(opcode, payload, buf, cfg)
+	}
+
+	var header = frameHeader{}
+	var maskKey [4]byte
+	headerLength := header.GenerateHeaderFast(c.isServer, cfg.fin, false, opcode, n, &maskKey)
+	if n > 0 {
+		buf.Write(payload)
+	}
+	var contents = buf.Bytes()
+	if !c.isServer {
+		internal.MaskXOR(contents[frameHeaderSize:], maskKey[:])
 	}
 	var m = frameHeaderSize - headerLength
 	copy(contents[m:], header[:headerLength])
@@ -203,9 +263,34 @@ func (c *Conn) compressData(opcode Opcode, payload internal.Payload, buf *bytes.
 	var contents = buf.Bytes()
 	var payloadSize = buf.Len() - frameHeaderSize
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, cfg.fin, true, opcode, payloadSize)
+	var maskKey [4]byte
+	headerLength := header.GenerateHeaderFast(c.isServer, cfg.fin, true, opcode, payloadSize, &maskKey)
 	if !c.isServer {
-		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)
+		internal.MaskXOR(contents[frameHeaderSize:], maskKey[:])
+	}
+	var m = frameHeaderSize - headerLength
+	copy(contents[m:], header[:headerLength])
+	buf.Next(m)
+	return buf, nil
+}
+
+// 压缩字节切片并生成帧
+// Compress bytes payload and generate frame.
+func (c *Conn) compressDataBytes(opcode Opcode, payload []byte, buf *bytes.Buffer, cfg frameConfig) (*bytes.Buffer, error) {
+	// 广播模式必须保证每一帧都是相同的内容, 所以不能使用字典优化压缩率
+	// Broadcast mode must ensure that every frame is the same, so you can't use a dictionary to optimize the compression rate.
+	var dict = internal.SelectValue(cfg.broadcast, nil, c.cpsWindow.dict)
+	if err := c.deflater.CompressBytes(payload, buf, dict); err != nil {
+		return nil, err
+	}
+
+	var contents = buf.Bytes()
+	var payloadSize = buf.Len() - frameHeaderSize
+	var header = frameHeader{}
+	var maskKey [4]byte
+	headerLength := header.GenerateHeaderFast(c.isServer, cfg.fin, true, opcode, payloadSize, &maskKey)
+	if !c.isServer {
+		internal.MaskXOR(contents[frameHeaderSize:], maskKey[:])
 	}
 	var m = frameHeaderSize - headerLength
 	copy(contents[m:], header[:headerLength])

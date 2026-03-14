@@ -168,6 +168,7 @@ func (c *flateWriter) write(p []byte) {
 }
 
 func (c *flateWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
 	c.write(p)
 	if c.shouldCall() {
 		err = c.cb(c.index, false, c.buffers[0].Bytes())

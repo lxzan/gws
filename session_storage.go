@@ -141,9 +141,9 @@ func (c *ConcurrentMap[K, V]) GetSharding(key K) *Map[K, V] {
 func (c *ConcurrentMap[K, V]) Len() int {
 	var length = 0
 	for _, b := range c.shardings {
-		b.Lock()
-		length += b.Len()
-		b.Unlock()
+		b.RLock()
+		length += len(b.m)
+		b.RUnlock()
 	}
 	return length
 }
@@ -154,9 +154,9 @@ func (c *ConcurrentMap[K, V]) Len() int {
 // The ok result indicates whether the value was found in the map
 func (c *ConcurrentMap[K, V]) Load(key K) (value V, ok bool) {
 	var b = c.GetSharding(key)
-	b.Lock()
-	value, ok = b.Load(key)
-	b.Unlock()
+	b.RLock()
+	value, ok = b.m[key]
+	b.RUnlock()
 	return
 }
 
@@ -165,7 +165,7 @@ func (c *ConcurrentMap[K, V]) Load(key K) (value V, ok bool) {
 func (c *ConcurrentMap[K, V]) Delete(key K) {
 	var b = c.GetSharding(key)
 	b.Lock()
-	b.Delete(key)
+	delete(b.m, key)
 	b.Unlock()
 }
 
@@ -174,7 +174,7 @@ func (c *ConcurrentMap[K, V]) Delete(key K) {
 func (c *ConcurrentMap[K, V]) Store(key K, value V) {
 	var b = c.GetSharding(key)
 	b.Lock()
-	b.Store(key, value)
+	b.m[key] = value
 	b.Unlock()
 }
 
@@ -182,23 +182,27 @@ func (c *ConcurrentMap[K, V]) Store(key K, value V) {
 // 如果 f 返回 false，遍历停止
 // If f returns false, range stops the iteration
 func (c *ConcurrentMap[K, V]) Range(f func(key K, value V) bool) {
-	var next = true
-	var cb = func(k K, v V) bool {
-		next = f(k, v)
-		return next
-	}
-	for i := uint64(0); i < c.num && next; i++ {
+	for i := uint64(0); i < c.num; i++ {
 		var b = c.shardings[i]
-		b.Lock()
-		b.Range(cb)
-		b.Unlock()
+		b.RLock()
+		var next = true
+		for k, v := range b.m {
+			if !f(k, v) {
+				next = false
+				break
+			}
+		}
+		b.RUnlock()
+		if !next {
+			return
+		}
 	}
 }
 
 // Map 线程安全的泛型映射类型.
 // thread-safe generic map type.
 type Map[K comparable, V any] struct {
-	sync.Mutex
+	sync.RWMutex
 	m map[K]V
 }
 

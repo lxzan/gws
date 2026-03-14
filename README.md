@@ -16,13 +16,14 @@
 [![HelloGithub](https://api.hellogithub.com/v1/widgets/recommend.svg?rid=268cee8eb54b4a7189d38fb12f165177&claim_uid=TeObZoJ8pgUvBWf&theme=small)](https://hellogithub.com/repository/268cee8eb54b4a7189d38fb12f165177)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![go-version](https://img.shields.io/badge/go-%3E%3D1.18-30dff3?style=flat-square&logo=go)](https://github.com/lxzan/gws)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lxzan/gws)
 
 </div>
 
 ### Introduction
 
-GWS (Go WebSocket) is a **simple, high‑performance and feature‑complete** WebSocket library written in Go.  
-It is designed for **high‑concurrency** scenarios and is ideal for building **API gateways, long‑lived connection hubs, reverse proxies, IM / chat, online games, real‑time streaming, and push / subscribe systems**.  
+GWS (Go WebSocket) is a **simple, high‑performance and feature‑complete** WebSocket library written in Go.
+It is designed for **high‑concurrency** scenarios and is ideal for building **API gateways, long‑lived connection hubs, reverse proxies, IM / chat, online games, real‑time streaming, and push / subscribe systems**.
 GWS exposes an extremely **minimal, event‑driven API**, so you can build a stable WebSocket server or client with very little code.
 
 GWS is built on an event‑driven model: every connection has its own goroutine to drive the event loop, and events can be processed in a non‑blocking way.
@@ -30,17 +31,14 @@ GWS is built on an event‑driven model: every connection has its own goroutine 
 ### Why GWS
 
 - <font size=3>Simplicity & Developer Experience</font>
-
     - **Event‑driven & intuitive**: The `Event` interface (`OnOpen / OnMessage / OnClose / OnPing / OnPong`) mirrors how you think about WebSocket lifecycles.
     - **High coding efficiency**: Protocol details are hidden behind a small, clear API, so you can focus almost entirely on business logic.
 
 - <font size=3>High Performance</font>
-
     - **High throughput & low latency**: Carefully tuned for WebSocket workloads such as echo servers and long‑lived push streams, making it a great fit for latency‑sensitive applications.
     - **Low memory footprint**: Aggressive buffer reuse and compression strategies significantly reduce memory and CPU cost under heavy concurrency.
 
 - <font size=3>Reliability & Standards Compliance</font>
-
     - **Robust error handling**: Clear, well‑defined behaviors for connection errors, protocol violations, compression failures, etc.
     - **Battle‑tested**: Passes all `Autobahn` test cases and is compliant with `RFC 6455` / `RFC 7692`. Unit tests cover almost all conditional branches.
 
@@ -63,7 +61,7 @@ cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
 BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
 BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
 BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op 
+BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op
 PASS
 ok      github.com/lxzan/gws    17.231s
 ```
@@ -73,8 +71,6 @@ ok      github.com/lxzan/gws    17.231s
 - [Introduction](#introduction)
 - [Why GWS](#why-gws)
 - [Benchmark](#benchmark)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
 - [Index](#index)
 - [Feature](#feature)
 - [Attention](#attention)
@@ -83,11 +79,6 @@ ok      github.com/lxzan/gws    17.231s
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
-	- [KCP](#kcp)
-	- [Proxy](#proxy)
-	- [Broadcast](#broadcast)
-	- [WriteWithTimeout](#writewithtimeout)
-	- [Pub / Sub](#pub--sub)
 - [Autobahn Test](#autobahn-test)
 - [Ecosystem](#ecosystem)
 - [Communication](#communication)
@@ -102,8 +93,8 @@ ok      github.com/lxzan/gws    17.231s
 - [x] **Context‑takeover (permessage‑deflate)** with configurable sliding window sizes.
 - [x] **Segmented writing of large files** with `WriteFile` to reduce peak memory during large transfers.
 - [x] **Concurrent & asynchronous non‑blocking write** with built‑in task queues and `Writev` / `WritevAsync`.
-- [x] **Strong standards compatibility**, passing all Autobahn test cases  
-  [Server report](https://lxzan.github.io/gws/reports/servers/) / [Client report](https://lxzan.github.io/gws/reports/clients/)
+- [x] **Strong standards compatibility**, passing all Autobahn test cases
+      [Server report](https://lxzan.github.io/gws/reports/servers/) / [Client report](https://lxzan.github.io/gws/reports/clients/)
 
 ### Attention
 
@@ -379,7 +370,7 @@ docker run -it --rm \
 
 ### Ecosystem
 
-- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - Custom dialer that sends headers to the proxy server during CONNECT requests.
+- [proxy-connect-dialer-go](https://github.com/elastic/proxy-connect-dialer-go) - Custom dialer that sends headers to the proxy server during CONNECT requests.
 
 ### Communication
 
