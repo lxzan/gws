@@ -47,6 +47,7 @@ type deflater struct {
 	limit     int
 	dpsBuffer *bytes.Buffer
 	dpsReader io.ReadCloser
+	dpsLimit  limitedReader
 	cpsLocker sync.Mutex
 	cpsWriter *flate.Writer
 }
@@ -86,8 +87,8 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 
 	_, _ = src.Write(flateTail)
 	c.resetFR(src, dict)
-	reader := limitReader(c.dpsReader, c.limit)
-	if _, err := io.CopyBuffer(c.dpsBuffer, reader, c.buf); err != nil {
+	c.dpsLimit.Reset(c.dpsReader, c.limit)
+	if _, err := io.CopyBuffer(c.dpsBuffer, &c.dpsLimit, c.buf); err != nil {
 		return nil, err
 	}
 	var dst = binaryPool.Get(c.dpsBuffer.Len())
@@ -101,6 +102,28 @@ func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
 	if err := compressTo(c.cpsWriter, src, dst, dict); err != nil {
+		return err
+	}
+	if n := dst.Len(); n >= 4 {
+		if tail := dst.Bytes()[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
+			dst.Truncate(n - 4)
+		}
+	}
+	return nil
+}
+
+// CompressBytes 压缩字节切片
+// Compress bytes payload.
+func (c *deflater) CompressBytes(src []byte, dst *bytes.Buffer, dict []byte) error {
+	c.cpsLocker.Lock()
+	defer c.cpsLocker.Unlock()
+	c.cpsWriter.ResetDict(dst, dict)
+	if len(src) > 0 {
+		if _, err := c.cpsWriter.Write(src); err != nil {
+			return err
+		}
+	}
+	if err := c.cpsWriter.Flush(); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
@@ -252,14 +275,18 @@ func permessageNegotiation(str string) PermessageDeflate {
 	return options
 }
 
-// 限制从io.Reader中最多读取m个字节
-// Limit reading up to m bytes from io.Reader
-func limitReader(r io.Reader, m int) io.Reader { return &limitedReader{R: r, M: m} }
-
 type limitedReader struct {
 	R io.Reader
 	N int
 	M int
+}
+
+// 重置读取限制器
+// Reset reader limiter
+func (c *limitedReader) Reset(r io.Reader, m int) {
+	c.R = r
+	c.N = 0
+	c.M = m
 }
 
 func (c *limitedReader) Read(p []byte) (n int, err error) {

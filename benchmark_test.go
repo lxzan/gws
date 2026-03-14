@@ -189,6 +189,57 @@ func BenchmarkKlauspostDeCompress(b *testing.B) {
 	}
 }
 
+func BenchmarkDeflater_Decompress(b *testing.B) {
+	option := PermessageDeflate{
+		Enabled:               true,
+		Level:                 flate.BestSpeed,
+		Threshold:             1,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+		ServerMaxWindowBits:   15,
+		ClientMaxWindowBits:   15,
+	}
+	d := new(deflater).initialize(true, option, defaultReadMaxPayloadSize)
+	compressed := bytes.NewBuffer(make([]byte, 0, len(githubData)))
+	if err := d.Compress(internal.Bytes(githubData), compressed, nil); err != nil {
+		b.Fatal(err)
+	}
+
+	srcPayload := compressed.Bytes()
+	src := bytes.NewBuffer(make([]byte, 0, len(srcPayload)+len(flateTail)))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		src.Reset()
+		_, _ = src.Write(srcPayload)
+		dst, err := d.Decompress(src, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+		binaryPool.Put(dst)
+	}
+}
+
+func BenchmarkFlateWriter_WriteAndFlush(b *testing.B) {
+	payload := internal.AlphabetNumeric.Generate(4 * 1024)
+	cb := func(index int, eof bool, p []byte) error { return nil }
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fw := &flateWriter{cb: cb}
+		for j := 0; j < 8; j++ {
+			if _, err := fw.Write(payload); err != nil {
+				b.Fatal(err)
+			}
+		}
+		if err := fw.Flush(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkMask(b *testing.B) {
 	var s1 = internal.AlphabetNumeric.Generate(1280)
 	var s2 = s1

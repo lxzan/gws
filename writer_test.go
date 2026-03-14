@@ -849,4 +849,17 @@ func TestConn_WriteFile(t *testing.T) {
 		var err = fw.Flush()
 		assert.NoError(t, err)
 	})
+
+	t.Run("flateWriter Write return len", func(t *testing.T) {
+		var fw = &flateWriter{
+			cb: func(index int, eof bool, p []byte) error {
+				return nil
+			},
+		}
+		var payload = []byte("hello")
+		n, err := fw.Write(payload)
+		assert.NoError(t, err)
+		assert.Equal(t, len(payload), n)
+		assert.NoError(t, fw.Flush())
+	})
 }

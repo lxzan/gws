@@ -19,26 +19,23 @@
 
 ### 介绍
 
-GWS（Go WebSocket）是一个使用 Go 编写的、**简单、高性能且功能完备**的 WebSocket 库。  
-它专为高并发场景设计，非常适合构建 **接口服务、长连接网关、代理、IM / 聊天室、游戏、实时流媒体、消息推送 / 订阅** 等系统。  
+GWS（Go WebSocket）是一个使用 Go 编写的、**简单、高性能且功能完备**的 WebSocket 库。
+它专为高并发场景设计，非常适合构建 **接口服务、长连接网关、代理、IM / 聊天室、游戏、实时流媒体、消息推送 / 订阅** 等系统。
 GWS 提供了**极简的事件驱动 API**，你可以用极少的代码构建出稳定可靠的 WebSocket 服务器或客户端。
 
 ### 为什么选择 GWS
 
 - <font size=3>简单易用</font>
-
-  - **事件友好**：基于 `Event` 接口的事件驱动模型，`OnOpen / OnMessage / OnClose / OnPing / OnPong` 一目了然。
-  - **编码效率高**：隐藏协议细节，最大限度减少业务代码量，上手几乎零成本。
+    - **事件友好**：基于 `Event` 接口的事件驱动模型，`OnOpen / OnMessage / OnClose / OnPing / OnPong` 一目了然。
+    - **编码效率高**：隐藏协议细节，最大限度减少业务代码量，上手几乎零成本。
 
 - <font size=3>性能出众</font>
-
-  - **高吞吐 / 低延迟**：针对 WebSocket 场景深度优化，在 Echo、长连接推送等场景下表现优秀。
-  - **低内存占用**：内建高效的 buffer 复用和压缩策略，在高并发场景下显著降低内存与 CPU 成本。
+    - **高吞吐 / 低延迟**：针对 WebSocket 场景深度优化，在 Echo、长连接推送等场景下表现优秀。
+    - **低内存占用**：内建高效的 buffer 复用和压缩策略，在高并发场景下显著降低内存与 CPU 成本。
 
 - <font size=3>稳定可靠</font>
-
-  - **健壮的错误处理**：对连接异常、协议错误、压缩异常等都提供清晰的处理路径。
-  - **测试完备**：通过全部 `Autobahn` 用例，兼容 `RFC 6455` / `RFC 7692`，单元测试覆盖率接近 100%，覆盖所有条件分支。
+    - **健壮的错误处理**：对连接异常、协议错误、压缩异常等都提供清晰的处理路径。
+    - **测试完备**：通过全部 `Autobahn` 用例，兼容 `RFC 6455` / `RFC 7692`，单元测试覆盖率接近 100%，覆盖所有条件分支。
 
 ### 基准测试
 
@@ -69,8 +66,8 @@ ok      github.com/lxzan/gws    17.231s
 - [介绍](#介绍)
 - [为什么选择 GWS](#为什么选择-gws)
 - [基准测试](#基准测试)
-	- [IOPS (Echo Server)](#iops-echo-server)
-	- [GoBench](#gobench)
+    - [IOPS (Echo Server)](#iops-echo-server)
+    - [GoBench](#gobench)
 - [Index](#index)
 - [特性](#特性)
 - [注意](#注意)
@@ -79,11 +76,11 @@ ok      github.com/lxzan/gws    17.231s
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
-	- [KCP](#kcp)
-	- [代理](#代理)
-	- [广播](#广播)
-	- [写入超时](#写入超时)
-	- [发布/订阅](#发布订阅)
+    - [KCP](#kcp)
+    - [代理](#代理)
+    - [广播](#广播)
+    - [写入超时](#写入超时)
+    - [发布/订阅](#发布订阅)
 - [Autobahn 测试](#autobahn-测试)
 - [生态](#生态)
 - [交流](#交流)
@@ -98,8 +95,8 @@ ok      github.com/lxzan/gws    17.231s
 - [x] **上下文接管（permessage-deflate）**：支持按需配置上下文接管与滑动窗口大小。
 - [x] **大文件分段写入**：`WriteFile` 采用分段策略，减少大文件写入时的峰值内存。
 - [x] **并发与异步写入**：内置任务队列，支持异步写、多切片写 `Writev` / `WritevAsync`。
-- [x] **标准兼容性强**：通过所有 Autobahn 用例  
-  [Server 报告](https://lxzan.github.io/gws/reports/servers/) / [Client 报告](https://lxzan.github.io/gws/reports/clients/)
+- [x] **标准兼容性强**：通过所有 Autobahn 用例
+      [Server 报告](https://lxzan.github.io/gws/reports/servers/) / [Client 报告](https://lxzan.github.io/gws/reports/clients/)
 
 ### 注意
 
@@ -372,7 +369,7 @@ docker run -it --rm \
 
 ### 生态
 
-- [proxy-connect-dialer-go](https://github.com/michel-laterman/proxy-connect-dialer-go) - 自定义Dialer, 在CONNECT请求期间向代理服务器发送Headers
+- [proxy-connect-dialer-go](https://github.com/elastic/proxy-connect-dialer-go) - 自定义Dialer, 在CONNECT请求期间向代理服务器发送Headers
 
 ### 交流
 

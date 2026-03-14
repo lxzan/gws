@@ -23,3 +23,6 @@ examples/debug/
 examples/autobahn/reports
 
 .DS_Store
+.serena
+.tmp
+.perf

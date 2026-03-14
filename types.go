@@ -233,6 +233,32 @@ func (c *frameHeader) GenerateHeader(isServer bool, fin bool, compress bool, opc
 	return
 }
 
+// GenerateHeaderFast 生成帧头（无掩码切片返回，避免逃逸）
+// Generates frame header without returning a mask slice to avoid escape allocations.
+func (c *frameHeader) GenerateHeaderFast(isServer bool, fin bool, compress bool, opcode Opcode, length int, maskKey *[4]byte) (headerLength int) {
+	headerLength = 2
+	var b0 = uint8(opcode)
+	if fin {
+		b0 += 128
+	}
+	if compress {
+		b0 += 64
+	}
+	(*c)[0] = b0
+	headerLength += c.SetLength(uint64(length))
+
+	if !isServer {
+		(*c)[1] |= 128
+		maskNum := internal.AlphabetNumeric.Uint32()
+		binary.LittleEndian.PutUint32((*c)[headerLength:headerLength+4], maskNum)
+		if maskKey != nil {
+			binary.LittleEndian.PutUint32(maskKey[:], maskNum)
+		}
+		headerLength += 4
+	}
+	return
+}
+
 // Parse 解析完整协议头, 最多14字节, 返回payload长度
 // Parses the complete protocol header, up to 14 bytes, and returns the payload length
 func (c *frameHeader) Parse(reader io.Reader) (int, error) {
