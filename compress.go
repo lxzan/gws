@@ -45,7 +45,7 @@ type deflater struct {
 	dpsLocker sync.Mutex
 	buf       []byte
 	limit     int
-	dpsBuffer *bytes.Buffer
+	dpsSize   int
 	dpsReader io.ReadCloser
 	dpsLimit  limitedReader
 	cpsLocker sync.Mutex
@@ -56,9 +56,9 @@ type deflater struct {
 // Initialize the deflater
 func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
 	c.dpsReader = flate.NewReader(nil)
-	c.dpsBuffer = bytes.NewBuffer(nil)
 	c.buf = make([]byte, 32*1024)
 	c.limit = limit
+	c.dpsSize = 128
 	windowBits := internal.SelectValue(isServer, options.ServerMaxWindowBits, options.ClientMaxWindowBits)
 	if windowBits == 15 {
 		c.cpsWriter, _ = flate.NewWriter(nil, options.Level)
@@ -73,10 +73,6 @@ func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit in
 func (c *deflater) resetFR(r io.Reader, dict []byte) {
 	resetter := c.dpsReader.(flate.Resetter)
 	_ = resetter.Reset(r, dict) // must return a null pointer
-	if c.dpsBuffer.Cap() > int(bufferThreshold) {
-		c.dpsBuffer = bytes.NewBuffer(nil)
-	}
-	c.dpsBuffer.Reset()
 }
 
 // Decompress 解压
@@ -88,11 +84,27 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 	_, _ = src.Write(flateTail)
 	c.resetFR(src, dict)
 	c.dpsLimit.Reset(c.dpsReader, c.limit)
-	if _, err := io.CopyBuffer(c.dpsBuffer, &c.dpsLimit, c.buf); err != nil {
+
+	estimated := c.dpsSize
+	if n := src.Len() << 1; estimated < n {
+		estimated = n
+	}
+	if estimated < 128 {
+		estimated = 128
+	}
+	if estimated > int(bufferThreshold) {
+		estimated = int(bufferThreshold)
+	}
+	dst := binaryPool.Get(estimated)
+	if _, err := io.CopyBuffer(dst, &c.dpsLimit, c.buf); err != nil {
+		binaryPool.Put(dst)
 		return nil, err
 	}
-	var dst = binaryPool.Get(c.dpsBuffer.Len())
-	_, _ = c.dpsBuffer.WriteTo(dst)
+	if cap := dst.Cap(); cap <= int(bufferThreshold) {
+		c.dpsSize = cap
+	} else {
+		c.dpsSize = int(bufferThreshold)
+	}
 	return dst, nil
 }
 

@@ -26,3 +26,4 @@ examples/autobahn/reports
 .serena
 .tmp
 .perf
+perf/
