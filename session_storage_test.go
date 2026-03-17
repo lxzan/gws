@@ -3,7 +3,6 @@ package gws
 import (
 	"testing"
 
-	"github.com/dolthub/maphash"
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 )
@@ -100,7 +99,6 @@ func TestConcurrentMap(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[string]any)
 	var m2 = NewConcurrentMap[string, uint32]()
-	as.Equal(m2.num, uint64(16))
 	var count = internal.AlphabetNumeric.Intn(1000)
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -124,21 +122,12 @@ func TestConcurrentMap(t *testing.T) {
 		as.Equal(v, v1)
 	}
 	as.Equal(len(m1), m2.Len())
-
-	t.Run("", func(t *testing.T) {
-		var sum = 0
-		var cm = NewConcurrentMap[string, int](8, 8)
-		for _, item := range cm.shardings {
-			sum += len(item.m)
-		}
-		assert.Equal(t, sum, 0)
-	})
 }
 
 func TestConcurrentMap_Range(t *testing.T) {
 	var as = assert.New(t)
 	var m1 = make(map[any]any)
-	var m2 = NewConcurrentMap[string, uint32](13)
+	var m2 = NewConcurrentMap[string, uint32]()
 	var count = 1000
 	for i := 0; i < count; i++ {
 		var key = string(internal.AlphabetNumeric.Generate(10))
@@ -169,15 +158,5 @@ func TestConcurrentMap_Range(t *testing.T) {
 			return true
 		})
 		as.Equal(1000, len(keys))
-	}
-}
-
-func TestHash(t *testing.T) {
-	var h = maphash.NewHasher[string]()
-	for i := 0; i < 1000; i++ {
-		var a = string(internal.AlphabetNumeric.Generate(16))
-		var b = string(internal.AlphabetNumeric.Generate(16))
-		assert.Equal(t, h.Hash(a), h.Hash(a))
-		assert.NotEqual(t, h.Hash(a), h.Hash(b))
 	}
 }

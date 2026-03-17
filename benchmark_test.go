@@ -201,7 +201,7 @@ func BenchmarkMask(b *testing.B) {
 
 func BenchmarkConcurrentMap_ReadWrite(b *testing.B) {
 	const count = 1000000
-	var cm = NewConcurrentMap[string, uint8](64)
+	var cm = NewConcurrentMap[string, uint8]()
 	var keys = make([]string, 0, count)
 	for i := 0; i < count; i++ {
 		key := string(internal.AlphabetNumeric.Generate(16))
