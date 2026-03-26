@@ -106,7 +106,7 @@ func (c *Conn) ReadLoop() {
 	}
 
 	err, ok := c.ev.Load().(error)
-	c.handler.OnClose(c, internal.SelectValue(ok, err, errEmpty))
+	_ = c.dispatchControl(OpcodeCloseConnection, nil, internal.SelectValue(ok, err, errEmpty))
 
 	// 回收资源
 	// Reclaim resources
