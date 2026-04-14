@@ -200,7 +200,7 @@ func TestCompressClientOption(t *testing.T) {
 func TestNewSession(t *testing.T) {
 	{
 		var option = &ServerOption{
-			NewSession: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+			NewSession: func() SessionStorage { return NewConcurrentMap[string, any]() },
 		}
 		initServerOption(option)
 		_, ok := option.NewSession().(*ConcurrentMap[string, any])
@@ -209,7 +209,7 @@ func TestNewSession(t *testing.T) {
 
 	{
 		var option = &ClientOption{
-			NewSession: func() SessionStorage { return NewConcurrentMap[string, any](16) },
+			NewSession: func() SessionStorage { return NewConcurrentMap[string, any]() },
 		}
 		initClientOption(option)
 		_, ok := option.NewSession().(*ConcurrentMap[string, any])

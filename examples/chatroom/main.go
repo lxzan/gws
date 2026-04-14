@@ -68,7 +68,7 @@ func MustLoad[T any](session gws.SessionStorage, key string) (v T) {
 
 func NewWebSocket() *WebSocket {
 	return &WebSocket{
-		sessions: gws.NewConcurrentMap[string, *gws.Conn](16, 128),
+		sessions: gws.NewConcurrentMap[string, *gws.Conn](),
 	}
 }
 
@@ -88,14 +88,10 @@ func (c *WebSocket) OnOpen(socket *gws.Conn) {
 
 func (c *WebSocket) OnClose(socket *gws.Conn, err error) {
 	name := MustLoad[string](socket.Session(), "name")
-	sharding := c.sessions.GetSharding(name)
-	sharding.Lock()
-	defer sharding.Unlock()
-
-	if conn, ok := sharding.Load(name); ok {
+	if conn, ok := c.sessions.Load(name); ok {
 		key0 := MustLoad[string](socket.Session(), "websocketKey")
 		if key1 := MustLoad[string](conn.Session(), "websocketKey"); key1 == key0 {
-			sharding.Delete(name)
+			c.sessions.Delete(name)
 		}
 	}
 

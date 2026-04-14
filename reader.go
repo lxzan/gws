@@ -51,11 +51,9 @@ func (c *Conn) readControl() error {
 	var opcode = c.fh.GetOpcode()
 	switch opcode {
 	case OpcodePing:
-		c.handler.OnPing(c, payload)
-		return nil
+		return c.dispatchControl(OpcodePing, payload, nil)
 	case OpcodePong:
-		c.handler.OnPong(c, payload)
-		return nil
+		return c.dispatchControl(OpcodePong, payload, nil)
 	case OpcodeCloseConnection:
 		return c.emitClose(bytes.NewBuffer(payload))
 	default:
@@ -151,9 +149,27 @@ func (c *Conn) readMessage() error {
 
 // 分发消息和异常恢复
 // Dispatch message & Recovery
-func (c *Conn) dispatch(msg *Message) error {
+func (c *Conn) dispatchMessage(msg *Message) error {
 	defer c.config.Recovery(c.config.Logger)
 	c.handler.OnMessage(c, msg)
+	return nil
+}
+
+// 分发控制帧事件并进行异常恢复
+// Dispatch control-frame events with recovery
+//
+// 控制帧(Ping/Pong/Close)的回调如果发生 panic，不应直接导致 ReadLoop 崩溃；
+// 因此这里统一通过 Config.Recovery 进行兜底。
+func (c *Conn) dispatchControl(opcode Opcode, payload []byte, err error) error {
+	defer c.config.Recovery(c.config.Logger)
+	switch opcode {
+	case OpcodePing:
+		c.handler.OnPing(c, payload)
+	case OpcodePong:
+		c.handler.OnPong(c, payload)
+	case OpcodeCloseConnection:
+		c.handler.OnClose(c, err)
+	}
 	return nil
 }
 
@@ -171,7 +187,7 @@ func (c *Conn) emitMessage(msg *Message) (err error) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
 	}
 	if c.config.ParallelEnabled {
-		return c.readQueue.Go(msg, c.dispatch)
+		return c.readQueue.Go(msg, c.dispatchMessage)
 	}
-	return c.dispatch(msg)
+	return c.dispatchMessage(msg)
 }
