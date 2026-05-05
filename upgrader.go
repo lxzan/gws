@@ -186,7 +186,8 @@ func (c *Upgrader) writeErr(conn net.Conn, err error) error {
 // Wraps the authorization function to avoid panic
 func (c *Upgrader) doAuthorize(r *http.Request, session SessionStorage) (result bool) {
 	defer func() {
-		if recover() != nil {
+		if e := recover(); e != nil {
+			c.option.Logger.Error("gws: panic in authorize function: " + e.(string))
 			result = false
 		}
 	}()
