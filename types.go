@@ -57,6 +57,10 @@ var (
 	// Failure to pass forensic authentication
 	ErrUnauthorized = errors.New("gws: unauthorized")
 
+	// ErrNilSession 会话为空
+	// Session is empty
+	ErrNilSession = errors.New("gws: nil session")
+
 	// ErrHandshake 握手错误, 请求头未通过校验
 	// Handshake error, request header does not pass checksum.
 	ErrHandshake = errors.New("gws: handshake error")

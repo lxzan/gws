@@ -199,9 +199,15 @@ func (c *Upgrader) doAuthorize(r *http.Request, session SessionStorage) (result 
 // 从现有的网络连接升级到 WebSocket 连接
 // Upgrades from an existing network connection to a WebSocket connection
 func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
+	// 创建一个新的会话并检查它是否为空
+	// Create a new session and check if it is empty
+	var session = c.option.NewSession()
+	if session == nil {
+		return nil, ErrNilSession
+	}
+
 	// 授权请求，如果授权失败，返回未授权错误
 	// Authorize the request, if authorization fails, return an unauthorized error
-	var session = c.option.NewSession()
 	if !c.doAuthorize(r, session) {
 		return nil, ErrUnauthorized
 	}
