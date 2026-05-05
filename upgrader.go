@@ -183,13 +183,26 @@ func (c *Upgrader) writeErr(conn net.Conn, err error) error {
 	return result
 }
 
+// Wraps the authorization function to avoid panic
+func (c *Upgrader) doAuthorize(r *http.Request, session SessionStorage) (result bool) {
+	defer func() {
+		if recover() != nil {
+			result = false
+		}
+	}()
+
+	result = c.option.Authorize(r, session)
+
+	return
+}
+
 // 从现有的网络连接升级到 WebSocket 连接
 // Upgrades from an existing network connection to a WebSocket connection
 func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http.Request) (*Conn, error) {
 	// 授权请求，如果授权失败，返回未授权错误
 	// Authorize the request, if authorization fails, return an unauthorized error
 	var session = c.option.NewSession()
-	if !c.option.Authorize(r, session) {
+	if !c.doAuthorize(r, session) {
 		return nil, ErrUnauthorized
 	}
 
