@@ -110,6 +110,28 @@ func TestMask(t *testing.T) {
 	}
 }
 
+func TestMaskXOROffset(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		var n = AlphabetNumeric.Intn(1024) + 1
+		var offset = AlphabetNumeric.Intn(4)
+		var src = AlphabetNumeric.Generate(n)
+		var want = make([]byte, len(src))
+		copy(want, src)
+		MaskByByteWithOffset(want, []byte{0xa, 0xb, 0xc, 0xd}, offset)
+
+		var got = make([]byte, len(src))
+		copy(got, src)
+		MaskXOROffset(got, []byte{0xa, 0xb, 0xc, 0xd}, offset)
+		assert.Equal(t, want, got)
+	}
+}
+
+func MaskByByteWithOffset(content []byte, key []byte, offset int) {
+	for i := range content {
+		content[i] ^= key[(offset+i)&3]
+	}
+}
+
 func TestSplit(t *testing.T) {
 	var sep = "/"
 	assert.ElementsMatch(t, []string{"api", "v1"}, Split("/api/v1", sep))

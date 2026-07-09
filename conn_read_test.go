@@ -1,7 +1,9 @@
 package gws
 
 import (
+	"bytes"
 	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -9,23 +11,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// readAll 用小 buf 反复调用 Read, 直到读满 n 个字节
-func readAllN(t *testing.T, c *Conn, n int, bufSize int) []byte {
+// readAllReader reads all bytes from a reader.
+func readAllReader(t *testing.T, r io.Reader) []byte {
 	t.Helper()
-	var got = make([]byte, 0, n)
-	var buf = make([]byte, bufSize)
-	for len(got) < n {
-		m, err := c.Read(buf)
-		assert.NoError(t, err)
-		got = append(got, buf[:m]...)
-	}
-	return got
+	b, err := io.ReadAll(r)
+	assert.NoError(t, err)
+	return b
 }
 
-func TestConn_Read(t *testing.T) {
+func TestConn_NextReader(t *testing.T) {
 	var as = assert.New(t)
 
-	t.Run("small buffer stops at message boundary", func(t *testing.T) {
+	t.Run("returns one message per call", func(t *testing.T) {
 		serverHandler := new(webSocketMocker)
 		clientHandler := new(webSocketMocker)
 		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
@@ -38,14 +35,20 @@ func TestConn_Read(t *testing.T) {
 			_ = testWrite(client, true, OpcodeText, testCloneBytes(msg2))
 		}()
 
-		got1 := readAllN(t, server, len(msg1), 3)
+		mt1, r1, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, mt1)
+		got1 := readAllReader(t, r1)
 		as.Equal(string(msg1), string(got1))
 
-		got2 := readAllN(t, server, len(msg2), 3)
+		mt2, r2, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, mt2)
+		got2 := readAllReader(t, r2)
 		as.Equal(string(msg2), string(got2))
 	})
 
-	t.Run("large buffer does not wait for next message", func(t *testing.T) {
+	t.Run("does not wait for next message", func(t *testing.T) {
 		serverHandler := new(webSocketMocker)
 		clientHandler := new(webSocketMocker)
 		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
@@ -54,12 +57,16 @@ func TestConn_Read(t *testing.T) {
 
 		go func() { _ = testWrite(client, true, OpcodeText, testCloneBytes(msg1)) }()
 
-		var buf = make([]byte, 4096)
 		done := make(chan struct{})
-		var n int
+		var messageType Opcode
+		var got []byte
 		var err error
 		go func() {
-			n, err = server.Read(buf)
+			var r io.Reader
+			messageType, r, err = server.NextReader()
+			if err == nil {
+				got = readAllReader(t, r)
+			}
 			close(done)
 		}()
 
@@ -70,7 +77,8 @@ func TestConn_Read(t *testing.T) {
 		}
 
 		as.NoError(err)
-		as.Equal(string(msg1), string(buf[:n]))
+		as.Equal(OpcodeText, messageType)
+		as.Equal(string(msg1), string(got))
 	})
 
 	t.Run("fragmented message reassembled transparently", func(t *testing.T) {
@@ -87,11 +95,58 @@ func TestConn_Read(t *testing.T) {
 			_ = testWrite(client, true, OpcodeContinuation, testCloneBytes(s2))
 		}()
 
-		got := readAllN(t, server, len(want), 5)
+		messageType, r, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, messageType)
+		got := readAllReader(t, r)
 		as.Equal(want, string(got))
 	})
 
-	t.Run("compressed message", func(t *testing.T) {
+	t.Run("does not validate utf8", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{CheckUtf8Enabled: true}, clientHandler, &ClientOption{})
+
+		payload := []byte{0xff, 0xfe}
+		go func() { _ = writeRawFrame(client, OpcodeText, testCloneBytes(payload), true, false) }()
+
+		messageType, r, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, messageType)
+		as.Equal(payload, readAllReader(t, r))
+	})
+
+	t.Run("compressed message does not validate utf8", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		serverOption := &ServerOption{
+			CheckUtf8Enabled: true,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		}
+		clientOption := &ClientOption{
+			CheckUtf8Enabled: true,
+			PermessageDeflate: PermessageDeflate{
+				Enabled:               true,
+				ServerContextTakeover: true,
+				ClientContextTakeover: true,
+			},
+		}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+
+		payload := []byte{0xff, 0xfe}
+		go func() { _ = writeFragmentedCompressed(client, OpcodeText, testCloneBytes(payload)) }()
+
+		messageType, r, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, messageType)
+		as.Equal(payload, readAllReader(t, r))
+	})
+
+	t.Run("compressed message with context takeover", func(t *testing.T) {
 		serverHandler := new(webSocketMocker)
 		clientHandler := new(webSocketMocker)
 		serverOption := &ServerOption{PermessageDeflate: PermessageDeflate{
@@ -108,22 +163,142 @@ func TestConn_Read(t *testing.T) {
 		}}
 		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
 
-		msg := internal.AlphabetNumeric.Generate(2048)
-		go func() { client.WriteAsync(OpcodeText, testCloneBytes(msg), nil) }()
+		msg1 := internal.AlphabetNumeric.Generate(2048)
+		msg2 := internal.AlphabetNumeric.Generate(1024)
+		go func() {
+			client.WriteAsync(OpcodeText, testCloneBytes(msg1), nil)
+			client.WriteAsync(OpcodeText, testCloneBytes(msg2), nil)
+		}()
 
-		got := readAllN(t, server, len(msg), 64)
-		as.Equal(string(msg), string(got))
+		mt1, r1, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, mt1)
+		as.Equal(string(msg1), string(readAllReader(t, r1)))
+
+		mt2, r2, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, mt2)
+		as.Equal(string(msg2), string(readAllReader(t, r2)))
 	})
 
-	t.Run("read error propagated like io.Reader", func(t *testing.T) {
+	t.Run("read error propagated", func(t *testing.T) {
 		serverHandler := new(webSocketMocker)
 		clientHandler := new(webSocketMocker)
 		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
 		_ = client.NetConn().Close()
 
-		var buf = make([]byte, 16)
-		_, err := server.Read(buf)
+		_, _, err := server.NextReader()
 		as.Error(err)
-		as.True(err == io.EOF || err != nil)
+		_, ok := err.(internal.StatusCode)
+		as.True(ok)
+		as.Equal(internal.CloseAbnormalClosure, err)
 	})
+
+	t.Run("invalid fragmented frame returns protocol error", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+
+		s1 := internal.AlphabetNumeric.Generate(16)
+		s2 := internal.AlphabetNumeric.Generate(16)
+		go func() {
+			_ = testWrite(client, false, OpcodeText, testCloneBytes(s1))
+			_ = testWrite(client, true, OpcodeText, testCloneBytes(s2))
+		}()
+
+		_, r, err := server.NextReader()
+		as.NoError(err)
+		buf := make([]byte, 32)
+		n, err := r.Read(buf)
+		as.NoError(err)
+		as.Equal(len(s1), n)
+		_, err = r.Read(buf)
+		as.Error(err)
+		_, ok := err.(internal.StatusCode)
+		as.True(ok)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("fragmented message too large returns status code", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		serverOption := &ServerOption{ReadMaxPayloadSize: 16}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+
+		s1 := internal.AlphabetNumeric.Generate(16)
+		s2 := internal.AlphabetNumeric.Generate(16)
+		go func() {
+			_ = testWrite(client, false, OpcodeText, testCloneBytes(s1))
+			_ = testWrite(client, true, OpcodeContinuation, testCloneBytes(s2))
+		}()
+
+		_, r, err := server.NextReader()
+		as.NoError(err)
+		buf := make([]byte, 32)
+		n, err := r.Read(buf)
+		as.NoError(err)
+		as.Equal(len(s1), n)
+		_, err = r.Read(buf)
+		as.Error(err)
+		_, ok := err.(internal.StatusCode)
+		as.True(ok)
+		as.Equal(internal.CloseMessageTooLarge, err)
+	})
+
+	t.Run("fragmented compressed message", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		serverOption := &ServerOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		}}
+		clientOption := &ClientOption{PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		}}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+
+		payload := internal.AlphabetNumeric.Generate(2048)
+		go func() { _ = writeFragmentedCompressed(client, OpcodeText, testCloneBytes(payload)) }()
+
+		messageType, r, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, messageType)
+		as.Equal(string(payload), string(readAllReader(t, r)))
+	})
+}
+
+func writeFragmentedCompressed(c *Conn, opcode Opcode, payload []byte) error {
+	var buf = bytes.NewBuffer(nil)
+	if err := c.deflater.Compress(internal.Bytes(payload), buf, c.cpsWindow.dict); err != nil {
+		return err
+	}
+	compressed := buf.Bytes()
+	if len(compressed) < 2 {
+		return testWrite(c, true, opcode, payload)
+	}
+	mid := len(compressed) / 2
+	if err := writeRawFrame(c, opcode, compressed[:mid], false, true); err != nil {
+		return err
+	}
+	return writeRawFrame(c, OpcodeContinuation, compressed[mid:], true, false)
+}
+
+func writeRawFrame(c *Conn, opcode Opcode, payload []byte, fin bool, compress bool) error {
+	var header = frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, compress, opcode, len(payload))
+	if len(payload) > 0 && !c.isServer {
+		internal.MaskXOR(payload, maskBytes)
+	}
+	var frame = make(net.Buffers, 0, 2)
+	frame = append(frame, header[:headerLength])
+	if len(payload) > 0 {
+		frame = append(frame, payload)
+	}
+	_, err := frame.WriteTo(c.conn)
+	return err
 }

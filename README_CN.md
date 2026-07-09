@@ -76,6 +76,7 @@ ok      github.com/lxzan/gws    17.231s
 - [注意](#注意)
 - [安装](#安装)
 - [事件](#事件)
+- [读取方式](#读取方式)
 - [快速上手](#快速上手)
 - [最佳实践](#最佳实践)
 - [更多用例](#更多用例)
@@ -122,6 +123,54 @@ type Event interface {
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
+}
+```
+
+### 读取方式
+
+`Conn` 提供三种读取方式。`ReadLoop` 是事件驱动方式，适合大多数服务端业务；`ReadMessage` 适合手动拉取完整消息；`NextReader` 适合流式读取大消息或希望减少整包内存占用的场景。
+
+| 读取方式 | OnOpen | OnMessage | OnPing / OnPong | OnClose | 适用场景 |
+| --- | --- | --- | --- | --- | --- |
+| `ReadLoop` | ✅ | ✅ | ✅ | ✅ | 常规事件驱动服务端 / 客户端 |
+| `ReadMessage` | ❌ | ❌ | ✅ | ✅  | 手动读取一条完整消息 |
+| `NextReader` | ❌ | ❌ | ✅ | ✅  | 流式读取消息内容，减少整包复制 |
+
+注意点：
+
+- 同一个连接上不要同时混用多个读取 API，也不要并发读取。选择 `ReadLoop`、`ReadMessage`、`NextReader` 其中一种模型即可。
+- 如果使用 `ReadLoop`，建议在 `net/http` 的升级请求里开启新的 goroutine，避免请求上下文无法及时 GC。
+- `ReadMessage` 返回的 `Message` 使用后需要调用 `Close` 回收 buffer。
+- `NextReader` 返回的是流式 `io.Reader`，不会触发 `OnMessage`，也不会检查文本消息的 UTF-8 编码；如果上一条消息没有读完，下一次调用 `NextReader` 会先丢弃剩余内容。
+
+#### ReadMessage
+
+```go
+for {
+	message, err := socket.ReadMessage()
+	if err != nil {
+		return
+	}
+	func() {
+		defer message.Close()
+		_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	}()
+}
+```
+
+#### NextReader
+
+```go
+for {
+	messageType, r, err := socket.NextReader()
+	if err != nil {
+		return
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return
+	}
+	_ = socket.WriteMessage(messageType, data)
 }
 ```
 

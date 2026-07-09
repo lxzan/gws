@@ -88,10 +88,15 @@ type Conn struct {
 	// Compression extension configuration
 	pd PermessageDeflate
 
-	// Read(buf) 已经就绪、等待被消费的数据. 当 buf 装不下已读取到的数据时用于缓存剩余部分.
-	// Data made ready by Read(buf), waiting to be consumed. Used to cache the remainder when
-	// buf cannot hold all of the data that has already been read.
-	rb *bytes.Buffer
+	// NextReader 当前活跃的 reader, 用于在下一次 NextReader 或错误时释放资源.
+	// Active reader returned by NextReader, used to reclaim resources on the next NextReader
+	// call or on read errors.
+	rr nextMessageReader
+
+	// NextReader 复用的 reader 实例, 避免每条消息分配 reader 对象.
+	// Reusable NextReader instances to avoid allocating a reader per message.
+	urr uncompressedMessageReader
+	crr messageReader
 }
 
 // ReadLoop
@@ -134,67 +139,6 @@ func (c *Conn) ReadMessage() (*Message, error) {
 	}
 }
 
-// Read
-// 实现 io.Reader, 尽量填满传入的 buf 再返回, 参考 io.Reader.Read 的语义. 如果读取过程中发生错误(例如 EOF),
-// 即使 buf 未被填满, 也会连同已经读到的数据一起返回.
-//
-// 如果 buf 比一条完整的 websocket message(可能由 1 个或多个 frame 组成) 更大, 不会等到读完下一条 message
-// 才返回, 而是把当前已经读到的数据直接返回.
-//
-// 如果 buf 比当前 message 剩余的数据更小, 则只会填满 buf 并返回, 剩余的数据(以及分片/掩码/压缩等中间状态)
-// 会缓存在 Conn 的字段中, 供下一次调用 Read 时继续读取.
-//
-// 该方法不会触发 OnOpen/OnMessage 回调. 如果发生错误, 会触发错误事件并进行资源回收, 处理逻辑和 ReadLoop
-// 结束时一致.
-//
-// Read implements io.Reader. It tries to fill the given buf before returning, following the
-// semantics of io.Reader.Read. If an error occurs while reading (e.g. EOF), the data already
-// read is returned together with the error, even if buf isn't full.
-//
-// If buf is larger than one complete websocket message (which may consist of 1 or more
-// frames), Read does not wait for the next message; it returns the data already read so far.
-//
-// If buf is smaller than the remaining data of the current message, Read fills buf and
-// returns; the remaining data (along with the fragmentation/mask/compression intermediate
-// state) is cached in Conn's fields so the next call to Read can continue reading it.
-//
-// This method does not trigger the OnOpen/OnMessage callbacks. If an error occurs, it
-// triggers the error event and reclaims resources, consistent with the handling at the end
-// of ReadLoop.
-func (c *Conn) Read(buf []byte) (int, error) {
-	var n = 0
-	for n < len(buf) {
-		if c.rb != nil && c.rb.Len() > 0 {
-			m, _ := c.rb.Read(buf[n:])
-			n += m
-			if c.rb.Len() == 0 {
-				binaryPool.Put(c.rb)
-				c.rb = nil
-				if !c.continuationFrame.initialized {
-					// 当前 message 已经读完并交付, 不跨 message 继续读取
-					// The current message has been fully delivered; don't read across into the next message
-					return n, nil
-				}
-			}
-			continue
-		}
-
-		if n > 0 && !c.continuationFrame.initialized {
-			// 已经交付过至少一条 message 的数据, 不再开始读取下一条 message
-			// Data from at least one message has already been delivered; don't start reading the next one
-			return n, nil
-		}
-
-		chunk, err := c.readStreamChunk()
-		if err != nil {
-			c.handleReadError(err)
-			return n, err
-		}
-		c.rb = chunk
-	}
-	return n, nil
-}
-
 // 处理读取错误: 触发错误事件, 分发关闭回调并回收资源
 // 逻辑和 ReadLoop 结束时的处理一致.
 // Handles a read error: emits the error event, dispatches the close callback, and reclaims
@@ -205,10 +149,7 @@ func (c *Conn) handleReadError(err error) {
 	evErr, ok := c.ev.Load().(error)
 	_ = c.dispatchControl(OpcodeCloseConnection, nil, internal.SelectValue(ok, evErr, errEmpty))
 
-	if c.rb != nil {
-		binaryPool.Put(c.rb)
-		c.rb = nil
-	}
+	c.closeNextReader()
 
 	// 回收资源
 	// Reclaim resources

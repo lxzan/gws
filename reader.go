@@ -287,6 +287,45 @@ func (c *Conn) readStreamChunk() (*bytes.Buffer, error) {
 	return msg.Data, nil
 }
 
+func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, error) {
+	for {
+		contentLength, err := c.fh.Parse(c.br)
+		if err != nil {
+			return nil, 0, err
+		}
+		if contentLength > c.config.ReadMaxPayloadSize {
+			return nil, 0, internal.CloseMessageTooLarge
+		}
+		if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
+			return nil, 0, internal.CloseProtocolError
+		}
+		maskEnabled := c.fh.GetMask()
+		if err := c.checkMask(maskEnabled); err != nil {
+			return nil, 0, err
+		}
+		opcode := c.fh.GetOpcode()
+		if !opcode.isDataFrame() {
+			if err := c.readControl(); err != nil {
+				return nil, 0, err
+			}
+			continue
+		}
+		if expectContinuation {
+			if opcode != OpcodeContinuation || c.fh.GetRSV1() {
+				return nil, 0, internal.CloseProtocolError
+			}
+		} else {
+			if opcode == OpcodeContinuation {
+				return nil, 0, internal.CloseProtocolError
+			}
+		}
+		if c.fh.GetRSV2() || c.fh.GetRSV3() {
+			return nil, 0, internal.CloseProtocolError
+		}
+		return &c.fh, contentLength, nil
+	}
+}
+
 // 分发消息和异常恢复
 // Dispatch message & Recovery
 func (c *Conn) dispatchMessage(msg *Message) error {
@@ -313,9 +352,9 @@ func (c *Conn) dispatchControl(opcode Opcode, payload []byte, err error) error {
 	return nil
 }
 
-// 处理消息: 解压并校验编码
-// Processes a message: decompresses it and validates its encoding
-func (c *Conn) processMessage(msg *Message) error {
+// 解压消息并更新解压字典.
+// Decompresses a message and updates the decompress dictionary.
+func (c *Conn) decompressMessage(msg *Message) error {
 	if msg.compressed {
 		var rawBuf = msg.Data
 		dst, err := c.deflater.Decompress(rawBuf, c.dpsWindow.dict)
@@ -326,6 +365,15 @@ func (c *Conn) processMessage(msg *Message) error {
 		}
 		msg.Data = dst
 		_, _ = c.dpsWindow.Write(msg.Bytes())
+	}
+	return nil
+}
+
+// 处理消息: 解压并校验编码
+// Processes a message: decompresses it and validates its encoding
+func (c *Conn) processMessage(msg *Message) error {
+	if err := c.decompressMessage(msg); err != nil {
+		return err
 	}
 	if !internal.CheckEncoding(c.config.CheckUtf8Enabled, uint8(msg.Opcode), msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)

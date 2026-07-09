@@ -85,9 +85,19 @@ func FnvNumber[T Integer](x T) uint64 {
 
 // MaskXOR 计算掩码
 func MaskXOR(b []byte, key []byte) {
-	var maskKey = binary.LittleEndian.Uint32(key)
+	MaskXOROffset(b, key, 0)
+}
+
+// MaskXOROffset 从指定偏移开始计算掩码, 用于分块读取时跨调用续算掩码位置.
+func MaskXOROffset(b []byte, key []byte, offset int) {
+	if len(b) == 0 {
+		return
+	}
+	offset &= 3
+	var maskKey = rotateMaskKey32(binary.LittleEndian.Uint32(key), offset)
 	var key64 = uint64(maskKey)<<32 + uint64(maskKey)
 
+	var processed int
 	for len(b) >= 64 {
 		v := binary.LittleEndian.Uint64(b)
 		binary.LittleEndian.PutUint64(b, v^key64)
@@ -106,18 +116,32 @@ func MaskXOR(b []byte, key []byte) {
 		v = binary.LittleEndian.Uint64(b[56:64])
 		binary.LittleEndian.PutUint64(b[56:64], v^key64)
 		b = b[64:]
+		processed += 64
 	}
 
 	for len(b) >= 8 {
 		v := binary.LittleEndian.Uint64(b[:8])
 		binary.LittleEndian.PutUint64(b[:8], v^key64)
 		b = b[8:]
+		processed += 8
 	}
 
-	var n = len(b)
-	for i := 0; i < n; i++ {
-		idx := i & 3
-		b[i] ^= key[idx]
+	var start = (offset + processed) & 3
+	for i := range b {
+		b[i] ^= key[(start+i)&3]
+	}
+}
+
+func rotateMaskKey32(maskKey uint32, offset int) uint32 {
+	switch offset & 3 {
+	case 1:
+		return (maskKey >> 8) | (maskKey << 24)
+	case 2:
+		return (maskKey >> 16) | (maskKey << 16)
+	case 3:
+		return (maskKey >> 24) | (maskKey << 8)
+	default:
+		return maskKey
 	}
 }
 
