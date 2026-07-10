@@ -87,6 +87,20 @@ type Conn struct {
 	// 压缩拓展配置
 	// Compression extension configuration
 	pd PermessageDeflate
+
+	// NextReader 当前活跃的 reader, 用于在下一次 NextReader 或错误时释放资源.
+	// Active reader returned by NextReader, used to reclaim resources on the next NextReader
+	// call or on read errors.
+	rr nextMessageReader
+
+	// NextReader 复用的 reader 实例, 首次调用 NextReader 时惰性分配.
+	// Reusable NextReader instances, lazily allocated on the first NextReader call.
+	urr *uncompressedMessageReader
+	crr *messageReader
+
+	// NextReader 代数, 每次返回新 reader 时递增, 用于检测过期的 reader 句柄.
+	// NextReader generation, incremented on each new reader, used to detect stale handles.
+	readGen uint32
 }
 
 // ReadLoop
@@ -100,13 +114,52 @@ func (c *Conn) ReadLoop() {
 	// Infinite loop to read messages, if an error occurs, trigger the error event and exit the loop
 	for {
 		if err := c.readMessage(); err != nil {
-			c.emitError(true, err)
+			c.handleReadError(err)
 			break
 		}
 	}
+}
 
-	err, ok := c.ev.Load().(error)
-	_ = c.dispatchControl(OpcodeCloseConnection, nil, internal.SelectValue(ok, err, errEmpty))
+// ReadMessage
+// 读取并返回单个完整的 websocket message, 不会触发 OnOpen 事件, 也不会派发给 OnMessage 回调.
+// 如果发生错误, 会触发错误事件并进行资源回收, 和 ReadLoop 结束时的处理逻辑一致.
+// Reads and returns a single complete websocket message, without triggering the OnOpen event
+// or dispatching to the OnMessage callback.
+// If an error occurs, it triggers the error event and reclaims resources, consistent with
+// the handling logic at the end of ReadLoop.
+func (c *Conn) ReadMessage() (*Message, error) {
+	if c.isClosed() {
+		return nil, ErrConnClosed
+	}
+	for {
+		msg, err := c.readFrame()
+		if err == nil && msg != nil {
+			err = c.processMessage(msg)
+		}
+		if err != nil {
+			if msg != nil {
+				_ = msg.Close()
+			}
+			c.handleReadError(err)
+			return nil, err
+		}
+		if msg != nil {
+			return msg, nil
+		}
+	}
+}
+
+// 处理读取错误: 触发错误事件, 分发关闭回调并回收资源
+// 逻辑和 ReadLoop 结束时的处理一致.
+// Handles a read error: emits the error event, dispatches the close callback, and reclaims
+// resources, consistent with the handling at the end of ReadLoop.
+func (c *Conn) handleReadError(err error) {
+	c.emitError(true, err)
+
+	evErr, ok := c.ev.Load().(error)
+	_ = c.dispatchControl(OpcodeCloseConnection, nil, internal.SelectValue(ok, evErr, errEmpty))
+
+	c.closeNextReader()
 
 	// 回收资源
 	// Reclaim resources

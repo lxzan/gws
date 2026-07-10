@@ -80,6 +80,7 @@ ok      github.com/lxzan/gws    17.231s
 - [Attention](#attention)
 - [Install](#install)
 - [Event](#event)
+- [Reading APIs](#reading-apis)
 - [Quick Start](#quick-start)
 - [Best Practice](#best-practice)
 - [More Examples](#more-examples)
@@ -126,6 +127,54 @@ type Event interface {
     OnPing(socket *Conn, payload []byte)        // received a ping frame
     OnPong(socket *Conn, payload []byte)        // received a pong frame
     OnMessage(socket *Conn, message *Message)   // received a text/binary frame
+}
+```
+
+### Reading APIs
+
+`Conn` provides three read models. `ReadLoop` is event-driven and fits most server-side use-cases; `ReadMessage` manually pulls a complete message; `NextReader` streams message payloads and helps avoid holding a whole message in memory.
+
+| API | OnOpen | OnMessage | OnPing / OnPong | OnClose | Use case |
+| --- | --- | --- | --- | --- | --- |
+| `ReadLoop` | ✅ | ✅ | ✅ | ✅ | Regular event-driven server / client |
+| `ReadMessage` | ❌ | ❌ | ✅ | ✅ | Manually read one complete message |
+| `NextReader` | ❌ | ❌ | ✅ | ✅ | Stream message payloads and reduce whole-message copies |
+
+Notes:
+
+- Do not mix multiple read APIs on the same connection, and do not read concurrently. Pick one model: `ReadLoop`, `ReadMessage`, or `NextReader`.
+- When using `ReadLoop` inside an upgraded `net/http` request, run it in a new goroutine so the request context can be garbage-collected.
+- `ReadMessage` returns a `Message`; call `Close` after use to recycle its buffer.
+- `NextReader` returns a streaming `io.Reader`. It does not trigger `OnMessage` and does not validate UTF-8 text payloads. If the previous message was not fully consumed, the next `NextReader` call discards the remaining bytes first.
+
+#### ReadMessage
+
+```go
+for {
+	message, err := socket.ReadMessage()
+	if err != nil {
+		return
+	}
+	func() {
+		defer message.Close()
+		_ = socket.WriteMessage(message.Opcode, message.Bytes())
+	}()
+}
+```
+
+#### NextReader
+
+```go
+for {
+	messageType, r, err := socket.NextReader()
+	if err != nil {
+		return
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return
+	}
+	_ = socket.WriteMessage(messageType, data)
 }
 ```
 

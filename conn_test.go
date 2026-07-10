@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,13 +19,6 @@ type webSocketMocker struct {
 	onPong    func(socket *Conn, payload []byte)
 	onClose   func(socket *Conn, err error)
 	onOpen    func(socket *Conn)
-}
-
-func (c *webSocketMocker) reset(socket *Conn, reader *bytes.Buffer, writer *bytes.Buffer) {
-	reader.Reset()
-	writer.Reset()
-	socket.br.Reset(reader)
-	atomic.StoreUint32(&socket.closed, 0)
 }
 
 func (c *webSocketMocker) OnOpen(socket *Conn) {
@@ -59,6 +51,14 @@ func (c *webSocketMocker) OnMessage(socket *Conn, message *Message) {
 	}
 }
 
+func TestBuiltinEventHandler(t *testing.T) {
+	handler := BuiltinEventHandler{}
+	handler.OnOpen(nil)
+	handler.OnClose(nil, nil)
+	handler.OnPong(nil, nil)
+	handler.OnMessage(nil, nil)
+}
+
 func TestOthers(t *testing.T) {
 	conn, _ := net.Pipe()
 	upgrader := NewUpgrader(new(BuiltinEventHandler), nil)
@@ -82,7 +82,6 @@ func TestOthers(t *testing.T) {
 	fh.SetMaskKey(10, maskKey)
 	as.Equal(true, fh.GetMask())
 	as.Equal(string(maskKey[:4]), string(fh.GetMaskKey()))
-	return
 }
 
 func TestConn_Close(t *testing.T) {

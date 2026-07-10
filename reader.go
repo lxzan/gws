@@ -62,17 +62,43 @@ func (c *Conn) readControl() error {
 	}
 }
 
-// 读取消息
-// Reads a message
+// 读取消息, 组装出完整的消息后派发给 OnMessage 回调
+// Reads a message, dispatching it to the OnMessage callback once fully assembled
 func (c *Conn) readMessage() error {
+	msg, err := c.readFrame()
+	if err != nil {
+		return err
+	}
+	if msg == nil {
+		return nil
+	}
+	return c.emitReadMessage(msg)
+}
+
+func (c *Conn) emitReadMessage(msg *Message) error {
+	if err := c.emitMessage(msg); err != nil {
+		_ = msg.Close()
+		return err
+	}
+	return nil
+}
+
+// 读取一帧数据.
+// 如果这一帧拼装出了一条完整的消息(未分片的数据帧, 或者分片消息的最后一帧), 则返回该消息;
+// 如果处理的是控制帧或者未结束的分片帧, 则返回 (nil, nil).
+// Reads a single frame.
+// If this frame completes a message (an unfragmented data frame, or the final frame of a
+// fragmented message), the message is returned; if a control frame or a non-final fragment
+// was processed, (nil, nil) is returned.
+func (c *Conn) readFrame() (msg *Message, err error) {
 	// 解析帧头并获取内容长度
 	// Parse the frame header and get the content length
 	contentLength, err := c.fh.Parse(c.br)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if contentLength > c.config.ReadMaxPayloadSize {
-		return internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 
 	// RSV1, RSV2, RSV3: 每个占 1 位
@@ -83,43 +109,49 @@ func (c *Conn) readMessage() error {
 	// If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value,
 	// the receiving endpoint MUST _Fail the WebSocket Connection_.
 	if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
-		return internal.CloseProtocolError
+		return nil, internal.CloseProtocolError
 	}
 
 	maskEnabled := c.fh.GetMask()
 	if err := c.checkMask(maskEnabled); err != nil {
-		return err
+		return nil, err
 	}
 
 	var opcode = c.fh.GetOpcode()
 	var compressed = c.pd.Enabled && c.fh.GetRSV1()
 	if !opcode.isDataFrame() {
-		return c.readControl()
+		return nil, c.readControl()
 	}
 
 	var fin = c.fh.GetFIN()
 	var buf = binaryPool.Get(contentLength + len(flateTail))
 	var p = buf.Bytes()[:contentLength]
-	var closer = Message{Data: buf}
-	defer closer.Close()
+
+	// buf 默认在函数返回时回收, 除非其所有权被转移给了返回的 Message(此时由调用方负责回收)
+	// buf is recycled on return by default, unless its ownership is transferred to the
+	// returned Message (in which case the caller is responsible for recycling it)
+	var recycle = true
+	defer func() {
+		if recycle {
+			binaryPool.Put(buf)
+		}
+	}()
 
 	if err := internal.ReadN(c.br, p); err != nil {
-		return err
+		return nil, err
 	}
 	if maskEnabled {
 		internal.MaskXOR(p, c.fh.GetMaskKey())
 	}
 
 	if opcode != OpcodeContinuation && c.continuationFrame.initialized {
-		return internal.CloseProtocolError
+		return nil, internal.CloseProtocolError
 	}
 
 	if fin && opcode != OpcodeContinuation {
 		*(*[]byte)(unsafe.Pointer(buf)) = p
-		if !compressed {
-			closer.Data = nil
-		}
-		return c.emitMessage(&Message{Opcode: opcode, Data: buf, compressed: compressed})
+		recycle = false
+		return &Message{Opcode: opcode, Data: buf, compressed: compressed}, nil
 	}
 
 	// 处理分片消息
@@ -131,20 +163,59 @@ func (c *Conn) readMessage() error {
 		c.continuationFrame.buffer = bytes.NewBuffer(make([]byte, 0, contentLength))
 	}
 	if !c.continuationFrame.initialized {
-		return internal.CloseProtocolError
+		return nil, internal.CloseProtocolError
 	}
 
 	c.continuationFrame.buffer.Write(p)
 	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
-		return internal.CloseMessageTooLarge
+		return nil, internal.CloseMessageTooLarge
 	}
 	if !fin {
-		return nil
+		return nil, nil
 	}
 
-	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer, compressed: c.continuationFrame.compressed}
+	msg = &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer, compressed: c.continuationFrame.compressed}
 	c.continuationFrame.reset()
-	return c.emitMessage(msg)
+	return msg, nil
+}
+
+func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, error) {
+	for {
+		contentLength, err := c.fh.Parse(c.br)
+		if err != nil {
+			return nil, 0, err
+		}
+		if contentLength > c.config.ReadMaxPayloadSize {
+			return nil, 0, internal.CloseMessageTooLarge
+		}
+		if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
+			return nil, 0, internal.CloseProtocolError
+		}
+		maskEnabled := c.fh.GetMask()
+		if err := c.checkMask(maskEnabled); err != nil {
+			return nil, 0, err
+		}
+		opcode := c.fh.GetOpcode()
+		if !opcode.isDataFrame() {
+			if err := c.readControl(); err != nil {
+				return nil, 0, err
+			}
+			continue
+		}
+		if expectContinuation {
+			if opcode != OpcodeContinuation || c.fh.GetRSV1() {
+				return nil, 0, internal.CloseProtocolError
+			}
+		} else {
+			if opcode == OpcodeContinuation {
+				return nil, 0, internal.CloseProtocolError
+			}
+		}
+		if c.fh.GetRSV2() || c.fh.GetRSV3() {
+			return nil, 0, internal.CloseProtocolError
+		}
+		return &c.fh, contentLength, nil
+	}
 }
 
 // 分发消息和异常恢复
@@ -173,18 +244,40 @@ func (c *Conn) dispatchControl(opcode Opcode, payload []byte, err error) error {
 	return nil
 }
 
-// 发射消息事件
-// Emit onmessage event
-func (c *Conn) emitMessage(msg *Message) (err error) {
+// 解压消息并更新解压字典.
+// Decompresses a message and updates the decompress dictionary.
+func (c *Conn) decompressMessage(msg *Message) error {
 	if msg.compressed {
-		msg.Data, err = c.deflater.Decompress(msg.Data, c.dpsWindow.dict)
+		var rawBuf = msg.Data
+		dst, err := c.deflater.Decompress(rawBuf, c.dpsWindow.dict)
+		binaryPool.Put(rawBuf)
 		if err != nil {
+			msg.Data = nil
 			return internal.NewError(internal.CloseInternalErr, err)
 		}
+		msg.Data = dst
 		_, _ = c.dpsWindow.Write(msg.Bytes())
+	}
+	return nil
+}
+
+// 处理消息: 解压并校验编码
+// Processes a message: decompresses it and validates its encoding
+func (c *Conn) processMessage(msg *Message) error {
+	if err := c.decompressMessage(msg); err != nil {
+		return err
 	}
 	if !internal.CheckEncoding(c.config.CheckUtf8Enabled, uint8(msg.Opcode), msg.Bytes()) {
 		return internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
+	}
+	return nil
+}
+
+// 发射消息事件
+// Emit onmessage event
+func (c *Conn) emitMessage(msg *Message) error {
+	if err := c.processMessage(msg); err != nil {
+		return err
 	}
 	if c.config.ParallelEnabled {
 		return c.readQueue.Go(msg, c.dispatchMessage)

@@ -122,6 +122,10 @@ func TestConcurrentMap(t *testing.T) {
 		as.Equal(v, v1)
 	}
 	as.Equal(len(m1), m2.Len())
+
+	v, ok := m2.Load("missing")
+	as.False(ok)
+	as.Equal(uint32(0), v)
 }
 
 func TestConcurrentMap_Range(t *testing.T) {
