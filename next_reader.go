@@ -110,9 +110,6 @@ func (c *uncompressedMessageReader) Read(p []byte) (int, error) {
 			c.conn.rr = nil
 			return n, err
 		}
-		if n > 0 {
-			return n, c.failRead(err)
-		}
 		return 0, c.failRead(err)
 	}
 	return n, nil
@@ -128,7 +125,7 @@ func (c *uncompressedMessageReader) close() error {
 
 	buf := binaryPool.Get(4096)
 	defer binaryPool.Put(buf)
-	p := buf.AvailableBuffer()
+	p := buf.Bytes()
 	p = p[:cap(p)]
 	for {
 		_, err := c.read(p)
@@ -150,10 +147,7 @@ func (c *uncompressedMessageReader) read(p []byte) (int, error) {
 		if c.framePayload == 0 {
 			if c.frameFIN {
 				c.messageDone = true
-				if nTotal == 0 {
-					return 0, io.EOF
-				}
-				return nTotal, nil
+				return 0, io.EOF
 			}
 			h, payloadLen, err := c.conn.readDataFrameHeader(true)
 			if err != nil {
@@ -299,7 +293,7 @@ func (c *messageReader) fillCompressedOutput() error {
 		if tmp == nil {
 			tmp = binaryPool.Get(4096)
 		}
-		chunk := tmp.AvailableBuffer()
+		chunk := tmp.Bytes()
 		if cap(chunk) > c.framePayload {
 			chunk = chunk[:c.framePayload]
 		} else {
@@ -323,10 +317,6 @@ func (c *messageReader) fillCompressedOutput() error {
 	msg := &Message{Opcode: c.opcode, Data: c.compressedBuf, compressed: true}
 	c.compressedBuf = nil
 	if err := c.conn.decompressMessage(msg); err != nil {
-		if msg.Data != nil {
-			binaryPool.Put(msg.Data)
-			msg.Data = nil
-		}
 		return err
 	}
 	c.output = msg.Data

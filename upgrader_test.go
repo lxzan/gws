@@ -11,9 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,11 +19,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _port = int64(19999)
-
 func nextPort() string {
-	port := atomic.AddInt64(&_port, 1)
-	return strconv.Itoa(int(port))
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	defer ln.Close()
+	return fmt.Sprint(ln.Addr().(*net.TCPAddr).Port)
 }
 
 func newHttpWriter() *httpWriter {
@@ -314,7 +314,8 @@ func TestNewServer(t *testing.T) {
 		}})
 		var dir = os.Getenv("PWD")
 		go server.RunTLS(addr, dir+"/examples/wss/cert/server.crt", dir+"/examples/wss/cert/server.pem")
-		ctx, _ := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 		<-ctx.Done()
 	})
 

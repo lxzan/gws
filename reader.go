@@ -72,7 +72,15 @@ func (c *Conn) readMessage() error {
 	if msg == nil {
 		return nil
 	}
-	return c.emitMessage(msg)
+	return c.emitReadMessage(msg)
+}
+
+func (c *Conn) emitReadMessage(msg *Message) error {
+	if err := c.emitMessage(msg); err != nil {
+		_ = msg.Close()
+		return err
+	}
+	return nil
 }
 
 // 读取一帧数据.
@@ -169,122 +177,6 @@ func (c *Conn) readFrame() (msg *Message, err error) {
 	msg = &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer, compressed: c.continuationFrame.compressed}
 	c.continuationFrame.reset()
 	return msg, nil
-}
-
-// readStreamChunk 为 Conn.Read 读取更多可供消费的数据.
-//
-// 如果这一帧只是一个控制帧(ping/pong/close, 已经完成派发), 返回 (nil, nil), 调用方需要再次调用以获取真正
-// 的数据.
-//
-// 未压缩的消息按帧直接交付, 读到一帧就返回一帧的数据, 不必等待分片消息的后续帧到达; 压缩的消息由于需要
-// 对整条消息的字节流一起做 inflate, 会累积消息的所有分片, 读到最后一帧后整体解压再交付. 是否压缩、消息的
-// opcode 等状态复用 c.continuationFrame 字段跨帧/跨调用缓存.
-//
-// readStreamChunk reads more data for Conn.Read to consume.
-//
-// If this frame is just a control frame (ping/pong/close, already dispatched), it returns
-// (nil, nil); the caller should call again to obtain actual data.
-//
-// Uncompressed messages are delivered frame by frame as soon as each frame is read, without
-// waiting for subsequent fragments of the message. Compressed messages need the whole
-// message's byte stream to be inflated together, so all fragments are accumulated and the
-// whole message is decompressed once the final frame arrives. Whether the message is
-// compressed, its opcode, etc. are cached across frames/calls by reusing c.continuationFrame.
-func (c *Conn) readStreamChunk() (*bytes.Buffer, error) {
-	// 解析帧头并获取内容长度
-	// Parse the frame header and get the content length
-	contentLength, err := c.fh.Parse(c.br)
-	if err != nil {
-		return nil, err
-	}
-	if contentLength > c.config.ReadMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
-	}
-
-	if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
-		return nil, internal.CloseProtocolError
-	}
-
-	maskEnabled := c.fh.GetMask()
-	if err := c.checkMask(maskEnabled); err != nil {
-		return nil, err
-	}
-
-	var opcode = c.fh.GetOpcode()
-	if !opcode.isDataFrame() {
-		return nil, c.readControl()
-	}
-
-	var fin = c.fh.GetFIN()
-	var firstFrame = opcode != OpcodeContinuation
-
-	if firstFrame {
-		if c.continuationFrame.initialized {
-			return nil, internal.CloseProtocolError
-		}
-		c.continuationFrame.initialized = true
-		c.continuationFrame.opcode = opcode
-		c.continuationFrame.compressed = c.pd.Enabled && c.fh.GetRSV1()
-	} else if !c.continuationFrame.initialized {
-		return nil, internal.CloseProtocolError
-	}
-
-	var buf = binaryPool.Get(contentLength + len(flateTail))
-	var p = buf.Bytes()[:contentLength]
-
-	// buf 默认在函数返回时回收, 除非其所有权被转移出去(此时由调用方负责回收)
-	// buf is recycled on return by default, unless its ownership is transferred out
-	// (in which case the caller is responsible for recycling it)
-	var recycle = true
-	defer func() {
-		if recycle {
-			binaryPool.Put(buf)
-		}
-	}()
-
-	if err := internal.ReadN(c.br, p); err != nil {
-		return nil, err
-	}
-	if maskEnabled {
-		internal.MaskXOR(p, c.fh.GetMaskKey())
-	}
-
-	if !c.continuationFrame.compressed {
-		// 未分片/未压缩的消息只需要校验它自身; 跨帧拼装出来的消息不在这里做编码校验,
-		// 因为一个 UTF8 字符可能被拆分到两个 frame 里
-		// An unfragmented/uncompressed message only needs to validate itself; messages
-		// reassembled across frames are not validated for encoding here, since a UTF8
-		// character could be split across two frames
-		if firstFrame && fin && !internal.CheckEncoding(c.config.CheckUtf8Enabled, uint8(opcode), p) {
-			return nil, internal.NewError(internal.CloseUnsupportedData, ErrTextEncoding)
-		}
-		*(*[]byte)(unsafe.Pointer(buf)) = p
-		recycle = false
-		if fin {
-			c.continuationFrame.reset()
-		}
-		return buf, nil
-	}
-
-	// 压缩消息: 累积分片, 读到最后一帧后整体解压
-	// Compressed message: accumulate fragments, decompress as a whole once the final frame arrives
-	if c.continuationFrame.buffer == nil {
-		c.continuationFrame.buffer = bytes.NewBuffer(make([]byte, 0, contentLength))
-	}
-	c.continuationFrame.buffer.Write(p)
-	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
-		return nil, internal.CloseMessageTooLarge
-	}
-	if !fin {
-		return nil, nil
-	}
-
-	msg := &Message{Opcode: c.continuationFrame.opcode, Data: c.continuationFrame.buffer, compressed: true}
-	c.continuationFrame.reset()
-	if err := c.processMessage(msg); err != nil {
-		return nil, err
-	}
-	return msg.Data, nil
 }
 
 func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, error) {

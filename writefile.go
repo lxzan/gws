@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"net"
 
 	"github.com/klauspost/compress/flate"
 	"github.com/lxzan/gws/internal"
@@ -37,19 +38,23 @@ func (c *Conn) splitReader(r io.Reader, f func(index int, eof bool, p []byte) er
 	defer binaryPool.Put(buf)
 
 	var p = buf.Bytes()[:segmentSize]
-	var n, index = 0, 0
-	var err error
-	for n, err = r.Read(p); err == nil || errors.Is(err, io.EOF); n, err = r.Read(p) {
-		eof := errors.Is(err, io.EOF)
-		if err = f(index, eof, p[:n]); err != nil {
+	var index = 0
+	for {
+		n, err := io.ReadFull(r, p)
+		switch {
+		case err == nil:
+			if err = f(index, false, p[:n]); err != nil {
+				return err
+			}
+			index++
+		case errors.Is(err, io.ErrUnexpectedEOF):
+			return f(index, true, p[:n])
+		case errors.Is(err, io.EOF):
+			return f(index, true, p[:0])
+		default:
 			return err
 		}
-		index++
-		if eof {
-			break
-		}
 	}
-	return err
 }
 
 // WriteFile 大文件写入
@@ -96,9 +101,38 @@ func (c *Conn) doWriteFile(opcode Opcode, payload io.Reader) error {
 		err := deflater.Compress(reader, fw, c.cpsWindow.dict)
 		c.putBigDeflater(deflater)
 		return err
-	} else {
-		return c.splitReader(payload, cb)
 	}
+	return c.splitReader(payload, func(index int, eof bool, p []byte) error {
+		return c.writeFileFrame(opcode, index, eof, p)
+	})
+}
+
+func (c *Conn) writeFileFrame(opcode Opcode, index int, eof bool, p []byte) error {
+	if index > 0 {
+		opcode = OpcodeContinuation
+	}
+	if len(p) > c.config.WriteMaxPayloadSize {
+		return ErrMessageTooLarge
+	}
+	if c.isClosed() {
+		return ErrConnClosed
+	}
+
+	header := frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, eof, false, opcode, len(p))
+	if !c.isServer {
+		internal.MaskXOR(p, maskBytes)
+	}
+
+	buffers := net.Buffers{header[:headerLength], p}
+	n, err := buffers.WriteTo(c.conn)
+	if err != nil {
+		return err
+	}
+	if n != int64(headerLength+len(p)) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 // 大文件压缩器

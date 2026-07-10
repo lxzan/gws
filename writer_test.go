@@ -572,6 +572,43 @@ func TestConn_Async(t *testing.T) {
 	assert.True(t, internal.IsSameSlice(arr1, arr2))
 }
 
+func TestConn_SplitReaderFillsSegment(t *testing.T) {
+	var content = bytes.Repeat([]byte{1}, segmentSize+3)
+	var reader = &fixedChunkReader{data: content, size: 7}
+	var sizes []int
+	var eofs []bool
+
+	err := new(Conn).splitReader(reader, func(index int, eof bool, p []byte) error {
+		sizes = append(sizes, len(p))
+		eofs = append(eofs, eof)
+		return nil
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []int{segmentSize, 3}, sizes)
+	assert.Equal(t, []bool{false, true}, eofs)
+}
+
+type fixedChunkReader struct {
+	data []byte
+	size int
+}
+
+func (c *fixedChunkReader) Read(p []byte) (int, error) {
+	if len(c.data) == 0 {
+		return 0, io.EOF
+	}
+	if len(p) > c.size {
+		p = p[:c.size]
+	}
+	if len(p) > len(c.data) {
+		p = p[:len(c.data)]
+	}
+	n := copy(p, c.data)
+	c.data = c.data[n:]
+	return n, nil
+}
+
 func TestConn_WriteFile(t *testing.T) {
 	t.Run("context_take_over 1", func(t *testing.T) {
 		var pd = PermessageDeflate{

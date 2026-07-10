@@ -60,6 +60,22 @@ func TestReadSync(t *testing.T) {
 	assert.ElementsMatch(t, listA, listB)
 }
 
+func TestConn_EmitReadMessageClosesOnError(t *testing.T) {
+	as := assert.New(t)
+	conn := &Conn{
+		config: initServerOption(&ServerOption{CheckUtf8Enabled: true}).getConfig(),
+	}
+	msg := &Message{Opcode: OpcodeText, Data: bytes.NewBuffer([]byte{0xff})}
+
+	err := conn.emitReadMessage(msg)
+
+	as.Error(err)
+	if e, ok := err.(*internal.Error); as.True(ok) {
+		as.Equal(internal.CloseUnsupportedData, e.Code)
+	}
+	as.Nil(msg.Data)
+}
+
 //go:embed assets/read_test.json
 var testdata []byte
 
