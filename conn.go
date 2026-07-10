@@ -93,10 +93,14 @@ type Conn struct {
 	// call or on read errors.
 	rr nextMessageReader
 
-	// NextReader 复用的 reader 实例, 避免每条消息分配 reader 对象.
-	// Reusable NextReader instances to avoid allocating a reader per message.
-	urr uncompressedMessageReader
-	crr messageReader
+	// NextReader 复用的 reader 实例, 首次调用 NextReader 时惰性分配.
+	// Reusable NextReader instances, lazily allocated on the first NextReader call.
+	urr *uncompressedMessageReader
+	crr *messageReader
+
+	// NextReader 代数, 每次返回新 reader 时递增, 用于检测过期的 reader 句柄.
+	// NextReader generation, incremented on each new reader, used to detect stale handles.
+	readGen uint32
 }
 
 // ReadLoop
@@ -124,12 +128,18 @@ func (c *Conn) ReadLoop() {
 // If an error occurs, it triggers the error event and reclaims resources, consistent with
 // the handling logic at the end of ReadLoop.
 func (c *Conn) ReadMessage() (*Message, error) {
+	if c.isClosed() {
+		return nil, ErrConnClosed
+	}
 	for {
 		msg, err := c.readFrame()
 		if err == nil && msg != nil {
 			err = c.processMessage(msg)
 		}
 		if err != nil {
+			if msg != nil {
+				_ = msg.Close()
+			}
 			c.handleReadError(err)
 			return nil, err
 		}

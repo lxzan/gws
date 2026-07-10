@@ -425,6 +425,46 @@ func TestConn_NextReader(t *testing.T) {
 		_, _, err := server.NextReader()
 		as.Equal(internal.CloseProtocolError, err)
 	})
+
+	t.Run("re-entry after error returns ErrConnClosed", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		_ = client.NetConn().Close()
+
+		_, _, err := server.NextReader()
+		as.Error(err)
+
+		_, _, err = server.NextReader()
+		as.ErrorIs(err, ErrConnClosed)
+	})
+
+	t.Run("stale reader returns ErrConnClosed", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+
+		msg1 := internal.AlphabetNumeric.Generate(64)
+		msg2 := internal.AlphabetNumeric.Generate(16)
+		go func() {
+			_ = testWrite(client, true, OpcodeText, testCloneBytes(msg1))
+			_ = testWrite(client, true, OpcodeText, testCloneBytes(msg2))
+		}()
+
+		_, r1, err := server.NextReader()
+		as.NoError(err)
+		buf := make([]byte, 8)
+		n, err := r1.Read(buf)
+		as.NoError(err)
+		as.Equal(len(buf), n)
+
+		_, r2, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(msg2, readAllReader(t, r2))
+
+		_, err = r1.Read(buf)
+		as.ErrorIs(err, ErrConnClosed)
+	})
 }
 
 func TestConn_ReadMessageManual(t *testing.T) {
@@ -481,6 +521,36 @@ func TestConn_ReadMessageManual(t *testing.T) {
 		msg, err := server.ReadMessage()
 		as.Nil(msg)
 		as.Error(err)
+	})
+
+	t.Run("re-entry after error returns ErrConnClosed", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		_ = client.NetConn().Close()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Error(err)
+
+		msg, err = server.ReadMessage()
+		as.Nil(msg)
+		as.ErrorIs(err, ErrConnClosed)
+	})
+
+	t.Run("invalid utf8 closes message buffer", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{CheckUtf8Enabled: true}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() { _ = testWrite(client, true, OpcodeText, []byte{0xff, 0xfe}) }()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Error(err)
+		if e, ok := err.(*internal.Error); as.True(ok) {
+			as.Equal(internal.CloseUnsupportedData, e.Code)
+		}
 	})
 }
 

@@ -97,7 +97,6 @@ func MaskXOROffset(b []byte, key []byte, offset int) {
 	var maskKey = rotateMaskKey32(binary.LittleEndian.Uint32(key), offset)
 	var key64 = uint64(maskKey)<<32 + uint64(maskKey)
 
-	var processed int
 	for len(b) >= 64 {
 		v := binary.LittleEndian.Uint64(b)
 		binary.LittleEndian.PutUint64(b, v^key64)
@@ -116,17 +115,15 @@ func MaskXOROffset(b []byte, key []byte, offset int) {
 		v = binary.LittleEndian.Uint64(b[56:64])
 		binary.LittleEndian.PutUint64(b[56:64], v^key64)
 		b = b[64:]
-		processed += 64
 	}
 
 	for len(b) >= 8 {
 		v := binary.LittleEndian.Uint64(b[:8])
 		binary.LittleEndian.PutUint64(b[:8], v^key64)
 		b = b[8:]
-		processed += 8
 	}
 
-	var start = (offset + processed) & 3
+	var start = offset & 3
 	for i := range b {
 		b[i] ^= key[(start+i)&3]
 	}

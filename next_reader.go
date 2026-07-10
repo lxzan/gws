@@ -14,6 +14,21 @@ type nextMessageReader interface {
 	close() error
 }
 
+// nextReaderProxy 包装复用的底层 reader, 通过代数检测过期句柄.
+// Wraps the reused underlying reader and detects stale handles via generation.
+type nextReaderProxy struct {
+	conn *Conn
+	gen  uint32
+	r    nextMessageReader
+}
+
+func (p *nextReaderProxy) Read(b []byte) (int, error) {
+	if p.gen != p.conn.readGen {
+		return 0, ErrConnClosed
+	}
+	return p.r.Read(b)
+}
+
 type uncompressedMessageReader struct {
 	conn         *Conn
 	framePayload int
@@ -51,6 +66,9 @@ type messageReader struct {
 // dispatch control-frame events. On error, it emits error/close events and reclaims resources,
 // consistent with the handling at the end of ReadLoop.
 func (c *Conn) NextReader() (messageType Opcode, r io.Reader, err error) {
+	if c.isClosed() {
+		return 0, nil, ErrConnClosed
+	}
 	if err := c.closeNextReader(); err != nil {
 		err = normalizeReadError(err)
 		c.handleReadError(err)
@@ -63,8 +81,10 @@ func (c *Conn) NextReader() (messageType Opcode, r io.Reader, err error) {
 		c.handleReadError(readErr)
 		return 0, nil, readErr
 	}
+	c.readGen++
+	gen := c.readGen
 	c.rr = c.resetNextMessageReader(h, payloadLen)
-	return h.GetOpcode(), c.rr, nil
+	return h.GetOpcode(), &nextReaderProxy{conn: c, gen: gen, r: c.rr}, nil
 }
 
 func (c *Conn) closeNextReader() error {
@@ -78,12 +98,18 @@ func (c *Conn) closeNextReader() error {
 
 func (c *Conn) resetNextMessageReader(h *frameHeader, payloadLen int) nextMessageReader {
 	if !(c.pd.Enabled && h.GetRSV1()) {
+		if c.urr == nil {
+			c.urr = new(uncompressedMessageReader)
+		}
 		c.urr.reset(c, h, payloadLen)
-		return &c.urr
+		return c.urr
 	}
 
+	if c.crr == nil {
+		c.crr = new(messageReader)
+	}
 	c.crr.reset(c, h, payloadLen)
-	return &c.crr
+	return c.crr
 }
 
 func (c *uncompressedMessageReader) reset(conn *Conn, h *frameHeader, payloadLen int) {
@@ -255,7 +281,49 @@ func (c *messageReader) close() error {
 		c.releaseCompressed()
 	}()
 	if c.output == nil {
-		return c.fillCompressedOutput()
+		if c.conn.dpsWindow.enabled {
+			return c.fillCompressedOutput()
+		}
+		return c.drainCompressedInput()
+	}
+	return nil
+}
+
+func (c *messageReader) drainCompressedInput() error {
+	buf := binaryPool.Get(4096)
+	defer binaryPool.Put(buf)
+	p := buf.Bytes()
+	p = p[:cap(p)]
+	for !c.messageDone {
+		if c.framePayload == 0 {
+			if c.frameFIN {
+				c.messageDone = true
+				break
+			}
+			h, payloadLen, err := c.conn.readDataFrameHeader(true)
+			if err != nil {
+				return err
+			}
+			c.frameFIN = h.GetFIN()
+			c.framePayload = payloadLen
+			c.maskEnabled = h.GetMask()
+			c.maskOffset = 0
+			if c.maskEnabled {
+				copy(c.maskKey[:], h.GetMaskKey())
+			}
+			continue
+		}
+		want := c.framePayload
+		if want > len(p) {
+			want = len(p)
+		}
+		if err := internal.ReadN(c.conn.br, p[:want]); err != nil {
+			return err
+		}
+		if err := c.trackPayload(p[:want]); err != nil {
+			return err
+		}
+		c.framePayload -= want
 	}
 	return nil
 }
