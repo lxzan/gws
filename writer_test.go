@@ -394,6 +394,58 @@ func TestNewBroadcaster(t *testing.T) {
 	})
 }
 
+func TestBroadcaster_BroadcastWithCallback(t *testing.T) {
+	t.Run("write succeeds", func(t *testing.T) {
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(new(webSocketMocker), nil, clientHandler, nil)
+		clientHandler.onMessage = func(socket *Conn, message *Message) {
+			message.Close()
+		}
+		t.Cleanup(func() {
+			_ = server.NetConn().Close()
+			_ = client.NetConn().Close()
+		})
+		go client.ReadLoop()
+
+		writeCompleted := make(chan error, 1)
+		payload := []byte("broadcast payload")
+		broadcaster := NewBroadcaster(OpcodeText, payload)
+		assert.NoError(t, broadcaster.BroadcastWithCallback(server, func(err error) {
+			writeCompleted <- err
+		}))
+		broadcaster.Close()
+
+		select {
+		case err := <-writeCompleted:
+			assert.NoError(t, err)
+		case <-time.After(time.Second):
+			t.Fatal("broadcast callback was not invoked")
+		}
+	})
+
+	t.Run("write fails", func(t *testing.T) {
+		server, client := newPeer(new(webSocketMocker), nil, new(webSocketMocker), nil)
+		t.Cleanup(func() {
+			_ = server.NetConn().Close()
+			_ = client.NetConn().Close()
+		})
+		assert.NoError(t, server.NetConn().Close())
+		writeCompleted := make(chan error, 1)
+		broadcaster := NewBroadcaster(OpcodeText, []byte("broadcast payload"))
+
+		assert.NoError(t, broadcaster.BroadcastWithCallback(server, func(err error) {
+			writeCompleted <- err
+		}))
+		broadcaster.Close()
+		select {
+		case err := <-writeCompleted:
+			assert.Error(t, err)
+		case <-time.After(time.Second):
+			t.Fatal("broadcast callback was not invoked")
+		}
+	})
+}
+
 type broadcastHandler struct {
 	BuiltinEventHandler
 	wg      *sync.WaitGroup
