@@ -124,7 +124,7 @@ func (b BuiltinEventHandler) OnClose(socket *Conn, err error) {}
 
 // OnPing 默认心跳探测事件回调, 自动回复 Pong 帧
 // Default callback when a ping frame is received, automatically replies with a pong frame
-func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) { _ = socket.WritePong(nil) }
+func (b BuiltinEventHandler) OnPing(socket *Conn, payload []byte) { _ = socket.WritePong(payload) }
 
 // OnPong 默认心跳响应事件回调
 // Default callback when a pong frame is received

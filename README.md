@@ -345,7 +345,7 @@ func Broadcast(conns []*gws.Conn, opcode gws.Opcode, payload []byte) {
     var b = gws.NewBroadcaster(opcode, payload)
     defer b.Close()
     for _, item := range conns {
-        _ = b.Broadcast(item)
+        _ = b.Broadcast(item, nil)
     }
 }
 ```
@@ -403,7 +403,7 @@ func (c *Subscriber) Conn() *gws.Conn { return (*gws.Conn)(c) }
 
 func Subscribe(em *event_emitter.EventEmitter[int64, *Subscriber], s *Subscriber, topic string) {
     em.Subscribe(s, topic, func(msg any) {
-        _ = msg.(*gws.Broadcaster).Broadcast(s.Conn())
+        _ = msg.(*gws.Broadcaster).Broadcast(s.Conn(), nil)
     })
 }
 
