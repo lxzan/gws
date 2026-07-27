@@ -64,7 +64,7 @@ type Handler struct {
 func (c *Handler) Broadcast(msg string) {
 	var b = gws.NewBroadcaster(gws.OpcodeText, []byte(msg))
 	c.conns.Range(func(key string, conn *gws.Conn) bool {
-		_ = b.Broadcast(conn)
+		_ = b.Broadcast(conn, nil)
 		return true
 	})
 	_ = b.Close()

@@ -256,16 +256,12 @@ func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
 }
 
 // Broadcast 广播
-// 向客户端发送广播消息
-// Send a broadcast message to a client.
-func (c *Broadcaster) Broadcast(socket *Conn) error {
-	return c.BroadcastWithCallback(socket, nil)
-}
-
-// BroadcastWithCallback 广播
-// 向客户端发送广播消息, 并在写入完成后执行回调。
+// 向客户端发送广播消息, 并在写入完成后执行回调.
+// 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收 payload 内存.
 // Send a broadcast message to a client and invoke callback after the write completes.
-func (c *Broadcaster) BroadcastWithCallback(socket *Conn, callback func(error)) error {
+// Write messages to the task queue asynchronously and non-blockingly,
+// allowing payload memory to be recycled only after receiving the callback.
+func (c *Broadcaster) Broadcast(socket *Conn, callback func(error)) error {
 	var idx = internal.SelectValue(socket.pd.Enabled, 1, 0)
 	var msg = c.msgs[idx]
 
@@ -283,16 +279,13 @@ func (c *Broadcaster) BroadcastWithCallback(socket *Conn, callback func(error)) 
 
 	atomic.AddInt64(&c.state, 1)
 	socket.writeQueue.Push(func() {
-		defer func() {
-			if atomic.AddInt64(&c.state, -1) == 0 {
-				c.doClose()
-			}
-		}()
-
 		var err = c.writeFrame(socket, msg.frame)
 		socket.emitError(false, err)
 		if callback != nil {
 			callback(err)
+		}
+		if atomic.AddInt64(&c.state, -1) == 0 {
+			c.doClose()
 		}
 	})
 	return nil
