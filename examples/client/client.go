@@ -8,7 +8,9 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// WebSocket 客户端示例: 连接服务器并交互式收发消息
 func main() {
+	// 创建客户端连接, 启用 PermessageDeflate 压缩
 	socket, _, err := gws.NewClient(new(WebSocket), &gws.ClientOption{
 		Addr: "ws://127.0.0.1:3000/connect",
 		PermessageDeflate: gws.PermessageDeflate{
@@ -21,8 +23,10 @@ func main() {
 		log.Printf(err.Error())
 		return
 	}
+	// 启动异步读取循环, 接收服务端消息
 	go socket.ReadLoop()
 
+	// 从标准输入读取消息并发送
 	for {
 		var text = ""
 		fmt.Scanf("%s", &text)
@@ -33,6 +37,7 @@ func main() {
 	}
 }
 
+// WebSocket 实现 gws.Event 接口, 处理各类事件回调
 type WebSocket struct {
 }
 

@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"net"
 	"net/url"
-	"reflect"
 	"strings"
 	"unsafe"
 )
@@ -21,46 +20,12 @@ type Integer interface {
 	int | int64 | int32 | uint | uint64 | uint32
 }
 
-func MaskByByte(content []byte, key []byte) {
-	var n = len(content)
-	for i := 0; i < n; i++ {
-		var idx = i & 3
-		content[i] ^= key[idx]
-	}
-}
-
 func ComputeAcceptKey(challengeKey string) string {
 	h := sha1.New()
 	buf := []byte(challengeKey)
 	buf = append(buf, MagicNumber...)
 	h.Write(buf)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
-}
-
-func NewMaskKey() [4]byte {
-	n := AlphabetNumeric.Uint32()
-	return [4]byte{byte(n), byte(n >> 8), byte(n >> 16), byte(n >> 24)}
-}
-
-// MethodExists
-// if nil return false
-func MethodExists(in any, method string) (reflect.Value, bool) {
-	if in == nil || method == "" {
-		return reflect.Value{}, false
-	}
-	p := reflect.TypeOf(in)
-	if p.Kind() == reflect.Ptr {
-		p = p.Elem()
-	}
-	if p.Kind() != reflect.Struct {
-		return reflect.Value{}, false
-	}
-	object := reflect.ValueOf(in)
-	newMethod := object.MethodByName(method)
-	if !newMethod.IsValid() {
-		return reflect.Value{}, false
-	}
-	return newMethod, true
 }
 
 func StringToBytes(s string) []byte {
@@ -129,21 +94,30 @@ func MaskXOROffset(b []byte, key []byte, offset int) {
 	}
 }
 
+const (
+	maskKeyRotate8  = 8
+	maskKeyRotate16 = 16
+	maskKeyRotate24 = 24
+	maskKeyMask     = 3
+	maskKeyCase1    = 1
+	maskKeyCase2    = 2
+	maskKeyCase3    = 3
+)
+
 func rotateMaskKey32(maskKey uint32, offset int) uint32 {
-	switch offset & 3 {
-	case 1:
-		return (maskKey >> 8) | (maskKey << 24)
-	case 2:
-		return (maskKey >> 16) | (maskKey << 16)
-	case 3:
-		return (maskKey >> 24) | (maskKey << 8)
+	switch offset & maskKeyMask {
+	case maskKeyCase1:
+		return (maskKey >> maskKeyRotate8) | (maskKey << maskKeyRotate24)
+	case maskKeyCase2:
+		return (maskKey >> maskKeyRotate16) | (maskKey << maskKeyRotate16)
+	case maskKeyCase3:
+		return (maskKey >> maskKeyRotate24) | (maskKey << maskKeyRotate8)
 	default:
 		return maskKey
 	}
 }
 
 // InCollection 检查给定的字符串 elem 是否在字符串切片 elems 中
-// Checks if the given string elem is in the string slice elems.
 func InCollection(elem string, elems []string) bool {
 	for _, item := range elems {
 		if item == elem {
@@ -154,7 +128,6 @@ func InCollection(elem string, elems []string) bool {
 }
 
 // GetIntersectionElem 获取两个字符串切片 a 和 b 的交集中的一个元素
-// Gets an element in the intersection of two string slices a and b
 func GetIntersectionElem(a, b []string) string {
 	for _, item := range a {
 		if InCollection(item, b) {
@@ -165,7 +138,6 @@ func GetIntersectionElem(a, b []string) string {
 }
 
 // Split 分割给定的字符串 s，使用 sep 作为分隔符。空值将会被过滤掉。
-// Splits the given string s using sep as the separator. Empty values will be filtered out.
 func Split(s string, sep string) []string {
 	var list = strings.Split(s, sep)
 	var j = 0
@@ -179,7 +151,7 @@ func Split(s string, sep string) []string {
 }
 
 func HttpHeaderEqual(a, b string) bool {
-	return strings.ToLower(a) == strings.ToLower(b)
+	return strings.EqualFold(a, b)
 }
 
 func HttpHeaderContains(a, b string) bool {
@@ -204,17 +176,18 @@ func ToBinaryNumber[T Integer](n T) T {
 // BinaryPow 返回2的n次方
 func BinaryPow(n int) int {
 	var ans = 1
-	for i := 0; i < n; i++ {
+	for range n {
 		ans <<= 1
 	}
 	return ans
 }
 
-// BufferReset 重置buffer底层的切片
-// Reset the buffer's underlying slice
+// BufferReset 重置buffer底层的切片与读取偏移
 // 注意：修改后面的属性一定要加偏移量，否则可能会导致未定义的行为。
-// Note: Be sure to add an offset when modifying the following properties, otherwise it may lead to undefined behavior.
-func BufferReset(b *bytes.Buffer, p []byte) { *(*[]byte)(unsafe.Pointer(b)) = p }
+func BufferReset(b *bytes.Buffer, p []byte) {
+	*(*[]byte)(unsafe.Pointer(b)) = p
+	*(*int)(unsafe.Add(unsafe.Pointer(b), unsafe.Sizeof(p))) = 0
+}
 
 // IsZero 零值判断
 func IsZero[T comparable](v T) bool {
@@ -231,17 +204,11 @@ func WithDefault[T comparable](rawValue, newValue T) T {
 }
 
 func Min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	return min(a, b)
 }
 
 func Max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+	return max(a, b)
 }
 
 func IsSameSlice[T comparable](a, b []T) bool {
@@ -265,7 +232,6 @@ func IsIPv6(ipStr string) bool {
 }
 
 // GetAddrFromURL 根据URL获取网络连接地址
-// Get the network connection address based on the URL
 func GetAddrFromURL(URL *url.URL, tlsEnabled bool) string {
 	port := SelectValue(URL.Port() == "", SelectValue(tlsEnabled, "443", "80"), URL.Port())
 	hostname := URL.Hostname()

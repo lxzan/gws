@@ -15,8 +15,11 @@ import (
 )
 
 // deflate压缩算法的尾部标记
-// The tail marker of the deflate compression algorithm
 var flateTail = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
+
+// flateFlushTailLen 压缩输出尾部同步刷新标记(0x00 0x00 0xff 0xff)的长度,
+// RFC7692 要求发送压缩消息前移除该标记.
+const flateFlushTailLen = 4
 
 type deflaterPool struct {
 	serial uint64
@@ -25,7 +28,6 @@ type deflaterPool struct {
 }
 
 // 初始化deflaterPool
-// Initialize the deflaterPool
 func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflaterPool {
 	c.num = uint64(options.PoolSize)
 	for i := uint64(0); i < c.num; i++ {
@@ -35,7 +37,6 @@ func (c *deflaterPool) initialize(options PermessageDeflate, limit int) *deflate
 }
 
 // Select 从deflaterPool中选择一个deflater对象
-// Select a deflater object from the deflaterPool
 func (c *deflaterPool) Select() *deflater {
 	var j = atomic.AddUint64(&c.serial, 1) & (c.num - 1)
 	return c.pool[j]
@@ -43,35 +44,39 @@ func (c *deflaterPool) Select() *deflater {
 
 type deflater struct {
 	dpsLocker sync.Mutex
-	buf       []byte
 	limit     int
 	dpsBuffer *bytes.Buffer
 	dpsReader io.ReadCloser
+	rs        flate.Resetter
+	lr        limitedReader
 	cpsLocker sync.Mutex
 	cpsWriter *flate.Writer
 }
 
-// 初始化deflater
-// Initialize the deflater
-func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
-	c.dpsReader = flate.NewReader(nil)
-	c.dpsBuffer = bytes.NewBuffer(nil)
-	c.buf = make([]byte, 32*1024)
-	c.limit = limit
+// 创建压缩器, 按连接角色选择窗口位数
+func newCpsWriter(isServer bool, options PermessageDeflate) *flate.Writer {
 	windowBits := internal.SelectValue(isServer, options.ServerMaxWindowBits, options.ClientMaxWindowBits)
 	if windowBits == 15 {
-		c.cpsWriter, _ = flate.NewWriter(nil, options.Level)
-	} else {
-		c.cpsWriter, _ = flate.NewWriterWindow(nil, internal.BinaryPow(windowBits))
+		cpsWriter, _ := flate.NewWriter(nil, options.Level)
+		return cpsWriter
 	}
+	cpsWriter, _ := flate.NewWriterWindow(nil, internal.BinaryPow(windowBits))
+	return cpsWriter
+}
+
+// 初始化deflater
+func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
+	c.dpsReader = flate.NewReader(nil)
+	c.rs = c.dpsReader.(flate.Resetter)
+	c.dpsBuffer = bytes.NewBuffer(nil)
+	c.limit = limit
+	c.cpsWriter = newCpsWriter(isServer, options)
 	return c
 }
 
 // 重置deflate reader
-// Reset the deflate reader
 func (c *deflater) resetFR(r io.Reader, dict []byte) {
-	resetter := c.dpsReader.(flate.Resetter)
-	_ = resetter.Reset(r, dict) // must return a null pointer
+	_ = c.rs.Reset(r, dict) // 必返回空指针
 	if c.dpsBuffer.Cap() > int(bufferThreshold) {
 		c.dpsBuffer = bytes.NewBuffer(nil)
 	}
@@ -79,35 +84,50 @@ func (c *deflater) resetFR(r io.Reader, dict []byte) {
 }
 
 // Decompress 解压
-// Decompress data
 func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, error) {
 	c.dpsLocker.Lock()
 	defer c.dpsLocker.Unlock()
 
 	_, _ = src.Write(flateTail)
 	c.resetFR(src, dict)
-	reader := limitReader(c.dpsReader, c.limit)
-	if _, err := io.CopyBuffer(c.dpsBuffer, reader, c.buf); err != nil {
+	c.lr.R = c.dpsReader
+	c.lr.M = c.limit
+	c.lr.N = 0
+	if _, err := c.dpsBuffer.ReadFrom(&c.lr); err != nil {
 		return nil, err
 	}
-	var dst = binaryPool.Get(c.dpsBuffer.Len())
-	_, _ = c.dpsBuffer.WriteTo(dst)
+	dst := c.dpsBuffer
+	c.dpsBuffer = binaryPool.Get(dst.Len())
 	return dst, nil
 }
 
+// 剥离压缩输出尾部的同步刷新标记 (00 00 FF FF), RFC7692要求发送前移除
+func stripSyncFlushTail(b *bytes.Buffer) {
+	if n := b.Len(); n >= flateFlushTailLen {
+		if tail := b.Bytes()[n-flateFlushTailLen:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
+			b.Truncate(n - flateFlushTailLen)
+		}
+	}
+}
+
 // Compress 压缩
-// Compress data
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
 	if err := compressTo(c.cpsWriter, src, dst, dict); err != nil {
 		return err
 	}
-	if n := dst.Len(); n >= 4 {
-		if tail := dst.Bytes()[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			dst.Truncate(n - 4)
-		}
+	stripSyncFlushTail(dst)
+	return nil
+}
+
+func (c *deflater) CompressBytes(src []byte, dst *bytes.Buffer, dict []byte) error {
+	c.cpsLocker.Lock()
+	defer c.cpsLocker.Unlock()
+	if err := compressToBytes(c.cpsWriter, src, dst, dict); err != nil {
+		return err
 	}
+	stripSyncFlushTail(dst)
 	return nil
 }
 
@@ -119,8 +139,15 @@ func compressTo(cpsWriter *flate.Writer, r io.WriterTo, w io.Writer, dict []byte
 	return cpsWriter.Flush()
 }
 
+func compressToBytes(cpsWriter *flate.Writer, src []byte, w io.Writer, dict []byte) error {
+	cpsWriter.ResetDict(w, dict)
+	if _, err := cpsWriter.Write(src); err != nil {
+		return err
+	}
+	return cpsWriter.Flush()
+}
+
 // 滑动窗口
-// Sliding window
 type slideWindow struct {
 	enabled bool
 	dict    []byte
@@ -128,7 +155,6 @@ type slideWindow struct {
 }
 
 // 初始化滑动窗口
-// Initialize the sliding window
 func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *slideWindow {
 	c.enabled = true
 	c.size = internal.BinaryPow(windowBits)
@@ -141,7 +167,6 @@ func (c *slideWindow) initialize(pool *internal.Pool[[]byte], windowBits int) *s
 }
 
 // Write 将数据写入滑动窗口
-// Write data to the sliding window
 func (c *slideWindow) Write(p []byte) (int, error) {
 	if !c.enabled {
 		return 0, nil
@@ -172,7 +197,6 @@ func (c *slideWindow) Write(p []byte) (int, error) {
 }
 
 // 生成请求头
-// Generate request headers
 func (c *PermessageDeflate) genRequestHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -194,7 +218,6 @@ func (c *PermessageDeflate) genRequestHeader() string {
 }
 
 // 生成响应头
-// Generate response headers
 func (c *PermessageDeflate) genResponseHeader() string {
 	var options = make([]string, 0, 5)
 	options = append(options, internal.PermessageDeflate)
@@ -214,13 +237,14 @@ func (c *PermessageDeflate) genResponseHeader() string {
 }
 
 // 压缩拓展协商
-// Negotiation of compression parameters
+// 返回结果中ClientMaxWindowBits为0表示对端未提供client_max_window_bits参数;
+// 参数出现但不带值时按RFC7692默认值15处理.
 func permessageNegotiation(str string) PermessageDeflate {
 	var options = PermessageDeflate{
 		ServerContextTakeover: true,
 		ClientContextTakeover: true,
 		ServerMaxWindowBits:   15,
-		ClientMaxWindowBits:   15,
+		ClientMaxWindowBits:   0,
 	}
 
 	var ss = internal.Split(str, ";")
@@ -242,19 +266,17 @@ func permessageNegotiation(str string) PermessageDeflate {
 			if len(pair) == 2 {
 				x, _ := strconv.Atoi(pair[1])
 				x = internal.WithDefault(x, 15)
-				options.ClientMaxWindowBits = internal.Min(options.ClientMaxWindowBits, x)
+				options.ClientMaxWindowBits = internal.Min(internal.WithDefault(options.ClientMaxWindowBits, 15), x)
+			} else {
+				options.ClientMaxWindowBits = internal.WithDefault(options.ClientMaxWindowBits, 15)
 			}
 		}
 	}
 
-	options.ClientMaxWindowBits = internal.SelectValue(options.ClientMaxWindowBits < 8, 8, options.ClientMaxWindowBits)
+	options.ClientMaxWindowBits = internal.SelectValue(options.ClientMaxWindowBits != 0 && options.ClientMaxWindowBits < 8, 8, options.ClientMaxWindowBits)
 	options.ServerMaxWindowBits = internal.SelectValue(options.ServerMaxWindowBits < 8, 8, options.ServerMaxWindowBits)
 	return options
 }
-
-// 限制从io.Reader中最多读取m个字节
-// Limit reading up to m bytes from io.Reader
-func limitReader(r io.Reader, m int) io.Reader { return &limitedReader{R: r, M: m} }
 
 type limitedReader struct {
 	R io.Reader

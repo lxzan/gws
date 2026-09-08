@@ -16,42 +16,46 @@ type Ordered interface {
 		~string
 }
 
-func validate[T Ordered](q *Deque[T]) bool {
-	var sum = 0
+func validateLinks[T Ordered](q *Deque[T]) bool {
 	for i := q.Get(q.head); i != nil; i = q.Get(i.next) {
-		sum++
 		next := q.Get(i.next)
 		if next == nil {
 			continue
 		}
-		if i.next != next.addr {
-			return false
-		}
-		if next.prev != i.addr {
+		if i.next != next.addr || next.prev != i.addr {
 			return false
 		}
 	}
+	return true
+}
 
+func validateEnds[T Ordered](q *Deque[T]) bool {
+	if head := q.Front(); head != nil && head.prev != 0 {
+		return false
+	}
+	if tail := q.Back(); tail != nil && tail.next != 0 {
+		return false
+	}
+	return true
+}
+
+func validate[T Ordered](q *Deque[T]) bool {
+	var sum = 0
+	for i := q.Get(q.head); i != nil; i = q.Get(i.next) {
+		sum++
+	}
 	if q.Len() != sum {
 		return false
 	}
-
-	if head := q.Front(); head != nil {
-		if head.prev != 0 {
-			return false
-		}
+	if !validateLinks(q) {
+		return false
 	}
-
-	if tail := q.Back(); tail != nil {
-		if tail.next != 0 {
-			return false
-		}
+	if !validateEnds(q) {
+		return false
 	}
-
 	if q.Len() == 1 && q.Front().Value() != q.Back().Value() {
 		return false
 	}
-
 	return true
 }
 
@@ -79,7 +83,7 @@ func TestQueue_Range(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var q = New[int](0)
 		var a []int
-		for i := 0; i < count; i++ {
+		for range count {
 			v := rand.Intn(count)
 			q.PushBack(v)
 			a = append(a, v)
@@ -104,7 +108,7 @@ func TestQueue_Range(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		var q = New[int](0)
-		for i := 0; i < count; i++ {
+		for range count {
 			v := rand.Intn(count)
 			q.PushBack(v)
 		}
@@ -125,7 +129,7 @@ func TestQueue_Range(t *testing.T) {
 func TestQueue_Addr(t *testing.T) {
 	const count = 1000
 	var q = New[int](0)
-	for i := 0; i < count; i++ {
+	for range count {
 		v := rand.Intn(count)
 		if v&7 == 0 {
 			q.PopFront()
@@ -326,100 +330,150 @@ func TestDeque_Delete(t *testing.T) {
 	})
 }
 
+func randomPushBack(q *Deque[int], ll *list.List, val int) {
+	q.PushBack(val)
+	ll.PushBack(val)
+}
+
+func randomPushFront(q *Deque[int], ll *list.List, val int) {
+	q.PushFront(val)
+	ll.PushFront(val)
+}
+
+func randomPopFront(q *Deque[int], ll *list.List) {
+	if q.Len() > 0 {
+		q.PopFront()
+		ll.Remove(ll.Front())
+	}
+}
+
+func randomPopBack(q *Deque[int], ll *list.List) {
+	if q.Len() > 0 {
+		q.PopBack()
+		ll.Remove(ll.Back())
+	}
+}
+
+func randomMoveToBack(q *Deque[int], ll *list.List) {
+	if node := q.Front(); node != nil {
+		q.MoveToBack(node.Addr())
+		ll.MoveToBack(ll.Front())
+	}
+}
+
+func randomMoveToFront(q *Deque[int], ll *list.List) {
+	if node := q.Back(); node != nil {
+		q.MoveToFront(node.Addr())
+		ll.MoveToFront(ll.Back())
+	}
+}
+
+func randomInsertAfter(q *Deque[int], ll *list.List, val int) {
+	var n = rand.Intn(10)
+	var index = 0
+	for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
+		index++
+		if index >= n {
+			q.InsertAfter(val, iter.Addr())
+			break
+		}
+	}
+	index = 0
+	for iter := ll.Front(); iter != nil; iter = iter.Next() {
+		index++
+		if index >= n {
+			ll.InsertAfter(val, iter)
+			break
+		}
+	}
+}
+
+func randomInsertBefore(q *Deque[int], ll *list.List, val int) {
+	var n = rand.Intn(10)
+	var index = 0
+	for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
+		index++
+		if index >= n {
+			q.InsertBefore(val, iter.Addr())
+			break
+		}
+	}
+	index = 0
+	for iter := ll.Front(); iter != nil; iter = iter.Next() {
+		index++
+		if index >= n {
+			ll.InsertBefore(val, iter)
+			break
+		}
+	}
+}
+
+func randomRemove(q *Deque[int], ll *list.List) {
+	var n = rand.Intn(10)
+	var index = 0
+	for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
+		index++
+		if index >= n {
+			q.Remove(iter.Addr())
+			break
+		}
+	}
+	index = 0
+	for iter := ll.Front(); iter != nil; iter = iter.Next() {
+		index++
+		if index >= n {
+			ll.Remove(iter)
+			break
+		}
+	}
+}
+
+func randomOpGroupA(q *Deque[int], ll *list.List, flag, val int) {
+	switch flag {
+	case 0, 1:
+		randomPushBack(q, ll, val)
+	case 2, 3:
+		randomPushFront(q, ll, val)
+	case 4:
+		randomPopFront(q, ll)
+	case 5:
+		randomPopBack(q, ll)
+	case 6:
+		randomMoveToBack(q, ll)
+	}
+}
+
+func randomOpGroupB(q *Deque[int], ll *list.List, flag, val int) {
+	switch flag {
+	case 0:
+		randomMoveToBack(q, ll)
+	case 1:
+		randomMoveToFront(q, ll)
+	case 2:
+		randomInsertAfter(q, ll, val)
+	case 3:
+		randomInsertBefore(q, ll, val)
+	case 4, 5:
+		randomRemove(q, ll)
+	}
+}
+
+func randomDispatch(q *Deque[int], ll *list.List, flag, val int) {
+	if flag <= 6 {
+		randomOpGroupA(q, ll, flag, val)
+	} else {
+		randomOpGroupB(q, ll, flag-7, val)
+	}
+}
+
 func TestQueue_Random(t *testing.T) {
 	var count = 10000
 	var q = Deque[int]{}
 	var linkedlist = list.New()
-	for i := 0; i < count; i++ {
+	for range count {
 		var flag = rand.Intn(13)
 		var val = rand.Int()
-		switch flag {
-		case 0, 1:
-			q.PushBack(val)
-			linkedlist.PushBack(val)
-		case 2, 3:
-			q.PushFront(val)
-			linkedlist.PushFront(val)
-		case 4:
-			if q.Len() > 0 {
-				q.PopFront()
-				linkedlist.Remove(linkedlist.Front())
-			}
-		case 5:
-			if q.Len() > 0 {
-				q.PopBack()
-				linkedlist.Remove(linkedlist.Back())
-			}
-		case 6, 7:
-			if node := q.Front(); node != nil {
-				q.MoveToBack(node.Addr())
-				linkedlist.MoveToBack(linkedlist.Front())
-			}
-		case 8:
-			if node := q.Back(); node != nil {
-				q.MoveToFront(node.Addr())
-				linkedlist.MoveToFront(linkedlist.Back())
-			}
-		case 9:
-			var n = rand.Intn(10)
-			var index = 0
-			for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
-				index++
-				if index >= n {
-					q.InsertAfter(val, iter.Addr())
-					break
-				}
-			}
-
-			index = 0
-			for iter := linkedlist.Front(); iter != nil; iter = iter.Next() {
-				index++
-				if index >= n {
-					linkedlist.InsertAfter(val, iter)
-					break
-				}
-			}
-		case 10:
-			var n = rand.Intn(10)
-			var index = 0
-			for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
-				index++
-				if index >= n {
-					q.InsertBefore(val, iter.Addr())
-					break
-				}
-			}
-
-			index = 0
-			for iter := linkedlist.Front(); iter != nil; iter = iter.Next() {
-				index++
-				if index >= n {
-					linkedlist.InsertBefore(val, iter)
-					break
-				}
-			}
-		case 11, 12:
-			var n = rand.Intn(10)
-			var index = 0
-			for iter := q.Front(); iter != nil; iter = q.Get(iter.Next()) {
-				index++
-				if index >= n {
-					q.Remove(iter.Addr())
-					break
-				}
-			}
-
-			index = 0
-			for iter := linkedlist.Front(); iter != nil; iter = iter.Next() {
-				index++
-				if index >= n {
-					linkedlist.Remove(iter)
-					break
-				}
-			}
-		default:
-
-		}
+		randomDispatch(&q, linkedlist, flag, val)
 	}
 
 	assert.True(t, validate(&q))
@@ -432,17 +486,17 @@ func TestQueue_Random(t *testing.T) {
 func BenchmarkQueue_PushAndPop(b *testing.B) {
 	const count = 1000
 	var q = New[int](count)
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < count/4; j++ {
+	for range b.N {
+		for j := range count / 4 {
 			q.PushBack(j)
 		}
-		for j := 0; j < count/4; j++ {
+		for range count / 4 {
 			q.PopFront()
 		}
-		for j := 0; j < count/4; j++ {
+		for j := range count / 4 {
 			q.PushBack(j)
 		}
-		for j := 0; j < count/4; j++ {
+		for range count / 4 {
 			q.PopFront()
 		}
 	}

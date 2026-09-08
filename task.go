@@ -7,33 +7,19 @@ import (
 )
 
 type (
-	// 任务队列
-	// Task queue
+	// workerQueue 任务队列
 	workerQueue struct {
-		// mu 互斥锁
-		// mutex
-		mu sync.Mutex
-
-		// q 双端队列，用于存储异步任务
-		// double-ended queue to store asynchronous jobs
-		q internal.Deque[asyncJob]
-
-		// maxConcurrency 最大并发数
-		// maximum concurrency
-		maxConcurrency int32
-
-		// curConcurrency 当前并发数
-		// current concurrency
-		curConcurrency int32
+		mu             sync.Mutex               // 互斥锁
+		q              internal.Deque[asyncJob] // 双端队列, 存储异步任务
+		maxConcurrency int32                    // 最大并发数
+		curConcurrency int32                    // 当前并发数
 	}
 
-	// 异步任务
-	// Asynchronous job
+	// asyncJob 异步任务
 	asyncJob func()
 )
 
-// 创建一个任务队列
-// Creates a task queue
+// newWorkerQueue 创建任务队列
 func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	c := &workerQueue{
 		mu:             sync.Mutex{},
@@ -43,8 +29,7 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 	return c
 }
 
-// 获取一个任务
-// Retrieves a job from the worker queue
+// getJob 获取一个任务
 func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -64,17 +49,23 @@ func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	return job
 }
 
-// 循环执行任务
-// Do continuously executes jobs in the worker queue
+// execute 执行单个任务, 捕获 panic 防止 worker 协程退出导致队列停摆
+func (c *workerQueue) execute(job asyncJob) {
+	defer func() {
+		_ = recover()
+	}()
+	job()
+}
+
+// do 循环执行任务
 func (c *workerQueue) do(job asyncJob) {
 	for job != nil {
-		job()
+		c.execute(job)
 		job = c.getJob(nil, -1)
 	}
 }
 
-// Push 追加任务, 有资源空闲的话会立即执行
-// Adds a job to the queue and executes it immediately if resources are available
+// Push 追加任务, 有资源空闲时立即执行
 func (c *workerQueue) Push(job asyncJob) {
 	if nextJob := c.getJob(job, 0); nextJob != nil {
 		go c.do(nextJob)

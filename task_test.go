@@ -100,7 +100,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 		go server.ReadLoop()
 		go client.ReadLoop()
-		for i := 0; i < count; i++ {
+		for range count {
 			var n = internal.AlphabetNumeric.Intn(125)
 			var message = internal.AlphabetNumeric.Generate(n)
 			listA = append(listA, string(message))
@@ -136,7 +136,7 @@ func TestConn_WriteAsync(t *testing.T) {
 		go server.ReadLoop()
 		go client.ReadLoop()
 		go func() {
-			for i := 0; i < count; i++ {
+			for range count {
 				var n = internal.AlphabetNumeric.Intn(1024)
 				var message = internal.AlphabetNumeric.Generate(n)
 				listA = append(listA, string(message))
@@ -202,7 +202,7 @@ func TestConn_WriteAsync(t *testing.T) {
 
 		{
 			var fh = frameHeader{}
-			var n, _ = fh.GenerateHeader(true, true, false, OpcodeText, 0)
+			var n, _ = fh.GenerateHeader(true, true, false, OpcodeText, 0, 0)
 			go func() { client.conn.Write(fh[:n]) }()
 		}
 
@@ -240,7 +240,7 @@ func TestReadAsync(t *testing.T) {
 
 	go server.ReadLoop()
 	go client.ReadLoop()
-	for i := 0; i < count; i++ {
+	for range count {
 		var n = internal.AlphabetNumeric.Intn(1024)
 		var message = internal.AlphabetNumeric.Generate(n)
 		listA = append(listA, string(message))
@@ -263,7 +263,7 @@ func TestTaskQueue(t *testing.T) {
 		var wg = &sync.WaitGroup{}
 		wg.Add(count)
 		var q = newWorkerQueue(8)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			listA = append(listA, i)
 
 			v := i
@@ -315,12 +315,35 @@ func TestTaskQueue(t *testing.T) {
 	})
 }
 
+// 任务队列中的任务panic不应杀死worker协程, 后续任务必须继续执行且并发计数归还
+func TestWorkerQueue_JobPanicRecovery(t *testing.T) {
+	var as = assert.New(t)
+	var q = newWorkerQueue(1)
+
+	var flag1 = int32(0)
+	var flag2 = int32(0)
+
+	q.Push(func() { panic("workerQueue job panic") })
+	q.Push(func() { atomic.StoreInt32(&flag1, 1) })
+	q.Push(func() { atomic.StoreInt32(&flag2, 1) })
+
+	var deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if atomic.LoadInt32(&flag1) == 1 && atomic.LoadInt32(&flag2) == 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	as.Equal(int32(1), atomic.LoadInt32(&flag1), "job after a panicked job must still run")
+	as.Equal(int32(1), atomic.LoadInt32(&flag2), "queue must not stall after a panicked job")
+}
+
 func TestWriteAsyncBlocking(t *testing.T) {
 	var handler = new(webSocketMocker)
 	var upgrader = NewUpgrader(handler, nil)
 
 	allConns := map[*Conn]struct{}{}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		svrConn, cliConn := net.Pipe() // no reading from another side
 		var sbrw = bufio.NewReader(svrConn)
 		var svrSocket = serveWebSocket(true, upgrader.option.getConfig(), newSmap(), svrConn, sbrw, handler, false, "", PermessageDeflate{})
@@ -359,7 +382,7 @@ func TestRQueue(t *testing.T) {
 		var concurrency = int64(0)
 		var serial = int64(0)
 		var done = make(chan struct{})
-		for i := 0; i < total; i++ {
+		for range total {
 			q.Go(nil, func(message *Message) error {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))
@@ -381,7 +404,7 @@ func TestRQueue(t *testing.T) {
 		var concurrency = int64(0)
 		var serial = int64(0)
 		var done = make(chan struct{})
-		for i := 0; i < total; i++ {
+		for range total {
 			q.Push(func() {
 				x := atomic.AddInt64(&concurrency, 1)
 				assert.LessOrEqual(t, x, int64(limit))

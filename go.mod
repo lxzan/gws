@@ -1,6 +1,6 @@
 module github.com/lxzan/gws
 
-go 1.20
+go 1.23
 
 require (
 	github.com/klauspost/compress v1.17.9

@@ -14,8 +14,7 @@ type nextMessageReader interface {
 	close() error
 }
 
-// nextReaderProxy 包装复用的底层 reader, 通过代数检测过期句柄.
-// Wraps the reused underlying reader and detects stale handles via generation.
+// nextReaderProxy 包装复用的底层 reader, 通过代数检测过期句柄
 type nextReaderProxy struct {
 	conn *Conn
 	gen  uint32
@@ -29,8 +28,7 @@ func (p *nextReaderProxy) Read(b []byte) (int, error) {
 	return p.r.Read(b)
 }
 
-type uncompressedMessageReader struct {
-	conn         *Conn
+type frameCursor struct {
 	framePayload int
 	frameFIN     bool
 	maskEnabled  bool
@@ -38,33 +36,60 @@ type uncompressedMessageReader struct {
 	maskOffset   int
 	messageBytes int
 	messageDone  bool
-	streamDone   bool
+}
+
+type uncompressedMessageReader struct {
+	conn *Conn
+	frameCursor
+	streamDone bool
 }
 
 type messageReader struct {
-	conn          *Conn
-	opcode        Opcode
-	framePayload  int
-	frameFIN      bool
-	maskEnabled   bool
-	maskKey       [4]byte
-	maskOffset    int
-	messageBytes  int
-	messageDone   bool
+	conn   *Conn
+	opcode Opcode
+	frameCursor
 	streamDone    bool
 	compressedBuf *bytes.Buffer
 	output        *bytes.Buffer
 }
 
-// NextReader
-// 读取并返回下一条完整消息的 reader. messageType 对应 websocket opcode.
-// 该方法不会触发 OnOpen/OnMessage 回调, 但会处理并派发控制帧事件.
-// 如发生错误, 会触发错误事件并回收资源, 与 ReadLoop 结束时的处理逻辑一致.
-//
-// Reads and returns a reader for the next complete message. messageType is the websocket
-// opcode. This method does not trigger OnOpen/OnMessage callbacks, but it does process and
-// dispatch control-frame events. On error, it emits error/close events and reclaims resources,
-// consistent with the handling at the end of ReadLoop.
+func (c *frameCursor) reset(h *frameHeader, payloadLen int) {
+	c.framePayload = payloadLen
+	c.frameFIN = h.GetFIN()
+	c.maskEnabled = h.GetMask()
+	c.maskOffset = 0
+	if c.maskEnabled {
+		copy(c.maskKey[:], h.GetMaskKey())
+	}
+}
+
+func (c *frameCursor) advance(conn *Conn) (bool, error) {
+	if c.frameFIN {
+		c.messageDone = true
+		return true, nil
+	}
+	h, payloadLen, err := conn.readDataFrameHeader(true)
+	if err != nil {
+		return false, err
+	}
+	c.reset(h, payloadLen)
+	return false, nil
+}
+
+func (c *frameCursor) trackPayload(limit, n int) error {
+	if n == 0 {
+		return nil
+	}
+	c.messageBytes += n
+	if c.messageBytes > limit {
+		return internal.CloseMessageTooLarge
+	}
+	return nil
+}
+
+// NextReader 读取并返回下一条完整消息的 reader, messageType 对应 WebSocket opcode
+// 该方法不会触发 OnOpen/OnMessage 回调, 但会处理并派发控制帧事件
+// 发生错误时会触发错误事件并回收资源, 与 ReadLoop 结束时的处理逻辑一致
 func (c *Conn) NextReader() (messageType Opcode, r io.Reader, err error) {
 	if c.isClosed() {
 		return 0, nil, ErrConnClosed
@@ -113,15 +138,8 @@ func (c *Conn) resetNextMessageReader(h *frameHeader, payloadLen int) nextMessag
 }
 
 func (c *uncompressedMessageReader) reset(conn *Conn, h *frameHeader, payloadLen int) {
-	*c = uncompressedMessageReader{
-		conn:         conn,
-		framePayload: payloadLen,
-		frameFIN:     h.GetFIN(),
-		maskEnabled:  h.GetMask(),
-	}
-	if c.maskEnabled {
-		copy(c.maskKey[:], h.GetMaskKey())
-	}
+	*c = uncompressedMessageReader{conn: conn}
+	c.frameCursor.reset(h, payloadLen)
 }
 
 func (c *uncompressedMessageReader) Read(p []byte) (int, error) {
@@ -171,20 +189,12 @@ func (c *uncompressedMessageReader) read(p []byte) (int, error) {
 	nTotal := 0
 	for nTotal < len(p) {
 		if c.framePayload == 0 {
-			if c.frameFIN {
-				c.messageDone = true
-				return 0, io.EOF
-			}
-			h, payloadLen, err := c.conn.readDataFrameHeader(true)
+			done, err := c.advance(c.conn)
 			if err != nil {
 				return nTotal, err
 			}
-			c.frameFIN = h.GetFIN()
-			c.framePayload = payloadLen
-			c.maskEnabled = h.GetMask()
-			c.maskOffset = 0
-			if c.maskEnabled {
-				copy(c.maskKey[:], h.GetMaskKey())
+			if done {
+				return 0, io.EOF
 			}
 			if c.framePayload == 0 {
 				continue
@@ -192,9 +202,7 @@ func (c *uncompressedMessageReader) read(p []byte) (int, error) {
 		}
 
 		want := len(p) - nTotal
-		if want > c.framePayload {
-			want = c.framePayload
-		}
+		want = min(want, c.framePayload)
 		dst := p[nTotal : nTotal+want]
 		if err := internal.ReadN(c.conn.br, dst); err != nil {
 			return nTotal, err
@@ -203,27 +211,14 @@ func (c *uncompressedMessageReader) read(p []byte) (int, error) {
 			internal.MaskXOROffset(dst, c.maskKey[:], c.maskOffset)
 			c.maskOffset += len(dst)
 		}
-		if err := c.trackPayload(len(dst)); err != nil {
+		if err := c.trackPayload(c.conn.config.ReadMaxPayloadSize, len(dst)); err != nil {
 			return nTotal, err
 		}
 		nTotal += len(dst)
 		c.framePayload -= len(dst)
-		if nTotal > 0 {
-			return nTotal, nil
-		}
+		return nTotal, nil
 	}
 	return nTotal, nil
-}
-
-func (c *uncompressedMessageReader) trackPayload(n int) error {
-	if n == 0 {
-		return nil
-	}
-	c.messageBytes += n
-	if c.messageBytes > c.conn.config.ReadMaxPayloadSize {
-		return internal.CloseMessageTooLarge
-	}
-	return nil
 }
 
 func (c *uncompressedMessageReader) failRead(err error) error {
@@ -240,16 +235,8 @@ func (c *uncompressedMessageReader) failRead(err error) error {
 func (c *messageReader) reset(conn *Conn, h *frameHeader, payloadLen int) {
 	c.releaseOutput()
 	c.releaseCompressed()
-	*c = messageReader{
-		conn:         conn,
-		opcode:       h.GetOpcode(),
-		framePayload: payloadLen,
-		frameFIN:     h.GetFIN(),
-		maskEnabled:  h.GetMask(),
-	}
-	if c.maskEnabled {
-		copy(c.maskKey[:], h.GetMaskKey())
-	}
+	*c = messageReader{conn: conn, opcode: h.GetOpcode()}
+	c.frameCursor.reset(h, payloadLen)
 }
 
 func (c *messageReader) Read(p []byte) (int, error) {
@@ -296,31 +283,21 @@ func (c *messageReader) drainCompressedInput() error {
 	p = p[:cap(p)]
 	for !c.messageDone {
 		if c.framePayload == 0 {
-			if c.frameFIN {
-				c.messageDone = true
-				break
-			}
-			h, payloadLen, err := c.conn.readDataFrameHeader(true)
+			done, err := c.advance(c.conn)
 			if err != nil {
 				return err
 			}
-			c.frameFIN = h.GetFIN()
-			c.framePayload = payloadLen
-			c.maskEnabled = h.GetMask()
-			c.maskOffset = 0
-			if c.maskEnabled {
-				copy(c.maskKey[:], h.GetMaskKey())
+			if done {
+				break
 			}
 			continue
 		}
 		want := c.framePayload
-		if want > len(p) {
-			want = len(p)
-		}
+		want = min(want, len(p))
 		if err := internal.ReadN(c.conn.br, p[:want]); err != nil {
 			return err
 		}
-		if err := c.trackPayload(p[:want]); err != nil {
+		if err := c.trackPayload(c.conn.config.ReadMaxPayloadSize, want); err != nil {
 			return err
 		}
 		c.framePayload -= want
@@ -341,20 +318,12 @@ func (c *messageReader) fillCompressedOutput() error {
 
 	for !c.messageDone {
 		if c.framePayload == 0 {
-			if c.frameFIN {
-				c.messageDone = true
-				break
-			}
-			h, payloadLen, err := c.conn.readDataFrameHeader(true)
+			done, err := c.advance(c.conn)
 			if err != nil {
 				return err
 			}
-			c.frameFIN = h.GetFIN()
-			c.framePayload = payloadLen
-			c.maskEnabled = h.GetMask()
-			c.maskOffset = 0
-			if c.maskEnabled {
-				copy(c.maskKey[:], h.GetMaskKey())
+			if done {
+				break
 			}
 			continue
 		}
@@ -374,7 +343,7 @@ func (c *messageReader) fillCompressedOutput() error {
 			internal.MaskXOROffset(chunk, c.maskKey[:], c.maskOffset)
 			c.maskOffset += len(chunk)
 		}
-		if err := c.trackPayload(chunk); err != nil {
+		if err := c.trackPayload(c.conn.config.ReadMaxPayloadSize, len(chunk)); err != nil {
 			return err
 		}
 		c.compressedBuf = growNextReaderBuffer(c.compressedBuf, len(chunk))
@@ -382,13 +351,15 @@ func (c *messageReader) fillCompressedOutput() error {
 		c.framePayload -= len(chunk)
 	}
 
-	msg := &Message{Opcode: c.opcode, Data: c.compressedBuf, compressed: true}
+	msg := messagePool.Get()
+	msg.Opcode = c.opcode
+	msg.Data = c.compressedBuf
+	msg.compressed = true
 	c.compressedBuf = nil
-	if err := c.conn.decompressMessage(msg); err != nil {
-		return err
-	}
+	err := c.conn.decompressMessage(msg)
 	c.output = msg.Data
-	return nil
+	msg.recycle()
+	return err
 }
 
 func (c *messageReader) releaseCompressed() {
@@ -403,17 +374,6 @@ func (c *messageReader) releaseOutput() {
 		binaryPool.Put(c.output)
 		c.output = nil
 	}
-}
-
-func (c *messageReader) trackPayload(p []byte) error {
-	if len(p) == 0 {
-		return nil
-	}
-	c.messageBytes += len(p)
-	if c.messageBytes > c.conn.config.ReadMaxPayloadSize {
-		return internal.CloseMessageTooLarge
-	}
-	return nil
 }
 
 func (c *messageReader) failRead(err error) error {

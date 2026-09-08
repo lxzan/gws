@@ -24,12 +24,8 @@ func BenchmarkConcurrentMap(b *testing.B) {
 }
 
 func benchmarkConcurrentMapWithRatio(b *testing.B, readRatio int) {
-	if readRatio < 0 {
-		readRatio = 0
-	}
-	if readRatio > 100 {
-		readRatio = 100
-	}
+	readRatio = max(readRatio, 0)
+	readRatio = min(readRatio, 100)
 
 	const (
 		initPerMap = 1024 * 64 // 预填充的 key 数量

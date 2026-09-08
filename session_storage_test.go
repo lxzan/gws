@@ -12,7 +12,7 @@ func TestMap(t *testing.T) {
 	var m1 = make(map[string]any)
 	var m2 = newSmap()
 	var count = internal.AlphabetNumeric.Intn(1000)
-	for i := 0; i < count; i++ {
+	for range count {
 		var key = string(internal.AlphabetNumeric.Generate(10))
 		var val = internal.AlphabetNumeric.Uint32()
 		m1[key] = val
@@ -20,10 +20,10 @@ func TestMap(t *testing.T) {
 	}
 
 	var keys = make([]string, 0)
-	for k, _ := range m1 {
+	for k := range m1 {
 		keys = append(keys, k)
 	}
-	for i := 0; i < len(keys)/2; i++ {
+	for i := range len(keys) / 2 {
 		delete(m1, keys[i])
 		m2.Delete(keys[i])
 	}
@@ -63,7 +63,7 @@ func TestMap_Range(t *testing.T) {
 	var m1 = make(map[any]any)
 	var m2 = newSmap()
 	var count = 1000
-	for i := 0; i < count; i++ {
+	for range count {
 		var key = string(internal.AlphabetNumeric.Generate(10))
 		var val = internal.AlphabetNumeric.Uint32()
 		m1[key] = val
@@ -100,7 +100,7 @@ func TestConcurrentMap(t *testing.T) {
 	var m1 = make(map[string]any)
 	var m2 = NewConcurrentMap[string, uint32]()
 	var count = internal.AlphabetNumeric.Intn(1000)
-	for i := 0; i < count; i++ {
+	for range count {
 		var key = string(internal.AlphabetNumeric.Generate(10))
 		var val = internal.AlphabetNumeric.Uint32()
 		m1[key] = val
@@ -108,10 +108,10 @@ func TestConcurrentMap(t *testing.T) {
 	}
 
 	var keys = make([]string, 0)
-	for k, _ := range m1 {
+	for k := range m1 {
 		keys = append(keys, k)
 	}
-	for i := 0; i < len(keys)/2; i++ {
+	for i := range len(keys) / 2 {
 		delete(m1, keys[i])
 		m2.Delete(keys[i])
 	}
@@ -133,7 +133,7 @@ func TestConcurrentMap_Range(t *testing.T) {
 	var m1 = make(map[any]any)
 	var m2 = NewConcurrentMap[string, uint32]()
 	var count = 1000
-	for i := 0; i < count; i++ {
+	for range count {
 		var key = string(internal.AlphabetNumeric.Generate(10))
 		var val = internal.AlphabetNumeric.Uint32()
 		m1[key] = val

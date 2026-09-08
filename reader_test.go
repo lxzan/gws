@@ -5,7 +5,11 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"net"
+	"runtime"
+	"runtime/debug"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -49,7 +53,7 @@ func TestReadSync(t *testing.T) {
 	go server.ReadLoop()
 	go client.ReadLoop()
 
-	for i := 0; i < count; i++ {
+	for range count {
 		var n = internal.AlphabetNumeric.Intn(1024)
 		var message = internal.AlphabetNumeric.Generate(n)
 		listA = append(listA, string(message))
@@ -303,17 +307,50 @@ func TestSegments(t *testing.T) {
 		go client.ReadLoop()
 
 		go func() {
-			frame, _ := client.genFrame(OpcodeText, internal.Bytes(testdata), frameConfig{
-				fin:           true,
-				compress:      client.pd.Enabled,
-				broadcast:     false,
-				checkEncoding: client.config.CheckUtf8Enabled,
-			})
-			data := frame.Bytes()
-			data[20] = 'x'
-			client.conn.Write(data)
+			var payload = bytes.Repeat([]byte{0xFF}, 64)
+			_ = writeRawFrameWithRSV(client, OpcodeText, payload, true, 0x40)
 		}()
 		wg.Wait()
+	})
+}
+
+// 解压超限(1009)应透传StatusCode而不是包裹为内部错误(1011), 其他解压错误仍包裹为1011
+func TestConn_DecompressMessage(t *testing.T) {
+	var as = assert.New(t)
+
+	var serverOption = initServerOption(&ServerOption{
+		ReadMaxPayloadSize: 64,
+		PermessageDeflate: PermessageDeflate{
+			Enabled:               true,
+			ServerContextTakeover: true,
+			ClientContextTakeover: true,
+		},
+	})
+	var cfg = serverOption.getConfig()
+	var conn = &Conn{
+		config:   cfg,
+		pd:       serverOption.PermessageDeflate,
+		deflater: new(deflater).initialize(true, serverOption.PermessageDeflate, cfg.ReadMaxPayloadSize),
+	}
+
+	t.Run("too large returns message too large", func(t *testing.T) {
+		var payload = internal.AlphabetNumeric.Generate(4096)
+		var compressed = bytes.NewBuffer(nil)
+		as.NoError(conn.deflater.Compress(internal.Bytes(payload), compressed, nil))
+
+		var msg = &Message{Opcode: OpcodeBinary, Data: compressed, compressed: true}
+		var err = conn.decompressMessage(msg)
+		as.Equal(internal.CloseMessageTooLarge, err)
+		as.Nil(msg.Data)
+	})
+
+	t.Run("invalid deflate returns internal error", func(t *testing.T) {
+		var msg = &Message{Opcode: OpcodeBinary, Data: bytes.NewBuffer([]byte("invalid deflate")), compressed: true}
+		var err = conn.decompressMessage(msg)
+		if e, ok := err.(*internal.Error); as.True(ok) {
+			as.Equal(internal.CloseInternalErr, e.Code)
+		}
+		as.Nil(msg.Data)
 	})
 }
 
@@ -324,6 +361,99 @@ func TestMessage(t *testing.T) {
 	}
 	_, _ = msg.Read(make([]byte, 2))
 	msg.Close()
+}
+
+func TestMessage_CloseIdempotent(t *testing.T) {
+	var as = assert.New(t)
+	var gcPercent = debug.SetGCPercent(-1)
+	defer debug.SetGCPercent(gcPercent)
+	var procs = runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(procs)
+
+	var msg = &Message{Opcode: OpcodeText, Data: bytes.NewBufferString("1234"), compressed: true}
+
+	as.NoError(msg.Close())
+	as.Nil(msg.Data)
+	as.Equal(Opcode(0), msg.Opcode)
+	as.False(msg.compressed)
+	as.NoError(msg.Close())
+	as.NoError(msg.Close())
+
+	var maxMatched = 0
+	var pooled = 0
+	for range 32 {
+		var m = &Message{Opcode: OpcodeBinary, Data: bytes.NewBufferString("x"), compressed: true}
+		as.NoError(m.Close())
+		as.NoError(m.Close())
+		var matched = 0
+		for range 8 {
+			if messagePool.Get() == m {
+				matched++
+			}
+		}
+		maxMatched = max(maxMatched, matched)
+		if matched == 1 {
+			pooled++
+		}
+	}
+	as.LessOrEqual(maxMatched, 1)
+	as.Greater(pooled, 0)
+}
+
+func TestReadFrame_PooledMessageReuse(t *testing.T) {
+	var as = assert.New(t)
+	var mu = &sync.Mutex{}
+	var received []string
+	var wg = &sync.WaitGroup{}
+	wg.Add(3)
+
+	var serverHandler = new(webSocketMocker)
+	serverHandler.onMessage = func(socket *Conn, message *Message) {
+		mu.Lock()
+		received = append(received, message.Data.String())
+		mu.Unlock()
+		_ = message.Close()
+		wg.Done()
+	}
+	var serverOption = &ServerOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+	}}
+	var clientOption = &ClientOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+	}}
+
+	server, client := newPeer(serverHandler, serverOption, new(webSocketMocker), clientOption)
+	go server.ReadLoop()
+	go client.ReadLoop()
+
+	var s1 = internal.AlphabetNumeric.Generate(1024)
+	var s2 = internal.AlphabetNumeric.Generate(16)
+	var s3 = internal.AlphabetNumeric.Generate(32)
+
+	frame, err := client.genFrame(OpcodeText, internal.Bytes(s1), frameConfig{fin: true, compress: true})
+	as.NoError(err)
+	_, _ = client.conn.Write(frame.Bytes())
+	_ = writeRawFrame(client, OpcodeText, testCloneBytes(s2), true, false)
+	_ = testWrite(client, false, OpcodeText, testCloneBytes(s3[:16]))
+	_ = testWrite(client, true, OpcodeContinuation, testCloneBytes(s3[16:]))
+
+	var done = make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("read timeout: message dropped or stale pooled Message field leaked")
+	}
+	mu.Lock()
+	as.ElementsMatch([]string{string(s1), string(s2), string(s3)}, received)
+	mu.Unlock()
 }
 
 func TestFrameHeader_Parse(t *testing.T) {
@@ -339,7 +469,7 @@ func TestFrameHeader_Parse(t *testing.T) {
 		s, c := net.Pipe()
 		go func() {
 			h := frameHeader{}
-			h.GenerateHeader(false, true, false, OpcodeText, 500)
+			h.GenerateHeader(false, true, false, OpcodeText, 500, 0)
 			c.Write(h[:2])
 			c.Close()
 		}()
@@ -354,7 +484,7 @@ func TestFrameHeader_Parse(t *testing.T) {
 		s, c := net.Pipe()
 		go func() {
 			h := frameHeader{}
-			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024)
+			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024, 0)
 			c.Write(h[:2])
 			c.Close()
 		}()
@@ -369,7 +499,7 @@ func TestFrameHeader_Parse(t *testing.T) {
 		s, c := net.Pipe()
 		go func() {
 			h := frameHeader{}
-			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024)
+			h.GenerateHeader(false, true, false, OpcodeText, 1024*1024, 0)
 			c.Write(h[:10])
 			c.Close()
 		}()
@@ -378,6 +508,45 @@ func TestFrameHeader_Parse(t *testing.T) {
 		var fh = frameHeader{}
 		var _, err = fh.Parse(s)
 		assert.Error(t, err)
+	})
+
+	// RFC6455 §5.2: 64位长度的最高位必须为0, 否则为协议错误(防止转为int后得到负数)
+	var as = assert.New(t)
+	var is32Bit = strconv.IntSize == 32
+
+	t.Run("rejects 64-bit length with MSB set", func(t *testing.T) {
+		var src = []byte{0x82, 0x7F, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		var fh = frameHeader{}
+		var n, err = fh.Parse(bytes.NewReader(src))
+		as.Equal(internal.CloseProtocolError, err)
+		as.Equal(0, n)
+	})
+
+	t.Run("math.MaxInt64 length: platform-dependent", func(t *testing.T) {
+		var src = []byte{0x82, 0x7F, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+		var fh = frameHeader{}
+		var n, err = fh.Parse(bytes.NewReader(src))
+		var length int64 = math.MaxInt64
+		if is32Bit {
+			as.Equal(internal.CloseProtocolError, err)
+			as.Equal(0, n)
+		} else {
+			as.NoError(err)
+			as.Equal(int(length), n)
+		}
+	})
+
+	t.Run("1<<40 length: platform-dependent", func(t *testing.T) {
+		var length int64 = 1 << 40
+		var fh = frameHeader{}
+		var n, err = fh.Parse(bytes.NewReader(newFrameHeader127(uint64(length))))
+		if is32Bit {
+			as.Equal(internal.CloseProtocolError, err)
+			as.Equal(0, n)
+		} else {
+			as.NoError(err)
+			as.Equal(int(length), n)
+		}
 	})
 }
 
