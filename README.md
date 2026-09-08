@@ -38,6 +38,7 @@ GWS is built on an event‑driven model: every connection has its own goroutine 
 
     - **High throughput & low latency**: Carefully tuned for WebSocket workloads such as echo servers and long‑lived push streams, making it a great fit for latency‑sensitive applications.
     - **Low memory footprint**: Aggressive buffer reuse and compression strategies significantly reduce memory and CPU cost under heavy concurrency.
+    - **Zero‑allocation hot paths**: The message read/write hot paths are allocation‑free after pool‑based restructuring, significantly reducing GC pressure.
 
 - <font size=3>Reliability & Standards Compliance</font>
 
@@ -56,17 +57,19 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ```go
 go test -benchmem -run=^$ -bench . github.com/lxzan/gws
-goos: linux
-goarch: amd64
+goos: darwin
+goarch: arm64
 pkg: github.com/lxzan/gws
-cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op
+cpu: Apple M1 Max
+BenchmarkConn_WriteMessage/compress_disabled-10          7556690               154.4 ns/op             0 B/op          0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-10            147348              8078 ns/op              26 B/op          1 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-10           5023832               230.0 ns/op             0 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-10             248848              4735 ns/op               0 B/op          0 allocs/op
 PASS
-ok      github.com/lxzan/gws    17.231s
+ok      github.com/lxzan/gws    65.861s
 ```
+
+Note: the old read‑path benchmark setup was flawed (about half of the iterations hit an empty path). The numbers above are the true values after the measurement fix, so read‑path ns/op is not directly comparable with the old data, while allocs/op remains directly comparable.
 
 ### Index
 
@@ -111,6 +114,7 @@ ok      github.com/lxzan/gws    17.231s
 - For most business use‑cases, errors returned by exported methods on `gws.Conn` can be treated as **informational**: the library has already taken appropriate action internally (e.g. closing the connection, emitting events).
 - When transferring **very large files**, a single connection may occupy bandwidth and I/O for a long time; you may want throttling, sharding or other flow‑control at the business layer.
 - If you reuse `net/http` (e.g. call `Upgrade` inside an HTTP handler), always call `ReadLoop` inside a **separate goroutine**, otherwise blocking will prevent the request context from being garbage‑collected in time.
+- Stricter validation is enforced: `WriteClose` rejects reserved close codes (1005/1006/1015), control‑frame payloads (e.g. `WritePing` / `WritePong`) must not exceed 125 bytes and violations return errors (new exported errors `ErrReservedCloseCode` / `ErrControlFrameTooLarge`), and invalid compression levels fail fast at initialization.
 
 ### Install
 

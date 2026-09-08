@@ -34,6 +34,7 @@ GWS 提供了**极简的事件驱动 API**，你可以用极少的代码构建�
 
   - **高吞吐 / 低延迟**：针对 WebSocket 场景深度优化，在 Echo、长连接推送等场景下表现优秀。
   - **低内存占用**：内建高效的 buffer 复用和压缩策略，在高并发场景下显著降低内存与 CPU 成本。
+  - **零分配热路径**：消息读写热路径经池化重构后不再产生堆分配，显著降低 GC 压力。
 
 - <font size=3>稳定可靠</font>
 
@@ -52,17 +53,19 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 
 ```go
 go test -benchmem -run=^$ -bench . github.com/lxzan/gws
-goos: linux
-goarch: amd64
+goos: darwin
+goarch: arm64
 pkg: github.com/lxzan/gws
-cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op
+cpu: Apple M1 Max
+BenchmarkConn_WriteMessage/compress_disabled-10          7556690               154.4 ns/op             0 B/op          0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-10            147348              8078 ns/op              26 B/op          1 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-10           5023832               230.0 ns/op             0 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-10             248848              4735 ns/op               0 B/op          0 allocs/op
 PASS
-ok      github.com/lxzan/gws    17.231s
+ok      github.com/lxzan/gws    65.861s
 ```
+
+说明：旧版读路径基准的测量设施存在缺陷（约一半迭代走了空路径），当前数据为修复测量后的真实值，因此读路径 ns/op 与旧数据不可直接对比；allocs/op 可直接对比。
 
 ### Index
 
@@ -107,6 +110,7 @@ ok      github.com/lxzan/gws    17.231s
 - 所有 `gws.Conn` 的导出方法返回的错误**在多数业务场景下可忽略**：库内部已经根据错误类型做了适当处理（例如关闭连接、上报事件等）。
 - 传输**超大文件**时，底层连接在传输过程中可能会长时间占用带宽与 IO，需结合业务做限流或切分。
 - 如果复用 `net/http` 服务器（例如 `http.HandleFunc` 中升级），强烈建议在 **新的 Goroutine** 中调用 `ReadLoop`，避免请求上下文无法及时 GC。
+- 新增协议校验：`WriteClose` 拒绝保留关闭码（1005/1006/1015）；`WritePing` / `WritePong` 等控制帧载荷不得超过 125 字节，违规返回错误（新增导出错误 `ErrReservedCloseCode` / `ErrControlFrameTooLarge`）；非法压缩级别在初始化时快速失败。
 
 ### 安装
 

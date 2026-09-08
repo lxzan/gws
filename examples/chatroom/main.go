@@ -10,9 +10,10 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// 聊天室示例: 多客户端通过用户名互发消息, 支持心跳检测与连接替换
 const (
 	PingInterval         = 5 * time.Second  // 客户端心跳间隔
-	HeartbeatWaitTimeout = 10 * time.Second // 心跳等待超时时间
+	HeartbeatWaitTimeout = 10 * time.Second // 心跳等待超时
 )
 
 //go:embed index.html

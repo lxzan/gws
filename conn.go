@@ -14,104 +14,66 @@ import (
 )
 
 // Conn WebSocket连接
-// WebSocket connection
 type Conn struct {
-	// 互斥锁，用于保护共享资源
-	// Mutex to protect shared resources
-	mu sync.Mutex
-
-	// 会话存储，用于存储会话数据
-	// Session storage for storing session data
-	ss SessionStorage
-
-	// 用于存储错误的原子值
-	// Atomic value for storing errors
-	ev atomic.Value
-
-	// 标识是否为服务器端
-	// Indicates if this is a server-side connection
-	isServer bool
-
-	// 子协议
-	// Subprotocol
-	subprotocol string
-
-	// 底层网络连接
-	// Underlying network connection
-	conn net.Conn
-
-	// 配置信息
-	// Configuration information
-	config *Config
-
-	// 缓冲读取器
-	// Buffered reader
-	br *bufio.Reader
-
-	// 持续帧
-	// Continuation frame
-	continuationFrame continuationFrame
-
-	// 帧头
-	// Frame header
-	fh frameHeader
-
-	// 事件处理器
-	// Event handler
-	handler Event
-
-	// 关闭状态
-	// Closed state
-	closed uint32
-
-	// 读取队列
-	// Read queue
-	readQueue channel
-
-	// 写入队列
-	// Write queue
-	writeQueue workerQueue
-
-	// 压缩器
-	// Deflater
-	deflater *deflater
-
-	// 解压字典滑动窗口
-	// Decompressing dictionary sliding window
-	dpsWindow slideWindow
-
-	// 压缩字典滑动窗口
-	// Compressed dictionary sliding window
-	cpsWindow slideWindow
-
-	// 压缩拓展配置
-	// Compression extension configuration
-	pd PermessageDeflate
+	mu                sync.Mutex        // 互斥锁
+	ss                SessionStorage    // 会话存储
+	ev                atomic.Value      // 错误值
+	isServer          bool              // 是否为服务器端
+	subprotocol       string            // 子协议
+	conn              net.Conn          // 底层网络连接
+	config            *Config           // 配置
+	br                *bufio.Reader     // 缓冲读取器
+	continuationFrame continuationFrame // 持续帧
+	fh                frameHeader       // 帧头
+	handler           Event             // 事件处理器
+	closed            uint32            // 关闭状态
+	readQueue         channel           // 读取队列
+	writeQueue        workerQueue       // 写入队列
+	deflater          *deflater         // 压缩器
+	dpsWindow         slideWindow       // 解压字典滑动窗口
+	cpsWindow         slideWindow       // 压缩字典滑动窗口
+	pd                PermessageDeflate // 压缩扩展配置
 
 	// NextReader 当前活跃的 reader, 用于在下一次 NextReader 或错误时释放资源.
-	// Active reader returned by NextReader, used to reclaim resources on the next NextReader
-	// call or on read errors.
 	rr nextMessageReader
 
 	// NextReader 复用的 reader 实例, 首次调用 NextReader 时惰性分配.
-	// Reusable NextReader instances, lazily allocated on the first NextReader call.
 	urr *uncompressedMessageReader
 	crr *messageReader
 
 	// NextReader 代数, 每次返回新 reader 时递增, 用于检测过期的 reader 句柄.
-	// NextReader generation, incremented on each new reader, used to detect stale handles.
 	readGen uint32
+
+	// 掩码键随机源状态, 仅客户端连接使用, 通过原子操作访问, 零值安全.
+	// 使用 atomic.Uint64 保证字段在32位平台上也是8字节对齐, 避免原子操作恐慌.
+	randState atomic.Uint64
 }
 
-// ReadLoop
-// 循环读取消息. 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
-// Read messages in a loop.
-// If HTTP Server is reused, it is recommended to enable goroutine, as blocking will prevent the context from being GC.
-func (c *Conn) ReadLoop() {
-	c.handler.OnOpen(c)
+// maskKeyStep 掩码键随机源的推进步长, 取黄金分割比的64位表示.
+// 步长为奇数, 状态序列可遍历全部2^64个值, 配合 splitmix64 混合输出无退化.
+const maskKeyStep = 0x9E3779B97F4A7C15
 
-	// 无限循环读取消息, 如果发生错误则触发错误事件并退出循环
-	// Infinite loop to read messages, if an error occurs, trigger the error event and exit the loop
+// maskKeyShift 混合结果的右移位数, 取64位输出的高32位作为掩码键.
+const maskKeyShift = 32
+
+// nextMaskKey 生成一个随机掩码键.
+// 状态推进与种子化均通过原子操作完成, 无需持有连接锁.
+// 服务端连接不掩码帧, 直接返回0, 不付出随机数开销.
+func (c *Conn) nextMaskKey() uint32 {
+	if c.isServer {
+		return 0
+	}
+	return uint32(internal.SplitMix64(c.randState.Add(maskKeyStep)) >> maskKeyShift)
+}
+
+// ReadLoop 循环读取消息.
+// 如果复用了HTTP Server, 建议开启goroutine, 阻塞会导致请求上下文无法被GC.
+func (c *Conn) ReadLoop() {
+	if err := c.dispatchOpen(); err != nil {
+		c.handleReadError(err)
+		return
+	}
+
 	for {
 		if err := c.readMessage(); err != nil {
 			c.handleReadError(err)
@@ -120,13 +82,9 @@ func (c *Conn) ReadLoop() {
 	}
 }
 
-// ReadMessage
-// 读取并返回单个完整的 websocket message, 不会触发 OnOpen 事件, 也不会派发给 OnMessage 回调.
+// ReadMessage 读取并返回单个完整的 WebSocket 消息.
+// 不会触发 OnOpen 事件, 也不会派发给 OnMessage 回调.
 // 如果发生错误, 会触发错误事件并进行资源回收, 和 ReadLoop 结束时的处理逻辑一致.
-// Reads and returns a single complete websocket message, without triggering the OnOpen event
-// or dispatching to the OnMessage callback.
-// If an error occurs, it triggers the error event and reclaims resources, consistent with
-// the handling logic at the end of ReadLoop.
 func (c *Conn) ReadMessage() (*Message, error) {
 	if c.isClosed() {
 		return nil, ErrConnClosed
@@ -149,10 +107,7 @@ func (c *Conn) ReadMessage() (*Message, error) {
 	}
 }
 
-// 处理读取错误: 触发错误事件, 分发关闭回调并回收资源
-// 逻辑和 ReadLoop 结束时的处理一致.
-// Handles a read error: emits the error event, dispatches the close callback, and reclaims
-// resources, consistent with the handling at the end of ReadLoop.
+// handleReadError 处理读取错误: 触发错误事件, 分发关闭回调并回收资源.
 func (c *Conn) handleReadError(err error) {
 	c.emitError(true, err)
 
@@ -161,8 +116,6 @@ func (c *Conn) handleReadError(err error) {
 
 	c.closeNextReader()
 
-	// 回收资源
-	// Reclaim resources
 	if c.isServer {
 		c.br.Reset(nil)
 		c.config.brPool.Put(c.br)
@@ -178,22 +131,18 @@ func (c *Conn) handleReadError(err error) {
 	}
 }
 
-// 检查连接是否已关闭
-// Checks if the connection is closed
+// isClosed 检查连接是否已关闭
 func (c *Conn) isClosed() bool {
 	return atomic.LoadUint32(&c.closed) == 1
 }
 
-// 处理错误事件
-// Handle the error event
+// emitError 处理错误事件
 func (c *Conn) emitError(reading bool, err error) {
 	if err == nil {
 		return
 	}
 
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		// 待发送的错误码和错误原因
-		// Error code to be sent and cause of error
 		var sendCode, sendErr = internal.CloseGoingAway, error(internal.CloseGoingAway)
 		if reading {
 			switch v := err.(type) {
@@ -211,8 +160,7 @@ func (c *Conn) emitError(reading bool, err error) {
 	}
 }
 
-// 处理关闭事件
-// Handles the close event
+// emitClose 处理关闭事件
 func (c *Conn) emitClose(buf *bytes.Buffer) error {
 	var responseCode = internal.CloseNormalClosure
 	var realCode = internal.CloseNormalClosure.Uint16()
@@ -251,7 +199,6 @@ func (c *Conn) emitClose(buf *bytes.Buffer) error {
 }
 
 // SetDeadline 设置连接的截止时间
-// Sets the deadline for the connection
 func (c *Conn) SetDeadline(t time.Time) error {
 	err := c.conn.SetDeadline(t)
 	c.emitError(false, err)
@@ -259,7 +206,6 @@ func (c *Conn) SetDeadline(t time.Time) error {
 }
 
 // SetReadDeadline 设置读取操作的截止时间
-// Sets the deadline for read operations
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	err := c.conn.SetReadDeadline(t)
 	c.emitError(false, err)
@@ -267,7 +213,6 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 }
 
 // SetWriteDeadline 设置写入操作的截止时间
-// Sets the deadline for write operations
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	err := c.conn.SetWriteDeadline(t)
 	c.emitError(false, err)
@@ -275,29 +220,23 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 // LocalAddr 返回本地网络地址
-// Returns the local network address
 func (c *Conn) LocalAddr() net.Addr {
 	return c.conn.LocalAddr()
 }
 
 // RemoteAddr 返回远程网络地址
-// Returns the remote network address
 func (c *Conn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-// NetConn
-// 获取底层的 TCP/TLS/KCP 等连接
-// Gets the underlying TCP/TLS/KCP... connection
+// NetConn 获取底层的网络连接
 func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
 
-// SetNoDelay 设置无延迟
+// SetNoDelay 设置无延迟模式.
 // 控制操作系统是否应该延迟数据包传输以期望发送更少的数据包(Nagle算法).
 // 默认值是 true（无延迟），这意味着数据在 Write 之后尽快发送.
-// Controls whether the operating system should delay packet transmission in hopes of sending fewer packets (Nagle's algorithm).
-// The default is true (no delay), meaning that data is sent as soon as possible after a Write.
 func (c *Conn) SetNoDelay(noDelay bool) error {
 	switch v := c.conn.(type) {
 	case *net.TCPConn:
@@ -312,9 +251,7 @@ func (c *Conn) SetNoDelay(noDelay bool) error {
 }
 
 // SubProtocol 获取协商的子协议
-// Gets the negotiated sub-protocol
 func (c *Conn) SubProtocol() string { return c.subprotocol }
 
 // Session 获取会话存储
-// Gets the session storage
 func (c *Conn) Session() SessionStorage { return c.ss }

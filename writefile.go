@@ -2,10 +2,8 @@ package gws
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"io"
-	"math"
 	"net"
 
 	"github.com/klauspost/compress/flate"
@@ -14,8 +12,7 @@ import (
 
 const segmentSize = 128 * 1024
 
-// 获取大文件压缩器
-// Get bigDeflater
+// getBigDeflater 获取大文件压缩器
 func (c *Conn) getBigDeflater() *bigDeflater {
 	if c.isServer {
 		return c.config.bdPool.Get()
@@ -23,16 +20,14 @@ func (c *Conn) getBigDeflater() *bigDeflater {
 	return (*bigDeflater)(c.deflater.cpsWriter)
 }
 
-// 回收大文件压缩器
-// Recycle bigDeflater
+// putBigDeflater 回收大文件压缩器
 func (c *Conn) putBigDeflater(d *bigDeflater) {
 	if c.isServer {
 		c.config.bdPool.Put(d)
 	}
 }
 
-// 拆分io.Reader为小切片
-// Split io.Reader into small slices
+// splitReader 拆分 io.Reader 为小切片
 func (c *Conn) splitReader(r io.Reader, f func(index int, eof bool, p []byte) error) error {
 	var buf = binaryPool.Get(segmentSize)
 	defer binaryPool.Put(buf)
@@ -57,9 +52,7 @@ func (c *Conn) splitReader(r io.Reader, f func(index int, eof bool, p []byte) er
 	}
 }
 
-// WriteFile 大文件写入
-// 采用分段写入技术, 减少写入过程中的内存占用
-// Segmented write technology to reduce memory usage during write process
+// WriteFile 大文件写入, 采用分段写入减少内存占用
 func (c *Conn) WriteFile(opcode Opcode, payload io.Reader) error {
 	err := c.doWriteFile(opcode, payload)
 	c.emitError(false, err)
@@ -74,7 +67,7 @@ func (c *Conn) doWriteFile(opcode Opcode, payload io.Reader) error {
 		if index > 0 {
 			opcode = OpcodeContinuation
 		}
-		frame, err := c.genFrame(opcode, internal.Bytes(p), frameConfig{
+		frame, err := c.genFrameBytes(opcode, p, frameConfig{
 			fin:           eof,
 			compress:      false,
 			broadcast:     false,
@@ -119,7 +112,7 @@ func (c *Conn) writeFileFrame(opcode Opcode, index int, eof bool, p []byte) erro
 	}
 
 	header := frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, eof, false, opcode, len(p))
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, eof, false, opcode, len(p), c.nextMaskKey())
 	if !c.isServer {
 		internal.MaskXOR(p, maskBytes)
 	}
@@ -135,20 +128,12 @@ func (c *Conn) writeFileFrame(opcode Opcode, index int, eof bool, p []byte) erro
 	return nil
 }
 
-// 大文件压缩器
+// bigDeflater 大文件压缩器
 type bigDeflater flate.Writer
 
-// 创建大文件压缩器
-// Create a bigDeflater
+// newBigDeflater 创建大文件压缩器
 func newBigDeflater(isServer bool, options PermessageDeflate) *bigDeflater {
-	windowBits := internal.SelectValue(isServer, options.ServerMaxWindowBits, options.ClientMaxWindowBits)
-	if windowBits == 15 {
-		cpsWriter, _ := flate.NewWriter(nil, options.Level)
-		return (*bigDeflater)(cpsWriter)
-	} else {
-		cpsWriter, _ := flate.NewWriterWindow(nil, internal.BinaryPow(windowBits))
-		return (*bigDeflater)(cpsWriter)
-	}
+	return (*bigDeflater)(newCpsWriter(isServer, options))
 }
 
 func (c *bigDeflater) FlateWriter() *flate.Writer { return (*flate.Writer)(c) }
@@ -161,18 +146,14 @@ func (c *bigDeflater) Compress(r io.WriterTo, w *flateWriter, dict []byte) error
 	return w.Flush()
 }
 
-// 写入代理
-// 将切片透传给回调函数, 以实现分段写入功能
-// Write proxy
-// Passthrough slices to the callback function for segmented writes.
+// flateWriter 写入代理, 透传切片给回调实现分段写入
 type flateWriter struct {
 	index   int
 	buffers []*bytes.Buffer
 	cb      func(index int, eof bool, p []byte) error
 }
 
-// 是否可以执行回调函数
-// Whether the callback function can be executed
+// shouldCall 判断是否可执行回调函数
 func (c *flateWriter) shouldCall() bool {
 	var n = len(c.buffers)
 	if n < 2 {
@@ -185,8 +166,7 @@ func (c *flateWriter) shouldCall() bool {
 	return sum >= 4
 }
 
-// 聚合写入, 减少syscall.write调用次数
-// Aggregate writes, reducing the number of syscall.write calls
+// write 聚合写入, 减少 syscall.write 调用次数
 func (c *flateWriter) write(p []byte) {
 	var size = internal.Max(segmentSize, len(p))
 	if len(c.buffers) == 0 {
@@ -201,6 +181,7 @@ func (c *flateWriter) write(p []byte) {
 	tail.Write(p)
 }
 
+// Write 遵守 io.Writer 契约, 始终返回 len(p)
 func (c *flateWriter) Write(p []byte) (n int, err error) {
 	c.write(p)
 	if c.shouldCall() {
@@ -209,7 +190,7 @@ func (c *flateWriter) Write(p []byte) (n int, err error) {
 		c.buffers = c.buffers[1:]
 		c.index++
 	}
-	return n, err
+	return len(p), err
 }
 
 func (c *flateWriter) Flush() error {
@@ -218,26 +199,20 @@ func (c *flateWriter) Flush() error {
 		buf.Write(c.buffers[i].Bytes())
 		binaryPool.Put(c.buffers[i])
 	}
-	if n := buf.Len(); n >= 4 {
-		if tail := buf.Bytes()[n-4:]; binary.BigEndian.Uint32(tail) == math.MaxUint16 {
-			buf.Truncate(n - 4)
-		}
-	}
+	stripSyncFlushTail(buf)
 	var err = c.cb(c.index, true, buf.Bytes())
 	c.index++
 	binaryPool.Put(buf)
 	return err
 }
 
-// 将io.Reader包装为io.WriterTo
-// Wrapping io.Reader as io.WriterTo
+// readerWrapper 将 io.Reader 包装为 io.WriterTo
 type readerWrapper struct {
 	r  io.Reader
 	sw *slideWindow
 }
 
-// WriteTo 写入内容, 并更新字典
-// Write the contents, and update the dictionary
+// WriteTo 写入内容并更新字典
 func (c *readerWrapper) WriteTo(w io.Writer) (int64, error) {
 	var buf = binaryPool.Get(segmentSize)
 	defer binaryPool.Put(buf)

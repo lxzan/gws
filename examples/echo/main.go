@@ -7,6 +7,7 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// Echo 回声服务示例: 收到消息后原样返回, 最简单的 WebSocket 服务端
 func main() {
 	upgrader := gws.NewUpgrader(&Handler{}, &gws.ServerOption{
 		CheckUtf8Enabled: true,
@@ -22,6 +23,7 @@ func main() {
 		if err != nil {
 			return
 		}
+		// 每个连接启动独立协程读取消息
 		go func() {
 			socket.ReadLoop()
 		}()
@@ -31,6 +33,7 @@ func main() {
 	)
 }
 
+// Handler 嵌入 BuiltinEventHandler 获得默认事件处理, 按需覆写方法
 type Handler struct {
 	gws.BuiltinEventHandler
 }

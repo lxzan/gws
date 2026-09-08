@@ -1,7 +1,6 @@
 package internal
 
 // closeErrorMap 将状态码映射到错误信息
-// map status codes to error messages
 var closeErrorMap = map[StatusCode]string{
 	0:                     "empty code",
 	CloseNormalClosure:    "close normal",
@@ -21,7 +20,6 @@ var closeErrorMap = map[StatusCode]string{
 }
 
 // StatusCode WebSocket错误码
-// websocket error code
 type StatusCode uint16
 
 const (
@@ -76,7 +74,8 @@ func (c StatusCode) Bytes() []byte {
 	if c == 0 {
 		return []byte{}
 	}
-	return []byte{uint8(c >> 8), uint8(c << 8 >> 8)}
+	const statusCodeShift = 8
+	return []byte{byte(c >> statusCodeShift), byte(c)}
 }
 
 func (c StatusCode) Error() string {
@@ -97,7 +96,6 @@ func (c *Error) Error() string {
 }
 
 // Errors 依次执行传入的函数，返回第一个遇到的错误
-// executes the passed functions in sequence and returns the first encountered error
 func Errors(funcs ...func() error) error {
 	for _, f := range funcs {
 		if err := f(); err != nil {

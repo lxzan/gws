@@ -5,12 +5,66 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
 )
+
+// 写入阻塞直到连接被关闭的网络连接
+// Network connection whose writes block until the connection is closed
+type blockingConn struct {
+	closed chan struct{}
+	once   sync.Once
+}
+
+func newBlockingConn() *blockingConn {
+	return &blockingConn{closed: make(chan struct{})}
+}
+
+func (c *blockingConn) Read(p []byte) (int, error)  { <-c.closed; return 0, net.ErrClosed }
+func (c *blockingConn) Write(p []byte) (int, error) { <-c.closed; return 0, net.ErrClosed }
+func (c *blockingConn) Close() error {
+	c.once.Do(func() { close(c.closed) })
+	return nil
+}
+func (c *blockingConn) LocalAddr() net.Addr                { return &net.TCPAddr{} }
+func (c *blockingConn) RemoteAddr() net.Addr               { return &net.TCPAddr{} }
+func (c *blockingConn) SetDeadline(t time.Time) error      { return nil }
+func (c *blockingConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *blockingConn) SetWriteDeadline(t time.Time) error { return nil }
+
+// 握手超时后, 发送请求的协程不得泄漏(迟到的写入结果必须能落入缓冲channel)
+// After the handshake timeout, the request-writing goroutine must not leak
+func TestNewClientFromConn_HandshakeTimeout_GoroutineLeak(t *testing.T) {
+	var as = assert.New(t)
+
+	// 预热一次, 避免首次握手的不稳定协程影响计数
+	// Warm up once so first-handshake transients don't affect the measurement
+	_, _, err := NewClientFromConn(new(BuiltinEventHandler), &ClientOption{
+		Addr:             "ws://127.0.0.1/",
+		HandshakeTimeout: 50 * time.Millisecond,
+	}, newBlockingConn())
+	as.Error(err)
+
+	var before = runtime.NumGoroutine()
+	for range 5 {
+		_, _, err := NewClientFromConn(new(BuiltinEventHandler), &ClientOption{
+			Addr:             "ws://127.0.0.1/",
+			HandshakeTimeout: 50 * time.Millisecond,
+		}, newBlockingConn())
+		as.Error(err)
+	}
+
+	// 留出沉降时间, 让迟到的写入协程退出
+	// Let late-arriving write goroutines settle
+	time.Sleep(200 * time.Millisecond)
+	var after = runtime.NumGoroutine()
+	as.LessOrEqual(after, before, "handshake timeout must not leak the request-writing goroutine")
+}
 
 func TestNewClient(t *testing.T) {
 	NewClient(new(BuiltinEventHandler), nil)

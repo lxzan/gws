@@ -11,7 +11,9 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// Autobahn 协议一致性测试 - 服务端: 启动多种配置的服务器供 fuzzing client 测试
 func main() {
+	// s1: 同步模式, 上下文接管压缩
 	s1 := gws.NewServer(&Handler{Sync: true}, &gws.ServerOption{
 		PermessageDeflate: gws.PermessageDeflate{
 			Enabled:               true,
@@ -22,6 +24,7 @@ func main() {
 		Recovery:         gws.Recovery,
 	})
 
+	// s2: 异步模式 + 并行处理, 上下文接管压缩
 	s2 := gws.NewServer(&Handler{Sync: false}, &gws.ServerOption{
 		ParallelEnabled: true,
 		PermessageDeflate: gws.PermessageDeflate{
@@ -33,6 +36,7 @@ func main() {
 		Recovery:         gws.Recovery,
 	})
 
+	// s3: 同步模式, 无上下文接管压缩
 	s3 := gws.NewServer(&Handler{Sync: true}, &gws.ServerOption{
 		PermessageDeflate: gws.PermessageDeflate{
 			Enabled:               true,
@@ -43,6 +47,7 @@ func main() {
 		Recovery:         gws.Recovery,
 	})
 
+	// s4: 异步模式 + 并行处理, 无上下文接管压缩
 	s4 := gws.NewServer(&Handler{Sync: false}, &gws.ServerOption{
 		ParallelEnabled: true,
 		PermessageDeflate: gws.PermessageDeflate{
@@ -54,6 +59,7 @@ func main() {
 		Recovery:         gws.Recovery,
 	})
 
+	// s5: NextReader 流式读取模式
 	s5 := newNextReaderServer()
 
 	go func() {
@@ -114,6 +120,7 @@ func newNextReaderServer() *gws.Server {
 	return server
 }
 
+// nextReaderEcho 使用 NextReader 流式读取消息并回写, 适用于大消息场景
 func nextReaderEcho(socket *gws.Conn) {
 	for {
 		opcode, r, err := socket.NextReader()

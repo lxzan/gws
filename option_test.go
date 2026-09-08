@@ -2,6 +2,7 @@ package gws
 
 import (
 	"compress/flate"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -194,6 +195,70 @@ func TestCompressClientOption(t *testing.T) {
 		var cfg = option.getConfig()
 		as.Nil(cfg.cswPool)
 		as.Nil(cfg.dswPool)
+	})
+}
+
+// 非法压缩级别必须在初始化时快速失败, 否则压缩器创建失败后首次压缩会panic
+// An invalid compress level must fail fast at initialization, otherwise the first compression panics
+func TestCompressLevelValidation(t *testing.T) {
+	var as = assert.New(t)
+
+	t.Run("server panics on invalid level", func(t *testing.T) {
+		as.PanicsWithValue(fmt.Sprintf("gws: invalid compress level: %d", 99), func() {
+			initServerOption(&ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: 99}})
+		})
+		as.PanicsWithValue(fmt.Sprintf("gws: invalid compress level: %d", -3), func() {
+			initServerOption(&ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: -3}})
+		})
+	})
+
+	t.Run("client panics on invalid level", func(t *testing.T) {
+		as.PanicsWithValue(fmt.Sprintf("gws: invalid compress level: %d", 99), func() {
+			initClientOption(&ClientOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: 99}})
+		})
+	})
+
+	t.Run("boundary levels are valid", func(t *testing.T) {
+		as.NotPanics(func() {
+			initServerOption(&ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: flate.HuffmanOnly}})
+		})
+		as.NotPanics(func() {
+			initServerOption(&ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: flate.BestCompression}})
+		})
+		as.NotPanics(func() {
+			initClientOption(&ClientOption{PermessageDeflate: PermessageDeflate{Enabled: true, Level: flate.BestCompression}})
+		})
+	})
+}
+
+// 默认Recovery必须拦截回调panic, 否则用户回调panic会直接崩溃进程
+// The default Recovery must trap callback panics, otherwise a panicking callback crashes the process
+func TestDefaultRecovery_CallbackPanic(t *testing.T) {
+	var as = assert.New(t)
+
+	newPanickingHandler := func() *webSocketMocker {
+		var handler = new(webSocketMocker)
+		handler.onMessage = func(socket *Conn, message *Message) { panic("panic in OnMessage") }
+		handler.onClose = func(socket *Conn, err error) { panic("panic in OnClose") }
+		return handler
+	}
+
+	t.Run("server default recovery", func(t *testing.T) {
+		var option = initServerOption(&ServerOption{})
+		var socket = &Conn{isServer: true, config: option.getConfig(), handler: newPanickingHandler()}
+		as.NotPanics(func() {
+			_ = socket.dispatchMessage(&Message{Opcode: OpcodeText})
+			_ = socket.dispatchControl(OpcodeCloseConnection, nil, errEmpty)
+		})
+	})
+
+	t.Run("client default recovery", func(t *testing.T) {
+		var option = initClientOption(&ClientOption{})
+		var socket = &Conn{isServer: false, config: option.getConfig(), handler: newPanickingHandler()}
+		as.NotPanics(func() {
+			_ = socket.dispatchMessage(&Message{Opcode: OpcodeText})
+			_ = socket.dispatchControl(OpcodeCloseConnection, nil, errEmpty)
+		})
 	})
 }
 

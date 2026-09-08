@@ -8,9 +8,11 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// WSS (TLS) 安全连接示例: 使用证书启动 HTTPS/WSS 服务
 var dir string
 
 func init() {
+	// 通过 -d 参数指定证书目录
 	flag.StringVar(&dir, "d", "", "cert directory")
 	flag.Parse()
 
@@ -25,12 +27,13 @@ func init() {
 func main() {
 	srv := gws.NewServer(new(Websocket), nil)
 
-	// wss://www.gws.com:8443/
+	// 启动 TLS 服务, 客户端通过 wss://host:8443/ 连接
 	if err := srv.RunTLS(":8443", dir+"/server.crt", dir+"/server.pem"); err != nil {
 		log.Panicln(err.Error())
 	}
 }
 
+// Websocket 嵌入 BuiltinEventHandler 获得默认事件处理, 按需覆写方法
 type Websocket struct {
 	gws.BuiltinEventHandler
 }

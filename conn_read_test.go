@@ -300,7 +300,7 @@ func TestConn_NextReader(t *testing.T) {
 		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
 		go func() {
 			header := frameHeader{}
-			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, 16)
+			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, 16, internal.AlphabetNumeric.Uint32())
 			payload := internal.AlphabetNumeric.Generate(4)
 			internal.MaskXOR(payload, maskBytes)
 			_, _ = client.conn.Write(header[:headerLength])
@@ -415,11 +415,27 @@ func TestConn_NextReader(t *testing.T) {
 		go func() {
 			payload := []byte("bad")
 			header := frameHeader{}
-			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload))
+			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload), internal.AlphabetNumeric.Uint32())
 			header[0] |= 0x20
 			internal.MaskXOR(payload, maskBytes)
 			_, _ = client.conn.Write(header[:headerLength])
 			_, _ = client.conn.Write(payload)
+		}()
+
+		_, _, err := server.NextReader()
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rsv1 control frame returns protocol error", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		serverOption := &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true}}
+		clientOption := &ClientOption{PermessageDeflate: PermessageDeflate{Enabled: true}}
+		server, client := newPeer(serverHandler, serverOption, clientHandler, clientOption)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_ = writeRawFrameWithRSV(client, OpcodePing, []byte("ping"), true, 0x40)
+			_ = client.NetConn().Close()
 		}()
 
 		_, _, err := server.NextReader()
@@ -554,6 +570,127 @@ func TestConn_ReadMessageManual(t *testing.T) {
 	})
 }
 
+// RFC6455 §5.2: 恶意帧头声明64位长度且最高位置位(int转换后为负数), 必须返回协议错误而不是panic
+func TestConn_ReadMessage_NegativeLengthFrame(t *testing.T) {
+	// FIN=1, opcode=binary, mask=1, lengthCode=127, 8字节长度MSB置位, 4字节掩码
+	var maliciousFrame = []byte{
+		0x82, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+	}
+
+	t.Run("ReadMessage", func(t *testing.T) {
+		var as = assert.New(t)
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_, _ = client.conn.Write(maliciousFrame)
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("NextReader", func(t *testing.T) {
+		var as = assert.New(t)
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_, _ = client.conn.Write(maliciousFrame)
+		}()
+
+		_, _, err := server.NextReader()
+		as.Equal(internal.CloseProtocolError, err)
+	})
+}
+
+// RFC6455 §5.2 / RFC7692: RSV位校验
+// 控制帧必须拒绝任何RSV位; continuation帧必须拒绝RSV1/2/3;
+// 非continuation数据帧必须拒绝RSV2/RSV3, RSV1仅在未协商压缩时拒绝
+func TestConn_ReadMessage_RSVValidation(t *testing.T) {
+	var as = assert.New(t)
+
+	newPair := func(pdEnabled bool) (server, client *Conn) {
+		var serverOption = &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: pdEnabled}}
+		var clientOption = &ClientOption{PermessageDeflate: PermessageDeflate{Enabled: pdEnabled}}
+		return newPeer(new(webSocketMocker), serverOption, new(webSocketMocker), clientOption)
+	}
+
+	t.Run("rejects rsv2 data frame, compression disabled", func(t *testing.T) {
+		server, client := newPair(false)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() { _ = writeRawFrameWithRSV(client, OpcodeText, []byte("bad"), true, 0x20) }()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rejects rsv2 data frame, compression enabled", func(t *testing.T) {
+		server, client := newPair(true)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() { _ = writeRawFrameWithRSV(client, OpcodeText, []byte("bad"), true, 0x20) }()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rejects rsv3 data frame, compression enabled", func(t *testing.T) {
+		server, client := newPair(true)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() { _ = writeRawFrameWithRSV(client, OpcodeText, []byte("bad"), true, 0x10) }()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rejects rsv1 ping, compression disabled", func(t *testing.T) {
+		server, client := newPair(false)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_ = writeRawFrameWithRSV(client, OpcodePing, []byte("ping"), true, 0x40)
+			_ = client.NetConn().Close()
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rejects rsv1 ping, compression enabled", func(t *testing.T) {
+		server, client := newPair(true)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_ = writeRawFrameWithRSV(client, OpcodePing, []byte("ping"), true, 0x40)
+			_ = client.NetConn().Close()
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("rejects rsv1 continuation, compression enabled", func(t *testing.T) {
+		server, client := newPair(true)
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_ = writeRawFrameWithRSV(client, OpcodeText, []byte("part1"), false, 0)
+			_ = writeRawFrameWithRSV(client, OpcodeContinuation, []byte("part2"), true, 0x40)
+			_ = client.NetConn().Close()
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+}
+
 func TestConn_ReadDataFrameHeader(t *testing.T) {
 	var as = assert.New(t)
 
@@ -602,7 +739,7 @@ func TestConn_ReadDataFrameHeader(t *testing.T) {
 		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
 		go func() {
 			header := frameHeader{}
-			headerLength, _ := header.GenerateHeader(true, true, false, OpcodeText, 0)
+			headerLength, _ := header.GenerateHeader(true, true, false, OpcodeText, 0, 0)
 			_, _ = client.conn.Write(header[:headerLength])
 		}()
 
@@ -655,7 +792,7 @@ func TestConn_ReadDataFrameHeader(t *testing.T) {
 		go func() {
 			payload := []byte("bad")
 			header := frameHeader{}
-			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload))
+			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload), internal.AlphabetNumeric.Uint32())
 			header[0] |= 0x20
 			internal.MaskXOR(payload, maskBytes)
 			_, _ = client.conn.Write(header[:headerLength])
@@ -675,7 +812,7 @@ func TestConn_ReadDataFrameHeader(t *testing.T) {
 		go func() {
 			payload := []byte("bad")
 			header := frameHeader{}
-			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload))
+			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload), internal.AlphabetNumeric.Uint32())
 			header[0] |= 0x10
 			internal.MaskXOR(payload, maskBytes)
 			_, _ = client.conn.Write(header[:headerLength])
@@ -702,13 +839,13 @@ func TestNextMessageReaderInternals(t *testing.T) {
 		as.Equal(io.EOF, err)
 		as.NoError(r.close())
 
-		r = &uncompressedMessageReader{messageDone: true}
+		r = &uncompressedMessageReader{frameCursor: frameCursor{messageDone: true}}
 		n, err = r.read(make([]byte, 1))
 		as.Equal(0, n)
 		as.Equal(io.EOF, err)
 
 		r = &uncompressedMessageReader{conn: conn}
-		as.NoError(r.trackPayload(0))
+		as.NoError(r.trackPayload(conn.config.ReadMaxPayloadSize, 0))
 		as.NoError(r.failRead(nil))
 
 		n, err = r.read(nil)
@@ -739,8 +876,8 @@ func TestNextMessageReaderInternals(t *testing.T) {
 		as.NoError(r.close())
 
 		r = &messageReader{conn: conn}
-		as.NoError(r.trackPayload(nil))
-		as.Equal(internal.CloseMessageTooLarge, r.trackPayload([]byte("12345")))
+		as.NoError(r.trackPayload(conn.config.ReadMaxPayloadSize, 0))
+		as.Equal(internal.CloseMessageTooLarge, r.trackPayload(conn.config.ReadMaxPayloadSize, 5))
 		as.NoError(r.failRead(nil))
 
 		r.compressedBuf = binaryPool.Get(1)
@@ -766,8 +903,10 @@ func TestNextMessageReaderInternals(t *testing.T) {
 				br:     bufio.NewReader(bytes.NewReader([]byte("short"))),
 				config: cfg,
 			},
-			framePayload: 5000,
-			frameFIN:     true,
+			frameCursor: frameCursor{
+				framePayload: 5000,
+				frameFIN:     true,
+			},
 		}
 		err := r.fillCompressedOutput()
 		as.Error(err)
@@ -781,8 +920,10 @@ func TestNextMessageReaderInternals(t *testing.T) {
 				br:     bufio.NewReader(bytes.NewReader([]byte("12"))),
 				config: smallCfg,
 			},
-			framePayload: 2,
-			frameFIN:     true,
+			frameCursor: frameCursor{
+				framePayload: 2,
+				frameFIN:     true,
+			},
 		}
 		err := r.fillCompressedOutput()
 		as.Equal(internal.CloseMessageTooLarge, err)
@@ -812,7 +953,7 @@ func writeFragmentedCompressed(c *Conn, opcode Opcode, payload []byte) error {
 
 func writeRawFrame(c *Conn, opcode Opcode, payload []byte, fin bool, compress bool) error {
 	var header = frameHeader{}
-	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, compress, opcode, len(payload))
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, compress, opcode, len(payload), c.nextMaskKey())
 	if len(payload) > 0 && !c.isServer {
 		internal.MaskXOR(payload, maskBytes)
 	}
@@ -823,4 +964,54 @@ func writeRawFrame(c *Conn, opcode Opcode, payload []byte, fin bool, compress bo
 	}
 	_, err := frame.WriteTo(c.conn)
 	return err
+}
+
+// writeRawFrameWithRSV 构造带指定RSV位的原始帧 (rsv: 0x40=RSV1, 0x20=RSV2, 0x10=RSV3)
+func writeRawFrameWithRSV(c *Conn, opcode Opcode, payload []byte, fin bool, rsv uint8) error {
+	var header = frameHeader{}
+	headerLength, maskBytes := header.GenerateHeader(c.isServer, fin, false, opcode, len(payload), c.nextMaskKey())
+	header[0] |= rsv
+	if len(payload) > 0 && !c.isServer {
+		internal.MaskXOR(payload, maskBytes)
+	}
+	var frame = make(net.Buffers, 0, 2)
+	frame = append(frame, header[:headerLength])
+	if len(payload) > 0 {
+		frame = append(frame, payload)
+	}
+	_, err := frame.WriteTo(c.conn)
+	return err
+}
+
+func TestConn_NextReader_CompressedMessageReuse(t *testing.T) {
+	var as = assert.New(t)
+	var serverOption = &ServerOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+	}}
+	var clientOption = &ClientOption{PermessageDeflate: PermessageDeflate{
+		Enabled:               true,
+		ServerContextTakeover: true,
+		ClientContextTakeover: true,
+	}}
+	server, client := newPeer(new(webSocketMocker), serverOption, new(webSocketMocker), clientOption)
+
+	var payloads = [][]byte{
+		internal.AlphabetNumeric.Generate(4096),
+		internal.AlphabetNumeric.Generate(128),
+		internal.AlphabetNumeric.Generate(2048),
+	}
+	go func() {
+		for _, p := range payloads {
+			client.WriteAsync(OpcodeText, testCloneBytes(p), nil)
+		}
+	}()
+
+	for _, want := range payloads {
+		messageType, r, err := server.NextReader()
+		as.NoError(err)
+		as.Equal(OpcodeText, messageType)
+		as.Equal(want, readAllReader(t, r))
+	}
 }

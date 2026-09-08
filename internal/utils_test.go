@@ -3,7 +3,6 @@ package internal
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"hash/fnv"
 	"io"
 	"net/url"
@@ -26,39 +25,11 @@ func TestComputeAcceptKey(t *testing.T) {
 	assert.Equal(t, "HmIbwxkcLxq+A+3qnlBVtT7Bjgg=", s)
 }
 
-func TestMethodExists(t *testing.T) {
-	var as = assert.New(t)
-
-	t.Run("exist", func(t *testing.T) {
-		var b = bytes.NewBuffer(nil)
-		_, ok := MethodExists(b, "Write")
-		as.Equal(true, ok)
-	})
-
-	t.Run("not exist", func(t *testing.T) {
-		var b = bytes.NewBuffer(nil)
-		_, ok := MethodExists(b, "XXX")
-		as.Equal(false, ok)
-	})
-
-	t.Run("non struct", func(t *testing.T) {
-		var m = make(map[string]any)
-		_, ok := MethodExists(m, "Delete")
-		as.Equal(false, ok)
-	})
-
-	t.Run("nil", func(t *testing.T) {
-		var v any
-		_, ok := MethodExists(v, "XXX")
-		as.Equal(false, ok)
-	})
-}
-
 func BenchmarkStringToBytes(b *testing.B) {
 	var s = string(AlphabetNumeric.Generate(1024))
 	var buffer = bytes.NewBuffer(make([]byte, 1024))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = io.Copy(buffer, bytes.NewBuffer(StringToBytes(s)))
 	}
 }
@@ -67,7 +38,7 @@ func BenchmarkStringReader(b *testing.B) {
 	var s = string(AlphabetNumeric.Generate(1024))
 	var buffer = bytes.NewBuffer(make([]byte, 1024))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = io.Copy(buffer, strings.NewReader(s))
 	}
 }
@@ -80,29 +51,18 @@ func TestFNV64(t *testing.T) {
 	_ = FnvNumber(1234)
 }
 
-func TestNewMaskKey(t *testing.T) {
-	var key = NewMaskKey()
-	assert.Equal(t, 4, len(key))
-}
-
-func TestMaskByByte(t *testing.T) {
-	var data = []byte("hello")
-	MaskByByte(data, []byte{0xa, 0xb, 0xc, 0xd})
-	assert.Equal(t, "626e606165", hex.EncodeToString(data))
-}
-
 func TestMask(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		var n = AlphabetNumeric.Intn(1024)
 		var s1 = AlphabetNumeric.Generate(n)
 		var s2 = make([]byte, len(s1))
 		copy(s2, s1)
 
-		var key = make([]byte, 4, 4)
+		var key = make([]byte, 4)
 		binary.LittleEndian.PutUint32(key, AlphabetNumeric.Uint32())
 		MaskXOR(s1, key)
-		MaskByByte(s2, key)
-		for i, _ := range s1 {
+		naiveMaskXOROffset(s2, key, 0)
+		for i := range s1 {
 			if s1[i] != s2[i] {
 				t.Fail()
 			}
@@ -111,13 +71,13 @@ func TestMask(t *testing.T) {
 }
 
 func TestMaskXOROffset(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		var n = AlphabetNumeric.Intn(1024) + 1
 		var offset = AlphabetNumeric.Intn(4)
 		var src = AlphabetNumeric.Generate(n)
 		var want = make([]byte, len(src))
 		copy(want, src)
-		MaskByByteWithOffset(want, []byte{0xa, 0xb, 0xc, 0xd}, offset)
+		naiveMaskXOROffset(want, []byte{0xa, 0xb, 0xc, 0xd}, offset)
 
 		var got = make([]byte, len(src))
 		copy(got, src)
@@ -126,7 +86,7 @@ func TestMaskXOROffset(t *testing.T) {
 	}
 }
 
-func MaskByByteWithOffset(content []byte, key []byte, offset int) {
+func naiveMaskXOROffset(content []byte, key []byte, offset int) {
 	for i := range content {
 		content[i] ^= key[(offset+i)&3]
 	}
@@ -202,8 +162,9 @@ func TestGetIntersectionElem(t *testing.T) {
 func TestResetBuffer(t *testing.T) {
 	{
 		var buffer = bytes.NewBufferString("hello")
-		var name = reflect.TypeOf(buffer).Elem().Field(0).Name
-		assert.Equal(t, "buf", name)
+		var typ = reflect.TypeOf(buffer).Elem()
+		assert.Equal(t, "buf", typ.Field(0).Name)
+		assert.Equal(t, "off", typ.Field(1).Name)
 	}
 
 	{
@@ -216,6 +177,43 @@ func TestResetBuffer(t *testing.T) {
 		var sh2 = (*reflect.SliceHeader)(unsafe.Pointer(buf))
 		assert.Equal(t, sh1.Data, sh2.Data)
 	}
+
+	t.Run("drained", func(t *testing.T) {
+		var buf = bytes.NewBufferString("01234567")
+		var sink = make([]byte, 8)
+		var n, _ = buf.Read(sink)
+		assert.Equal(t, 8, n)
+		BufferReset(buf, []byte("hello"))
+		var got = make([]byte, 16)
+		n, err := buf.Read(got)
+		assert.NoError(t, err)
+		assert.Equal(t, "hello", string(got[:n]))
+	})
+
+	t.Run("partially read", func(t *testing.T) {
+		var buf = bytes.NewBufferString("01234567")
+		var sink = make([]byte, 4)
+		var _, _ = buf.Read(sink)
+		BufferReset(buf, []byte("hello"))
+		assert.Equal(t, "hello", buf.String())
+	})
+
+	t.Run("write after reset", func(t *testing.T) {
+		var buf = bytes.NewBufferString("01234567")
+		var sink = make([]byte, 8)
+		var _, _ = buf.Read(sink)
+		BufferReset(buf, []byte("hello"))
+		var _, _ = buf.WriteString(" world")
+		assert.Equal(t, "hello world", buf.String())
+	})
+
+	t.Run("zero alloc", func(t *testing.T) {
+		var buf = bytes.NewBuffer(nil)
+		var p = []byte("hello")
+		assert.Equal(t, float64(0), testing.AllocsPerRun(100, func() {
+			BufferReset(buf, p)
+		}))
+	})
 }
 
 func TestWithDefault(t *testing.T) {

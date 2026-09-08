@@ -8,16 +8,20 @@ import (
 	"github.com/lxzan/gws"
 )
 
+// Autobahn 协议一致性测试 - 客户端: 连接 Autobahn fuzzing server 运行全部测试用例
 const remoteAddr = "127.0.0.1:9001"
 
 func main() {
 	const count = 517
+	// 同步模式: 收到消息后立即回写
 	for i := 1; i <= count; i++ {
 		testCase(true, i, "gws-client/sync")
 	}
+	// 异步模式: 通过 WriteAsync 回写
 	for i := 1; i <= count; i++ {
 		testCase(false, i, "gws-client/async")
 	}
+	// 生成测试报告
 	updateReports()
 }
 
