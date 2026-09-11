@@ -116,7 +116,7 @@ func (c *connector) request() (*http.Response, *bufio.Reader, error) {
 		r.Header.Set(internal.SecWebSocketKey.Key, c.secWebsocketKey)
 	}
 
-	var ch = make(chan error)
+	var ch = make(chan error, 1)
 
 	// 发送http请求
 	// send http request

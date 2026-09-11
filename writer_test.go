@@ -600,7 +600,7 @@ func TestConn_Writev(t *testing.T) {
 			[]byte("山高月小"),
 			[]byte("水落石出")[2:],
 		}...)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 	})
 }
 

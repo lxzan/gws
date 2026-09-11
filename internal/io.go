@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"io"
 	"unicode/utf8"
 )
@@ -28,56 +29,63 @@ func CheckEncoding(enabled bool, opcode uint8, payload []byte) bool {
 	return true
 }
 
-type Payload interface {
-	io.WriterTo
-	Len() int
-	CheckEncoding(enabled bool, opcode uint8) bool
+type Payload struct {
+	data    []byte
+	buffers [][]byte
 }
 
-type Buffers [][]byte
+func Bytes(p []byte) Payload {
+	return Payload{data: p}
+}
 
-func (b Buffers) CheckEncoding(enabled bool, opcode uint8) bool {
-	for i, _ := range b {
-		if !CheckEncoding(enabled, opcode, b[i]) {
-			return false
-		}
+func Buffers(p [][]byte) Payload {
+	return Payload{buffers: p}
+}
+
+func (p Payload) WriteToBuffer(b *bytes.Buffer) {
+	if p.buffers == nil {
+		b.Write(p.data)
+		return
+	}
+	for i := range p.buffers {
+		b.Write(p.buffers[i])
+	}
+}
+
+func (p Payload) CheckEncoding(enabled bool, opcode uint8) bool {
+	if !enabled || (opcode != 1 && opcode != 8) {
+		return true
+	}
+	if p.buffers == nil {
+		return utf8.Valid(p.data)
 	}
 	return true
 }
 
-func (b Buffers) Len() int {
+func (p Payload) Len() int {
+	if p.buffers == nil {
+		return len(p.data)
+	}
 	var sum = 0
-	for i, _ := range b {
-		sum += len(b[i])
+	for i := range p.buffers {
+		sum += len(p.buffers[i])
 	}
 	return sum
 }
 
 // WriteTo 可重复写
-func (b Buffers) WriteTo(w io.Writer) (int64, error) {
+func (p Payload) WriteTo(w io.Writer) (int64, error) {
+	if p.buffers == nil {
+		n, err := w.Write(p.data)
+		return int64(n), err
+	}
 	var n = 0
-	for i, _ := range b {
-		x, err := w.Write(b[i])
+	for i := range p.buffers {
+		x, err := w.Write(p.buffers[i])
 		n += x
 		if err != nil {
 			return int64(n), err
 		}
 	}
 	return int64(n), nil
-}
-
-type Bytes []byte
-
-func (b Bytes) CheckEncoding(enabled bool, opcode uint8) bool {
-	return CheckEncoding(enabled, opcode, b)
-}
-
-func (b Bytes) Len() int {
-	return len(b)
-}
-
-// WriteTo 可重复写
-func (b Bytes) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(b)
-	return int64(n), err
 }

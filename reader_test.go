@@ -3,6 +3,7 @@ package gws
 import (
 	"bytes"
 	_ "embed"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"net"
@@ -378,6 +379,22 @@ func TestFrameHeader_Parse(t *testing.T) {
 		var fh = frameHeader{}
 		var _, err = fh.Parse(s)
 		assert.Error(t, err)
+	})
+
+	t.Run("msb set length", func(t *testing.T) {
+		s, c := net.Pipe()
+		go func() {
+			h := frameHeader{}
+			h.GenerateHeader(true, true, false, OpcodeText, 0)
+			h[1] = 127
+			binary.BigEndian.PutUint64(h[2:10], 0x8000000000000001)
+			c.Write(h[:10])
+			c.Close()
+		}()
+
+		var fh = frameHeader{}
+		var _, err = fh.Parse(s)
+		assert.Equal(t, internal.CloseProtocolError, err)
 	})
 }
 

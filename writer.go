@@ -134,7 +134,9 @@ func (c *Conn) doWrite(opcode Opcode, payload internal.Payload) error {
 		return err
 	}
 	err = internal.WriteN(c.conn, frame.Bytes())
-	_, _ = payload.WriteTo(&c.cpsWindow)
+	if c.cpsWindow.enabled {
+		_, _ = payload.WriteTo(&c.cpsWindow)
+	}
 	binaryPool.Put(frame)
 	return err
 }
@@ -179,7 +181,7 @@ func (c *Conn) genFrame(opcode Opcode, payload internal.Payload, cfg frameConfig
 
 	var header = frameHeader{}
 	headerLength, maskBytes := header.GenerateHeader(c.isServer, cfg.fin, false, opcode, n)
-	_, _ = payload.WriteTo(buf)
+	payload.WriteToBuffer(buf)
 	var contents = buf.Bytes()
 	if !c.isServer {
 		internal.MaskXOR(contents[frameHeaderSize:], maskBytes)

@@ -43,8 +43,8 @@ func (c *deflaterPool) Select() *deflater {
 
 type deflater struct {
 	dpsLocker sync.Mutex
-	buf       []byte
 	limit     int
+	lr        limitedReader
 	dpsBuffer *bytes.Buffer
 	dpsReader io.ReadCloser
 	cpsLocker sync.Mutex
@@ -55,9 +55,9 @@ type deflater struct {
 // Initialize the deflater
 func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit int) *deflater {
 	c.dpsReader = flate.NewReader(nil)
-	c.dpsBuffer = bytes.NewBuffer(nil)
-	c.buf = make([]byte, 32*1024)
+	c.dpsBuffer = binaryPool.Get(0)
 	c.limit = limit
+	c.lr = limitedReader{R: c.dpsReader, M: limit}
 	windowBits := internal.SelectValue(isServer, options.ServerMaxWindowBits, options.ClientMaxWindowBits)
 	if windowBits == 15 {
 		c.cpsWriter, _ = flate.NewWriter(nil, options.Level)
@@ -72,10 +72,6 @@ func (c *deflater) initialize(isServer bool, options PermessageDeflate, limit in
 func (c *deflater) resetFR(r io.Reader, dict []byte) {
 	resetter := c.dpsReader.(flate.Resetter)
 	_ = resetter.Reset(r, dict) // must return a null pointer
-	if c.dpsBuffer.Cap() > int(bufferThreshold) {
-		c.dpsBuffer = bytes.NewBuffer(nil)
-	}
-	c.dpsBuffer.Reset()
 }
 
 // Decompress 解压
@@ -86,12 +82,17 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 
 	_, _ = src.Write(flateTail)
 	c.resetFR(src, dict)
-	reader := limitReader(c.dpsReader, c.limit)
-	if _, err := io.CopyBuffer(c.dpsBuffer, reader, c.buf); err != nil {
+	c.lr.N = 0
+	if _, err := c.dpsBuffer.ReadFrom(&c.lr); err != nil {
+		c.dpsBuffer.Reset()
 		return nil, err
 	}
-	var dst = binaryPool.Get(c.dpsBuffer.Len())
-	_, _ = c.dpsBuffer.WriteTo(dst)
+	var dst = c.dpsBuffer
+	if dst.Cap() > int(bufferThreshold) {
+		c.dpsBuffer = binaryPool.Get(0)
+	} else {
+		c.dpsBuffer = binaryPool.Get(dst.Cap())
+	}
 	return dst, nil
 }
 
@@ -100,7 +101,11 @@ func (c *deflater) Decompress(src *bytes.Buffer, dict []byte) (*bytes.Buffer, er
 func (c *deflater) Compress(src internal.Payload, dst *bytes.Buffer, dict []byte) error {
 	c.cpsLocker.Lock()
 	defer c.cpsLocker.Unlock()
-	if err := compressTo(c.cpsWriter, src, dst, dict); err != nil {
+	c.cpsWriter.ResetDict(dst, dict)
+	if _, err := src.WriteTo(c.cpsWriter); err != nil {
+		return err
+	}
+	if err := c.cpsWriter.Flush(); err != nil {
 		return err
 	}
 	if n := dst.Len(); n >= 4 {
@@ -251,10 +256,6 @@ func permessageNegotiation(str string) PermessageDeflate {
 	options.ServerMaxWindowBits = internal.SelectValue(options.ServerMaxWindowBits < 8, 8, options.ServerMaxWindowBits)
 	return options
 }
-
-// 限制从io.Reader中最多读取m个字节
-// Limit reading up to m bytes from io.Reader
-func limitReader(r io.Reader, m int) io.Reader { return &limitedReader{R: r, M: m} }
 
 type limitedReader struct {
 	R io.Reader

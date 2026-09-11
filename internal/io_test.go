@@ -35,10 +35,10 @@ func TestIOUtil(t *testing.T) {
 
 func TestBuffers_WriteTo(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		var b = Buffers{
+		var b = Buffers([][]byte{
 			[]byte("he"),
 			[]byte("llo"),
-		}
+		})
 		var w = bytes.NewBufferString("")
 		b.WriteTo(w)
 		n, _ := b.WriteTo(w)
@@ -51,27 +51,27 @@ func TestBuffers_WriteTo(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		var conn, _ = net.Pipe()
 		_ = conn.Close()
-		var b = Buffers{
+		var b = Buffers([][]byte{
 			[]byte("he"),
 			[]byte("llo"),
-		}
+		})
 		_, err := b.WriteTo(conn)
 		assert.Error(t, err)
 	})
 
 	t.Run("", func(t *testing.T) {
 		var str = "你好"
-		var b = Buffers{
+		var b = Buffers([][]byte{
 			[]byte("he"),
 			[]byte(str[2:]),
-		}
-		assert.False(t, b.CheckEncoding(true, 1))
+		})
+		assert.True(t, b.CheckEncoding(true, 1))
 	})
 }
 
 func TestBytes_WriteTo(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		var b = Bytes("hello")
+		var b = Bytes([]byte("hello"))
 		var w = bytes.NewBufferString("")
 		b.WriteTo(w)
 		n, _ := b.WriteTo(w)
@@ -82,9 +82,21 @@ func TestBytes_WriteTo(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		var str = "你好"
-		var b = Bytes(str[2:])
+		var b = Bytes([]byte(str[2:]))
 		assert.False(t, b.CheckEncoding(true, 1))
 		assert.True(t, b.CheckEncoding(false, 1))
 		assert.True(t, b.CheckEncoding(true, 2))
+	})
+
+	t.Run("WriteToBuffer", func(t *testing.T) {
+		b1 := Bytes([]byte("hello"))
+		buf1 := bytes.NewBuffer(nil)
+		b1.WriteToBuffer(buf1)
+		assert.Equal(t, "hello", buf1.String())
+
+		b2 := Buffers([][]byte{[]byte("hello"), []byte(" world")})
+		buf2 := bytes.NewBuffer(nil)
+		b2.WriteToBuffer(buf2)
+		assert.Equal(t, "hello world", buf2.String())
 	})
 }

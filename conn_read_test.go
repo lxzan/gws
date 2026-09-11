@@ -3,6 +3,7 @@ package gws
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"io"
 	"net"
 	"testing"
@@ -551,6 +552,78 @@ func TestConn_ReadMessageManual(t *testing.T) {
 		if e, ok := err.(*internal.Error); as.True(ok) {
 			as.Equal(internal.CloseUnsupportedData, e.Code)
 		}
+	})
+
+	t.Run("negative length frame returns protocol error", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			header := frameHeader{}
+			header.GenerateHeader(false, true, false, OpcodeText, 0)
+			header[1] = 127 | 128
+			binary.BigEndian.PutUint64(header[2:10], 0x8000000000000001)
+			maskNum := internal.AlphabetNumeric.Uint32()
+			binary.LittleEndian.PutUint32(header[10:14], maskNum)
+			_, _ = client.conn.Write(header[:14])
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("control frame rsv returns protocol error", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true}}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			header := frameHeader{}
+			headerLength, _ := header.GenerateHeader(false, true, false, OpcodePing, 0)
+			header[0] |= 0x40 // set RSV1
+			_, _ = client.conn.Write(header[:headerLength])
+		}()
+
+		msg, err := server.ReadMessage()
+		as.Nil(msg)
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("data frame rsv2 returns protocol error in readFrame", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true}}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			payload := []byte("hello")
+			header := frameHeader{}
+			headerLength, maskBytes := header.GenerateHeader(false, true, false, OpcodeText, len(payload))
+			header[0] |= 0x20 // set RSV2
+			internal.MaskXOR(payload, maskBytes)
+			_, _ = client.conn.Write(header[:headerLength])
+			_, _ = client.conn.Write(payload)
+		}()
+
+		err := server.readMessage()
+		as.Equal(internal.CloseProtocolError, err)
+	})
+
+	t.Run("continuation frame rsv1 returns protocol error in readFrame", func(t *testing.T) {
+		serverHandler := new(webSocketMocker)
+		clientHandler := new(webSocketMocker)
+		server, client := newPeer(serverHandler, &ServerOption{PermessageDeflate: PermessageDeflate{Enabled: true}}, clientHandler, &ClientOption{})
+		go func() { _, _ = io.Copy(io.Discard, client.NetConn()) }()
+		go func() {
+			_ = testWrite(client, false, OpcodeText, []byte("part1"))
+			_ = writeRawFrame(client, OpcodeContinuation, []byte("part2"), true, true) // rsv1 = true
+		}()
+
+		err := server.readMessage()
+		as.NoError(err) // first frame returns nil, nil
+		err = server.readMessage()
+		as.Equal(internal.CloseProtocolError, err)
 	})
 }
 

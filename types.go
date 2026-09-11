@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"runtime"
 	"unsafe"
@@ -139,49 +140,49 @@ type frameHeader [frameHeaderSize]byte
 // GetFIN 返回 FIN 位的值
 // Returns the value of the FIN bit
 func (c *frameHeader) GetFIN() bool {
-	return ((*c)[0] >> 7) == 1
+	return (*c)[0]&0x80 != 0
 }
 
 // GetRSV1 返回 RSV1 位的值
 // Returns the value of the RSV1 bit
 func (c *frameHeader) GetRSV1() bool {
-	return ((*c)[0] << 1 >> 7) == 1
+	return (*c)[0]&0x40 != 0
 }
 
 // GetRSV2 返回 RSV2 位的值
 // Returns the value of the RSV2 bit
 func (c *frameHeader) GetRSV2() bool {
-	return ((*c)[0] << 2 >> 7) == 1
+	return (*c)[0]&0x20 != 0
 }
 
 // GetRSV3 返回 RSV3 位的值
 // Returns the value of the RSV3 bit
 func (c *frameHeader) GetRSV3() bool {
-	return ((*c)[0] << 3 >> 7) == 1
+	return (*c)[0]&0x10 != 0
 }
 
 // GetOpcode 返回操作码
 // Returns the opcode
 func (c *frameHeader) GetOpcode() Opcode {
-	return Opcode((*c)[0] << 4 >> 4)
+	return Opcode((*c)[0] & 0x0F)
 }
 
 // GetMask 返回掩码
 // Returns the value of the mask bytes
 func (c *frameHeader) GetMask() bool {
-	return ((*c)[1] >> 7) == 1
+	return (*c)[1]&0x80 != 0
 }
 
 // GetLengthCode 返回长度代码
 // Returns the length code
 func (c *frameHeader) GetLengthCode() uint8 {
-	return (*c)[1] << 1 >> 1
+	return (*c)[1] & 0x7F
 }
 
 // SetMask 设置 Mask 位为 1
 // Sets the Mask bit to 1
 func (c *frameHeader) SetMask() {
-	(*c)[1] |= uint8(128)
+	(*c)[1] |= 0x80
 }
 
 // SetLength 设置帧的长度，并返回偏移量
@@ -253,7 +254,11 @@ func (c *frameHeader) Parse(reader io.Reader) (int, error) {
 		if err := internal.ReadN(reader, (*c)[2:10]); err != nil {
 			return 0, err
 		}
-		payloadLength = int(binary.BigEndian.Uint64((*c)[2:10]))
+		val := binary.BigEndian.Uint64((*c)[2:10])
+		if val > math.MaxInt64 {
+			return 0, internal.CloseProtocolError
+		}
+		payloadLength = int(val)
 	default:
 		payloadLength = int(lengthCode)
 	}

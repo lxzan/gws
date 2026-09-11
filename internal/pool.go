@@ -2,13 +2,16 @@ package internal
 
 import (
 	"bytes"
+	"math/bits"
 	"sync"
 )
 
 type BufferPool struct {
-	begin  int
-	end    int
-	shards map[int]*sync.Pool
+	begin    int
+	end      int
+	minShift int
+	maxShift int
+	shards   [32]sync.Pool
 }
 
 // NewBufferPool 创建一个内存池
@@ -19,14 +22,17 @@ type BufferPool struct {
 // Below left, the Get method will return at least left bytes; above right, the Put method will not reclaim the buffer
 func NewBufferPool(left, right uint32) *BufferPool {
 	var begin, end = int(binaryCeil(left)), int(binaryCeil(right))
+	minShift := bits.Len32(uint32(begin - 1))
+	maxShift := bits.Len32(uint32(end - 1))
 	var p = &BufferPool{
-		begin:  begin,
-		end:    end,
-		shards: map[int]*sync.Pool{},
+		begin:    begin,
+		end:      end,
+		minShift: minShift,
+		maxShift: maxShift,
 	}
-	for i := begin; i <= end; i *= 2 {
-		capacity := i
-		p.shards[i] = &sync.Pool{
+	for i := minShift; i <= maxShift; i++ {
+		capacity := 1 << i
+		p.shards[i] = sync.Pool{
 			New: func() any { return bytes.NewBuffer(make([]byte, 0, capacity)) },
 		}
 	}
@@ -36,21 +42,37 @@ func NewBufferPool(left, right uint32) *BufferPool {
 // Put 将缓冲区放回到内存池
 // returns the buffer to the memory pool
 func (p *BufferPool) Put(b *bytes.Buffer) {
-	if b != nil {
-		if pool, ok := p.shards[b.Cap()]; ok {
-			pool.Put(b)
-		}
+	if b == nil {
+		return
 	}
+	c := b.Cap()
+	if c < p.begin || c > p.end || c&(c-1) != 0 {
+		return
+	}
+	shift := bits.TrailingZeros32(uint32(c))
+	p.shards[shift].Put(b)
 }
 
 // Get 从内存池中获取一个至少 n 字节的缓冲区
 // fetches a buffer from the memory pool, of at least n bytes
 func (p *BufferPool) Get(n int) *bytes.Buffer {
-	var size = Max(int(binaryCeil(uint32(n))), p.begin)
-	if pool, ok := p.shards[size]; ok {
-		b := pool.Get().(*bytes.Buffer)
-		if b.Cap() < size {
-			b.Grow(size)
+	if n <= p.begin {
+		b := p.shards[p.minShift].Get().(*bytes.Buffer)
+		if b.Cap() < p.begin {
+			b.Grow(p.begin)
+		}
+		b.Reset()
+		return b
+	}
+	if n > p.end {
+		return bytes.NewBuffer(make([]byte, 0, n))
+	}
+	shift := int(bits.Len32(uint32(n - 1)))
+	if shift <= p.maxShift {
+		b := p.shards[shift].Get().(*bytes.Buffer)
+		targetCap := 1 << shift
+		if b.Cap() < targetCap {
+			b.Grow(targetCap)
 		}
 		b.Reset()
 		return b
