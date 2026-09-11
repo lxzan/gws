@@ -2,13 +2,10 @@ package gws
 
 import (
 	"errors"
-	"io"
+	"github.com/lxzan/gws/internal"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-
-	"github.com/lxzan/gws/internal"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSlideWindow(t *testing.T) {
@@ -241,8 +238,9 @@ func TestPermessageNegotiation(t *testing.T) {
 			},
 		})
 		assert.NoError(t, err)
-		err = client.doWrite(OpcodeText, new(writerTo))
-		assert.Equal(t, err.Error(), "1")
+		client.config.CheckUtf8Enabled = true
+		err = client.doWrite(OpcodeText, internal.Bytes([]byte{0xff, 0xff}))
+		assert.Error(t, err)
 	})
 }
 
@@ -250,14 +248,6 @@ type writerTo struct{}
 
 func (c *writerTo) CheckEncoding(enabled bool, opcode uint8) bool {
 	return true
-}
-
-func (c *writerTo) Len() int {
-	return 10
-}
-
-func (c *writerTo) WriteTo(w io.Writer) (n int64, err error) {
-	return 0, errors.New("1")
 }
 
 func (c *writerTo) Read(p []byte) (n int, err error) {

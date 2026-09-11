@@ -13,7 +13,7 @@ import (
 func (c *Conn) checkMask(enabled bool) error {
 	// RFC6455: 所有从客户端发送到服务器的帧都必须设置掩码位为 1。
 	// RFC6455: All frames sent from client to server must have the mask bit set to 1.
-	if (c.isServer && !enabled) || (!c.isServer && enabled) {
+	if c.isServer != enabled {
 		return internal.CloseProtocolError
 	}
 	return nil
@@ -25,6 +25,9 @@ func (c *Conn) readControl() error {
 	// RFC6455: 控制帧本身不能被分片。
 	// RFC6455: Control frames themselves MUST NOT be fragmented.
 	if !c.fh.GetFIN() {
+		return internal.CloseProtocolError
+	}
+	if c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3() {
 		return internal.CloseProtocolError
 	}
 
@@ -100,15 +103,7 @@ func (c *Conn) readFrame() (msg *Message, err error) {
 	if contentLength > c.config.ReadMaxPayloadSize {
 		return nil, internal.CloseMessageTooLarge
 	}
-
-	// RSV1, RSV2, RSV3: 每个占 1 位
-	// 必须为 0，除非协商的扩展定义了非零值的含义。
-	// 如果接收到非零值且没有协商的扩展定义该非零值的含义，接收端点必须关闭 WebSocket 连接。
-	// RSV1, RSV2, RSV3: 1 bit each
-	// MUST be 0 unless an extension is negotiated that defines meanings for non-zero values.
-	// If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value,
-	// the receiving endpoint MUST _Fail the WebSocket Connection_.
-	if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
+	if c.fh.GetRSV2() || c.fh.GetRSV3() {
 		return nil, internal.CloseProtocolError
 	}
 
@@ -118,26 +113,23 @@ func (c *Conn) readFrame() (msg *Message, err error) {
 	}
 
 	var opcode = c.fh.GetOpcode()
-	var compressed = c.pd.Enabled && c.fh.GetRSV1()
 	if !opcode.isDataFrame() {
 		return nil, c.readControl()
 	}
+	if !c.pd.Enabled && c.fh.GetRSV1() {
+		return nil, internal.CloseProtocolError
+	}
+	if opcode == OpcodeContinuation && c.fh.GetRSV1() {
+		return nil, internal.CloseProtocolError
+	}
 
+	var compressed = c.pd.Enabled && c.fh.GetRSV1()
 	var fin = c.fh.GetFIN()
 	var buf = binaryPool.Get(contentLength + len(flateTail))
 	var p = buf.Bytes()[:contentLength]
 
-	// buf 默认在函数返回时回收, 除非其所有权被转移给了返回的 Message(此时由调用方负责回收)
-	// buf is recycled on return by default, unless its ownership is transferred to the
-	// returned Message (in which case the caller is responsible for recycling it)
-	var recycle = true
-	defer func() {
-		if recycle {
-			binaryPool.Put(buf)
-		}
-	}()
-
 	if err := internal.ReadN(c.br, p); err != nil {
+		binaryPool.Put(buf)
 		return nil, err
 	}
 	if maskEnabled {
@@ -145,12 +137,12 @@ func (c *Conn) readFrame() (msg *Message, err error) {
 	}
 
 	if opcode != OpcodeContinuation && c.continuationFrame.initialized {
+		binaryPool.Put(buf)
 		return nil, internal.CloseProtocolError
 	}
 
 	if fin && opcode != OpcodeContinuation {
 		*(*[]byte)(unsafe.Pointer(buf)) = p
-		recycle = false
 		return &Message{Opcode: opcode, Data: buf, compressed: compressed}, nil
 	}
 
@@ -163,10 +155,12 @@ func (c *Conn) readFrame() (msg *Message, err error) {
 		c.continuationFrame.buffer = bytes.NewBuffer(make([]byte, 0, contentLength))
 	}
 	if !c.continuationFrame.initialized {
+		binaryPool.Put(buf)
 		return nil, internal.CloseProtocolError
 	}
 
 	c.continuationFrame.buffer.Write(p)
+	binaryPool.Put(buf)
 	if c.continuationFrame.buffer.Len() > c.config.ReadMaxPayloadSize {
 		return nil, internal.CloseMessageTooLarge
 	}
@@ -188,7 +182,7 @@ func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, 
 		if contentLength > c.config.ReadMaxPayloadSize {
 			return nil, 0, internal.CloseMessageTooLarge
 		}
-		if !c.pd.Enabled && (c.fh.GetRSV1() || c.fh.GetRSV2() || c.fh.GetRSV3()) {
+		if c.fh.GetRSV2() || c.fh.GetRSV3() {
 			return nil, 0, internal.CloseProtocolError
 		}
 		maskEnabled := c.fh.GetMask()
@@ -202,6 +196,9 @@ func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, 
 			}
 			continue
 		}
+		if !c.pd.Enabled && c.fh.GetRSV1() {
+			return nil, 0, internal.CloseProtocolError
+		}
 		if expectContinuation {
 			if opcode != OpcodeContinuation || c.fh.GetRSV1() {
 				return nil, 0, internal.CloseProtocolError
@@ -210,9 +207,6 @@ func (c *Conn) readDataFrameHeader(expectContinuation bool) (*frameHeader, int, 
 			if opcode == OpcodeContinuation {
 				return nil, 0, internal.CloseProtocolError
 			}
-		}
-		if c.fh.GetRSV2() || c.fh.GetRSV3() {
-			return nil, 0, internal.CloseProtocolError
 		}
 		return &c.fh, contentLength, nil
 	}

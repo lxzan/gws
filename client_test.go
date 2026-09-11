@@ -421,4 +421,28 @@ func TestNewClient_WriteRequest(t *testing.T) {
 		_, _, err := c.handshake()
 		assert.Error(t, err)
 	})
+
+	t.Run("handshake timeout no goroutine leak", func(t *testing.T) {
+		srv, conn := net.Pipe()
+		defer srv.Close()
+		defer conn.Close()
+
+		c := connector{conn: conn, option: &ClientOption{
+			Addr:             "ws://127.0.0.1:8080/",
+			HandshakeTimeout: 50 * time.Millisecond,
+		}}
+		_, _, err := c.request()
+		assert.Error(t, err)
+
+		go func() {
+			buf := make([]byte, 1024)
+			for {
+				if _, err := srv.Read(buf); err != nil {
+					return
+				}
+			}
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+	})
 }

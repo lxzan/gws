@@ -60,7 +60,7 @@ func TestPool(t *testing.T) {
 
 func TestPool_Get(t *testing.T) {
 	var p = NewBufferPool(128, 1024*128)
-	p.shards[128].Put(bytes.NewBuffer(AlphabetNumeric.Generate(120)))
+	p.Put(bytes.NewBuffer(AlphabetNumeric.Generate(128)))
 	var buf = p.Get(128)
 	assert.GreaterOrEqual(t, buf.Cap(), 128)
 }

@@ -55,17 +55,17 @@ GOMAXPROCS=4, Connection=1000, CompressEnabled=false
 #### GoBench
 
 ```go
-go test -benchmem -run=^$ -bench . github.com/lxzan/gws
+# go test -benchmem -run=^$ -bench ^BenchmarkConn_ github.com/lxzan/gws
 goos: linux
 goarch: amd64
 pkg: github.com/lxzan/gws
-cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
-BenchmarkConn_WriteMessage/compress_disabled-12                  5263632               232.3 ns/op            24 B/op          1 allocs/op
-BenchmarkConn_WriteMessage/compress_enabled-12                     99663             11265 ns/op             386 B/op          1 allocs/op
-BenchmarkConn_ReadMessage/compress_disabled-12                   7809654               152.4 ns/op             8 B/op          0 allocs/op
-BenchmarkConn_ReadMessage/compress_enabled-12                     326257              3133 ns/op              81 B/op          1 allocs/op
+cpu: 13th Gen Intel(R) Core(TM) i5-13400
+BenchmarkConn_WriteMessage/compress_disabled-16                  9861134               112.3 ns/op               0 B/op          0 allocs/op
+BenchmarkConn_WriteMessage/compress_enabled-16                    163303                6729 ns/op             208 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_disabled-16                   9580408               123.4 ns/op               8 B/op          0 allocs/op
+BenchmarkConn_ReadMessage/compress_enabled-16                     572290                2097 ns/op              38 B/op          0 allocs/op
 PASS
-ok      github.com/lxzan/gws    17.231s
+ok      github.com/lxzan/gws    5.889s
 ```
 
 ### Index
