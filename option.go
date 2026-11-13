@@ -188,6 +188,9 @@ type (
 		// Maximum payload size for writing
 		WriteMaxPayloadSize int
 
+		// WriteQueueLimit caps pending async write jobs per connection. Non-positive values mean unlimited.
+		WriteQueueLimit int
+
 		// 是否启用 UTF-8 检查
 		// Whether UTF-8 check is enabled
 		CheckUtf8Enabled bool
@@ -378,6 +381,9 @@ type ClientOption struct {
 	// 写入最大负载大小
 	// Maximum payload size for writing
 	WriteMaxPayloadSize int
+
+	// WriteQueueLimit caps pending async write jobs per connection. Non-positive values mean unlimited.
+	WriteQueueLimit int
 
 	// 是否启用 UTF-8 检查
 	// Whether UTF-8 check is enabled

@@ -74,8 +74,9 @@ func (c *Conn) WriteMessage(opcode Opcode, payload []byte) error {
 // 异步非阻塞地将消息写入到任务队列, 收到回调后才允许回收payload内存
 // Write messages to the task queue asynchronously and non-blockingly,
 // allowing payload memory to be recycled only after receiving the callback
-func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) {
-	c.Async(func() {
+// If the queue is full, it returns ErrWriteQueueFull without calling the callback.
+func (c *Conn) WriteAsync(opcode Opcode, payload []byte, callback func(error)) error {
+	return c.Async(func() {
 		if err := c.WriteMessage(opcode, payload); callback != nil {
 			callback(err)
 		}
@@ -93,8 +94,9 @@ func (c *Conn) Writev(opcode Opcode, payloads ...[]byte) error {
 
 // WritevAsync 类似 WriteAsync, 区别是可以一次写入多个切片
 // It's similar to WriteAsync, except that you can write multiple slices at once.
-func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error)) {
-	c.Async(func() {
+// It follows the same queue and callback rules as WriteAsync.
+func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error)) error {
+	return c.Async(func() {
 		if err := c.Writev(opcode, payloads...); callback != nil {
 			callback(err)
 		}
@@ -106,8 +108,9 @@ func (c *Conn) WritevAsync(opcode Opcode, payloads [][]byte, callback func(error
 // 注意: 不要加入长时间阻塞的任务
 // Add the task to the send queue (concurrency 1), perform asynchronous operation.
 // Note: Don't add tasks that are blocking for a long time.
-func (c *Conn) Async(f func()) {
-	c.writeQueue.Push(f)
+// It returns ErrWriteQueueFull if the job cannot be queued.
+func (c *Conn) Async(f func()) error {
+	return c.writeQueue.Push(f)
 }
 
 // 执行写入逻辑, 注意妥善维护压缩字典
@@ -263,6 +266,7 @@ func (c *Broadcaster) writeFrame(socket *Conn, frame *bytes.Buffer) error {
 // Send a broadcast message to a client and invoke callback after the write completes.
 // Write messages to the task queue asynchronously and non-blockingly,
 // allowing payload memory to be recycled only after receiving the callback.
+// If the queue is full, it returns ErrWriteQueueFull without calling the callback.
 func (c *Broadcaster) Broadcast(socket *Conn, callback func(error)) error {
 	var idx = internal.SelectValue(socket.pd.Enabled, 1, 0)
 	var msg = c.msgs[idx]
@@ -280,17 +284,24 @@ func (c *Broadcaster) Broadcast(socket *Conn, callback func(error)) error {
 	}
 
 	atomic.AddInt64(&c.state, 1)
-	socket.writeQueue.Push(func() {
+	err := socket.Async(func() {
 		var err = c.writeFrame(socket, msg.frame)
 		socket.emitError(false, err)
 		if callback != nil {
 			callback(err)
 		}
-		if atomic.AddInt64(&c.state, -1) == 0 {
-			c.doClose()
-		}
+		c.releaseWrite()
 	})
-	return nil
+	if err != nil {
+		c.releaseWrite()
+	}
+	return err
+}
+
+func (c *Broadcaster) releaseWrite() {
+	if atomic.AddInt64(&c.state, -1) == 0 {
+		c.doClose()
+	}
 }
 
 // 释放资源

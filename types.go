@@ -78,6 +78,9 @@ var (
 	// message is too large
 	ErrMessageTooLarge = errors.New("gws: message too large")
 
+	// ErrWriteQueueFull indicates that the async write queue is full.
+	ErrWriteQueueFull = errors.New("gws: write queue full")
+
 	// ErrConnClosed 连接已关闭
 	// Connection closed
 	ErrConnClosed = net.ErrClosed

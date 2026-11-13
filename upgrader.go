@@ -241,7 +241,7 @@ func (c *Upgrader) doUpgradeFromConn(netConn net.Conn, br *bufio.Reader, r *http
 		fh:                frameHeader{},
 		handler:           c.eventHandler,
 		closed:            0,
-		writeQueue:        workerQueue{maxConcurrency: 1},
+		writeQueue:        workerQueue{maxConcurrency: 1, maxPending: c.option.WriteQueueLimit},
 		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
 

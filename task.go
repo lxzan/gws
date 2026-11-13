@@ -25,6 +25,8 @@ type (
 		// curConcurrency 当前并发数
 		// current concurrency
 		curConcurrency int32
+
+		maxPending int
 	}
 
 	// 异步任务
@@ -45,23 +47,26 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 
 // 获取一个任务
 // Retrieves a job from the worker queue
-func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
+func (c *workerQueue) getJob(newJob asyncJob, delta int32) (asyncJob, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if newJob != nil {
+		if c.maxPending > 0 && c.q.Len() >= c.maxPending {
+			return nil, ErrWriteQueueFull
+		}
 		c.q.PushBack(newJob)
 	}
 	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
-		return nil
+		return nil, nil
 	}
 	var job = c.q.PopFront()
 	if job == nil {
-		return nil
+		return nil, nil
 	}
 	c.curConcurrency++
-	return job
+	return job, nil
 }
 
 // 循环执行任务
@@ -69,16 +74,18 @@ func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 func (c *workerQueue) do(job asyncJob) {
 	for job != nil {
 		job()
-		job = c.getJob(nil, -1)
+		job, _ = c.getJob(nil, -1)
 	}
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
 // Adds a job to the queue and executes it immediately if resources are available
-func (c *workerQueue) Push(job asyncJob) {
-	if nextJob := c.getJob(job, 0); nextJob != nil {
+func (c *workerQueue) Push(job asyncJob) error {
+	nextJob, err := c.getJob(job, 0)
+	if nextJob != nil {
 		go c.do(nextJob)
 	}
+	return err
 }
 
 type channel chan struct{}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func serveWebSocket(
@@ -394,4 +396,74 @@ func TestRQueue(t *testing.T) {
 		}
 		<-done
 	})
+}
+
+func TestWriteQueueLimit(t *testing.T) {
+	upgrader := NewUpgrader(BuiltinEventHandler{}, &ServerOption{WriteQueueLimit: 1})
+	serverNet, clientNet := net.Pipe()
+	defer serverNet.Close()
+	defer clientNet.Close()
+	require.NoError(t, serverNet.SetDeadline(time.Now().Add(5*time.Second)))
+	require.NoError(t, clientNet.SetDeadline(time.Now().Add(5*time.Second)))
+
+	serverConn := make(chan *Conn, 1)
+	serverErr := make(chan error, 1)
+	go func() {
+		reader := bufio.NewReader(serverNet)
+		request, err := http.ReadRequest(reader)
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		conn, err := upgrader.UpgradeFromConn(serverNet, reader, request)
+		serverConn <- conn
+		serverErr <- err
+	}()
+	client, _, err := NewClientFromConn(BuiltinEventHandler{}, &ClientOption{
+		Addr: "ws://localhost", WriteQueueLimit: 1,
+	}, clientNet)
+	require.NoError(t, err)
+	require.NoError(t, <-serverErr)
+	server := <-serverConn
+	deadline := time.Now().Add(5 * time.Second)
+	require.NoError(t, serverNet.SetDeadline(deadline))
+	require.NoError(t, clientNet.SetDeadline(deadline))
+	testQueue := func(t *testing.T, sender, receiver *Conn) {
+		written := make(chan error, 3)
+		done := func(err error) { written <- err }
+		rejected := make(chan struct{}, 4)
+		onReject := func(error) { rejected <- struct{}{} }
+
+		require.NoError(t, sender.WriteAsync(OpcodeText, []byte("first"), done))
+		require.NoError(t, sender.WritevAsync(OpcodeText, [][]byte{[]byte("second")}, done))
+		require.ErrorIs(t, sender.WriteAsync(OpcodeText, []byte("extra"), onReject), ErrWriteQueueFull)
+		require.ErrorIs(t, sender.WritevAsync(OpcodeText, nil, onReject), ErrWriteQueueFull)
+		require.ErrorIs(t, sender.Async(func() { rejected <- struct{}{} }), ErrWriteQueueFull)
+		broadcast := NewBroadcaster(OpcodeText, []byte("broadcast"))
+		require.ErrorIs(t, broadcast.Broadcast(sender, onReject), ErrWriteQueueFull)
+		require.NoError(t, broadcast.Close())
+		require.Zero(t, atomic.LoadInt64(&broadcast.state))
+
+		read := func(want string) {
+			message, err := receiver.ReadMessage()
+			require.NoError(t, err)
+			defer message.Close()
+			require.Equal(t, want, string(message.Bytes()))
+		}
+		read("first")
+		read("second")
+		require.NoError(t, sender.WriteAsync(OpcodeText, []byte("third"), done))
+		read("third")
+		for i := 0; i < 3; i++ {
+			select {
+			case err := <-written:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("write callback did not run")
+			}
+		}
+		require.Empty(t, rejected)
+	}
+	t.Run("server", func(t *testing.T) { testQueue(t, server, client) })
+	t.Run("client", func(t *testing.T) { testQueue(t, client, server) })
 }

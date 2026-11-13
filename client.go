@@ -189,7 +189,7 @@ func (c *connector) handshake() (*Conn, *http.Response, error) {
 		handler:           c.eventHandler,
 		closed:            0,
 		deflater:          new(deflater),
-		writeQueue:        workerQueue{maxConcurrency: 1},
+		writeQueue:        workerQueue{maxConcurrency: 1, maxPending: c.option.WriteQueueLimit},
 		readQueue:         make(channel, c.option.ParallelGolimit),
 	}
 
